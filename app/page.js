@@ -1,14 +1,12 @@
+'use client';                               // phải ở dòng đầu tiên
 
-'use client';
-
-export const dynamic = 'force-dynamic';
-export const revalidate = false;
-export const fetchCache = 'force-no-store';
+export const dynamic = 'force-dynamic';     // render runtime, bỏ SSG
+export const revalidate = false;            // tắt revalidate
+export const fetchCache = 'force-no-store'; // tránh cache fetch
 
 import { useEffect, useMemo, useState } from 'react';
 import { parseVNDate, parseSlot, isSameDay } from '../lib/parse';
 import { buildICS } from '../lib/ics';
-
 
 function toYMD(d) {
   const y = d.getFullYear();
@@ -50,7 +48,6 @@ export default function Page() {
     })();
   }, []);
 
-  // lọc events theo ngày đã chọn
   const selectedDayEvents = useMemo(() => {
     const day = fromYMD(selectedDateStr);
     const out = [];
@@ -75,27 +72,18 @@ export default function Page() {
     return out.sort((a, b) => a.start - b.start);
   }, [rawItems, selectedDateStr]);
 
-  // filter search
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return selectedDayEvents;
     return selectedDayEvents.filter((e) => {
       const hay = [
-        e.title,
-        e.sessionType,
-        e.talent1,
-        e.talent2 || '',
-        e.room || '',
-        e.phone || '',
-        e.timeSlot || '',
-      ]
-        .join(' ')
-        .toLowerCase();
+        e.title, e.sessionType, e.talent1, e.talent2 || '',
+        e.room || '', e.phone || '', e.timeSlot || '',
+      ].join(' ').toLowerCase();
       return hay.includes(q);
     });
   }, [selectedDayEvents, query]);
 
-  // group 2h
   const grouped = useMemo(() => {
     const map = new Map();
     for (const e of filteredEvents) {
@@ -104,17 +92,17 @@ export default function Page() {
       map.get(key).push(e);
     }
     return Array.from(map.entries())
-      .sort(([a], [b]) => Number(a.slice(0, 2)) - Number(b.slice(0, 2)))
-.map(([bucket, items]) => ({ bucket, items }));
+.sort(([a], [b]) => Number(a.slice(0, 2)) - Number(b.slice(0, 2)))
+      .map(([bucket, items]) => ({ bucket, items }));
   }, [filteredEvents]);
 
-  // tạo file ICS
   function downloadICSForDay() {
     if (!selectedDayEvents.length) {
       alert('Không có ca cho ngày đã chọn');
       return;
     }
 
+    // nhóm theo brand/title để xác định chuỗi liên tiếp
     const byTitle = new Map();
     for (const e of selectedDayEvents) {
       if (!byTitle.has(e.title)) byTitle.set(e.title, []);
@@ -124,7 +112,7 @@ export default function Page() {
     const TOLERANCE = 5 * 60 * 1000; // 5 phút
     const entries = [];
 
-    for (const [title, arr] of byTitle.entries()) {
+    for (const arr of byTitle.values()) {
       arr.sort((a, b) => a.start - b.start);
       let prevEnd = null;
       for (const ev of arr) {
@@ -190,9 +178,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          {query && (
-            <button className="btn ghost" onClick={() => setQuery('')}>Xóa</button>
-          )}
+          {query && <button className="btn ghost" onClick={() => setQuery('')}>Xóa</button>}
         </div>
         <div className="toolbar-actions">
           <button className="btn" onClick={downloadICSForDay}>Tải lịch ngày (.ics)</button>
@@ -200,10 +186,10 @@ Nguồn: Google Sheet ${ev.rawDate}`,
       </div>
 
       {loading ? (
-        <div className="event-card"><i>Đang tải dữ liệu…</i></div>
+<div className="event-card"><i>Đang tải dữ liệu…</i></div>
       ) : grouped.length ? (
         grouped.map((g, gi) => (
-<div key={gi} className="group">
+          <div key={gi} className="group">
             <div className="group-head">{g.bucket}</div>
             {g.items.map((e, i) => (
               <div key={i} className="event-card">
