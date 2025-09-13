@@ -1,3 +1,9 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { parseVNDate, parseSlot, isSameDay } from '../lib/parse';
+import { buildICS } from '../lib/ics';
+
 function downloadICSForDay() {
   if (!selectedDayEvents.length) { alert('Không có ca cho ngày đã chọn'); return; }
 
