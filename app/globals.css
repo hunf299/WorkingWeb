@@ -1,104 +1,83 @@
-/* Reset cơ bản */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* Reset */
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5;
-  background: #f9fafb;   /* Light background */
-  color: #111827;        /* Light text */
+  background: #f9fafb;      /* light */
+  color: #111827;
 }
 
 /* Container */
-.container {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
-}
+.container { max-width: 600px; margin: 0 auto; padding: 20px; }
 
 /* Heading */
-h1 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  color: inherit;
-}
+h1 { font-size: 1.5rem; margin-bottom: 1rem; }
 
-/* Event card */
+/* Card */
 .event-card {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 16px;
   margin-bottom: 16px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
-.event-card h2 {
-  margin-bottom: 8px;
-  font-size: 1.1rem;
+/* Title to */
+.event-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: .3px;
   color: #111827;
+  margin-bottom: 6px;
+  text-transform: uppercase;
 }
 
-.event-card p {
-  margin: 4px 0;
-  font-size: 0.95rem;
-  color: #374151;
+/* Time ngay sau title: to + nổi bật */
+.event-time {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
 }
+
+/* Meta nhỏ gọn + gạch mảnh phân tách */
+.event-meta {
+  border-top: 1px solid #e5e7eb;  /* gạch mảnh */
+  padding-top: 8px;
+}
+
+.meta-line {
+  font-size: .9rem;
+  color: #374151;
+  margin: 6px 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.meta-line .sep { opacity: .6; margin: 0 6px; }
 
 /* Button */
 button {
-  background: #2563eb;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 10px 20px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background 0.2s ease-in-out;
+  background: #2563eb; color: #fff; border: none;
+  border-radius: 10px; padding: 10px 20px; font-size: 1rem;
+  cursor: pointer; transition: background .2s ease-in-out;
   display: inline-block;
 }
-
-button:hover {
-  background: #1d4ed8;
-}
-
-button:active {
-  background: #1e40af;
-}
+button:hover { background: #1d4ed8; }
+button:active { background: #1e40af; }
 
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
-  body {
-    background: #111827;
-    color: #f9fafb;
-  }
-
-  .event-card {
-    background: #1f2937;
-    border-color: #374151;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.6);
-  }
-
-  .event-card h2 {
-    color: #f9fafb;
-  }
-
-  .event-card p {
-    color: #d1d5db;
-  }
-
-  button {
-    background: #3b82f6;
-  }
-
-  button:hover {
-    background: #2563eb;
-  }
-
-  button:active {
-    background: #1d4ed8;
-  }
+  body { background: #111827; color: #f9fafb; }
+  .event-card { background: #1f2937; border-color: #374151; box-shadow: 0 1px 3px rgba(0,0,0,0.6); }
+  .event-title { color: #f9fafb; }
+  .event-time  { color: #e5e7eb; }
+  .event-meta  { border-top: 1px solid #374151; }
+  .meta-line   { color: #d1d5db; }
+  button { background: #3b82f6; }
+  button:hover { background: #2563eb; }
+  button:active { background: #1d4ed8; }
 }
