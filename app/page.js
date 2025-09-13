@@ -108,38 +108,53 @@ const key = twoHourBucket(e.start);
 
   // Tải ICS cho cả ngày (KHÔNG phụ thuộc filter)
   function downloadICSForDay() {
-    if (!selectedDayEvents.length) {
-      alert('Không có ca cho ngày đã chọn');
-      return;
-    }
-    const entries = selectedDayEvents.map(e => ({
-      title: e.title,
-      start: e.start,
-      end: e.end,
-      location: e.room,
-      desc:
-`Session type: ${e.sessionType}
-Talent: ${e.talent1}${e.talent2 ? ', ' + e.talent2 : ''}
-Room: ${e.room}
-Phone: ${e.phone}
-Time slot: ${e.timeSlot}
-Nguồn: Google Sheet ${e.rawDate}`
-    }));
-    const ics = buildICS(entries);
-    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const d = fromYMD(selectedDateStr);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    a.download = `work-${y}${m}${dd}.ics`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+  if (!selectedDayEvents.length) {
+    alert('Không có ca cho ngày đã chọn');
+    return;
   }
+  // Nhóm theo brand/title để chỉ alarm cho ca đầu chuỗi liên tiếp
+  const byTitle = new Map();
+  for (const e of selectedDayEvents) {
+    if (!byTitle.has(e.title)) byTitle.set(e.title, []);
+    byTitle.get(e.title).push(e);
+  }
+
+  const TOLERANCE = 5 * 60 * 1000; // 5 phút
+  const entries = [];
+  for (const arr of byTitle.values()) {
+    arr.sort((a,b)=>a.start-b.start);
+    let prevEnd = null;
+    for (const ev of arr) {
+      const contiguous = prevEnd && Math.abs(ev.start - prevEnd) <= TOLERANCE;
+      const hasAlarm = !contiguous; // chỉ ca đầu chuỗi mới có alarm
+      entries.push({
+        title: ev.title,
+        start: ev.start,
+        end: ev.end,
+        location: ev.room,
+        desc:
+`Session type: ${ev.sessionType}
+Talent: ${ev.talent1}${ev.talent2 ? ', ' + ev.talent2 : ''}
+Room: ${ev.room}
+Phone: ${ev.phone}
+Time slot: ${ev.timeSlot}
+Nguồn: Google Sheet ${ev.rawDate}`,
+        alarm: hasAlarm
+      });
+      prevEnd = ev.end;
+    }
+  }
+
+  const ics = buildICS(entries, 30);
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = fromYMD(selectedDateStr);
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+  a.href = url; a.download = `work-${y}${m}${dd}.ics`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
 
   return (
     <div className="container">
