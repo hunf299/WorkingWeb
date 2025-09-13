@@ -1,11 +1,12 @@
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { parseVNDate, parseSlot, isSameDay } from '../lib/parse';
 import { buildICS } from '../lib/ics';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 function toYMD(d) {
   const y = d.getFullYear();
