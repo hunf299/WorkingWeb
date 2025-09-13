@@ -1,8 +1,4 @@
-'use client';                               // phải ở dòng đầu tiên
-
-export const dynamic = 'force-dynamic';     // render runtime, bỏ SSG
-export const revalidate = false;            // tắt revalidate
-export const fetchCache = 'force-no-store'; // tránh cache fetch
+'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { parseVNDate, parseSlot, isSameDay } from '../lib/parse';
@@ -18,23 +14,27 @@ function fromYMD(s) {
   const [y, m, d] = s.split('-').map(Number);
   return new Date(y, (m || 1) - 1, d || 1, 0, 0, 0, 0);
 }
+
 function fmtHM(dt) {
   return dt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 }
+
+/** lấy nhãn bucket 2 giờ cho 1 Date (ví dụ 08:xx -> "08:00–10:00") */
 function twoHourBucket(dt) {
   const h = dt.getHours();
-  const base = Math.floor(h / 2) * 2;
+  const base = Math.floor(h / 2) * 2; // 0,2,4,...,22
   const h1 = String(base).padStart(2, '0');
   const h2 = String((base + 2) % 24).padStart(2, '0');
   return `${h1}:00–${h2}:00`;
 }
 
 export default function Page() {
-  const [rawItems, setRawItems] = useState([]);
-  const [selectedDateStr, setSelectedDateStr] = useState(toYMD(new Date()));
-  const [query, setQuery] = useState('');
+  const [rawItems, setRawItems] = useState([]);      // dữ liệu raw từ sheet
+  const [selectedDateStr, setSelectedDateStr] = useState(toYMD(new Date())); // yyyy-mm-dd
+  const [query, setQuery] = useState('');            // filter/search
   const [loading, setLoading] = useState(true);
 
+  // fetch sheet
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -48,6 +48,7 @@ export default function Page() {
     })();
   }, []);
 
+  // Chuyển rawItems -> events của ngày đang chọn (parse ngày + time slot)
   const selectedDayEvents = useMemo(() => {
     const day = fromYMD(selectedDateStr);
     const out = [];
@@ -57,7 +58,7 @@ export default function Page() {
       const slot = parseSlot(it.timeSlot, d);
       if (!slot) continue;
       out.push({
-        title: it.brandChannel,
+        title: it.brandChannel,           // Summary = brandChannel
         start: slot.start,
         end: slot.end,
         sessionType: it.sessionType,
@@ -66,86 +67,73 @@ export default function Page() {
         room: it.room,
         phone: it.phone,
         rawDate: it.rawDate,
-        timeSlot: it.timeSlot,
+        timeSlot: it.timeSlot
       });
     }
+    // sort theo start time
     return out.sort((a, b) => a.start - b.start);
   }, [rawItems, selectedDateStr]);
 
+  // Áp dụng filter/search (theo text)
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return selectedDayEvents;
-    return selectedDayEvents.filter((e) => {
+    return selectedDayEvents.filter(e => {
       const hay = [
         e.title, e.sessionType, e.talent1, e.talent2 || '',
-        e.room || '', e.phone || '', e.timeSlot || '',
+        e.room || '', e.phone || '', e.timeSlot || ''
       ].join(' ').toLowerCase();
       return hay.includes(q);
     });
   }, [selectedDayEvents, query]);
 
+  // Group theo bucket 2 giờ (dựa trên start time)
   const grouped = useMemo(() => {
     const map = new Map();
     for (const e of filteredEvents) {
-      const key = twoHourBucket(e.start);
+const key = twoHourBucket(e.start);
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(e);
     }
+    // Trả về mảng {bucket, items[]} theo thứ tự thời gian
     return Array.from(map.entries())
-.sort(([a], [b]) => Number(a.slice(0, 2)) - Number(b.slice(0, 2)))
+      .sort(([a], [b]) => {
+        // so sánh theo giờ bắt đầu của bucket
+        const ah = Number(a.slice(0, 2));
+        const bh = Number(b.slice(0, 2));
+        return ah - bh;
+      })
       .map(([bucket, items]) => ({ bucket, items }));
   }, [filteredEvents]);
 
+  // Tải ICS cho cả ngày (KHÔNG phụ thuộc filter)
   function downloadICSForDay() {
     if (!selectedDayEvents.length) {
       alert('Không có ca cho ngày đã chọn');
       return;
     }
-
-    // nhóm theo brand/title để xác định chuỗi liên tiếp
-    const byTitle = new Map();
-    for (const e of selectedDayEvents) {
-      if (!byTitle.has(e.title)) byTitle.set(e.title, []);
-      byTitle.get(e.title).push(e);
-    }
-
-    const TOLERANCE = 5 * 60 * 1000; // 5 phút
-    const entries = [];
-
-    for (const arr of byTitle.values()) {
-      arr.sort((a, b) => a.start - b.start);
-      let prevEnd = null;
-      for (const ev of arr) {
-        const contiguous = prevEnd && Math.abs(ev.start - prevEnd) <= TOLERANCE;
-        const hasAlarm = !contiguous;
-
-        entries.push({
-          title: ev.title,
-          start: ev.start,
-          end: ev.end,
-          location: ev.room,
-          desc: `Session type: ${ev.sessionType}
-Talent: ${ev.talent1}${ev.talent2 ? ', ' + ev.talent2 : ''}
-Room: ${ev.room}
-Phone: ${ev.phone}
-Time slot: ${ev.timeSlot}
-Nguồn: Google Sheet ${ev.rawDate}`,
-          alarm: hasAlarm,
-        });
-
-        prevEnd = ev.end;
-      }
-    }
-
-    const ics = buildICS(entries, 30);
+    const entries = selectedDayEvents.map(e => ({
+      title: e.title,
+      start: e.start,
+      end: e.end,
+      location: e.room,
+      desc:
+`Session type: ${e.sessionType}
+Talent: ${e.talent1}${e.talent2 ? ', ' + e.talent2 : ''}
+Room: ${e.room}
+Phone: ${e.phone}
+Time slot: ${e.timeSlot}
+Nguồn: Google Sheet ${e.rawDate}`
+    }));
+    const ics = buildICS(entries);
     const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
+    a.href = url;
     const d = fromYMD(selectedDateStr);
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
-    a.href = url;
     a.download = `work-${y}${m}${dd}.ics`;
     document.body.appendChild(a);
     a.click();
@@ -157,6 +145,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
     <div className="container">
       <h1>Lịch làm việc</h1>
 
+      {/* Toolbar: chọn ngày + tìm kiếm + nút ICS */}
       <div className="toolbar">
         <div className="toolbar-row">
           <label className="lbl" htmlFor="pick-date">Ngày</label>
@@ -165,9 +154,10 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             type="date"
             className="date-input"
             value={selectedDateStr}
-            onChange={(e) => setSelectedDateStr(e.target.value)}
+            onChange={e => setSelectedDateStr(e.target.value)}
           />
         </div>
+
         <div className="toolbar-row">
           <label className="lbl" htmlFor="q">Tìm</label>
           <input
@@ -176,20 +166,26 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             className="text-input"
             placeholder="Brand / Session / Talent / Room / Phone…"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={e => setQuery(e.target.value)}
           />
-          {query && <button className="btn ghost" onClick={() => setQuery('')}>Xóa</button>}
+          {query && (
+            <button className="btn ghost" onClick={() => setQuery('')}>Xóa</button>
+          )}
         </div>
+
         <div className="toolbar-actions">
-          <button className="btn" onClick={downloadICSForDay}>Tải lịch ngày (.ics)</button>
+          <button className="btn" onClick={downloadICSForDay}>
+            Tải lịch ngày (.ics)
+          </button>
         </div>
       </div>
 
+      {/* Danh sách nhóm theo 2h */}
       {loading ? (
-<div className="event-card"><i>Đang tải dữ liệu…</i></div>
+        <div className="event-card"><i>Đang tải dữ liệu…</i></div>
       ) : grouped.length ? (
         grouped.map((g, gi) => (
-          <div key={gi} className="group">
+<div key={gi} className="group">
             <div className="group-head">{g.bucket}</div>
             {g.items.map((e, i) => (
               <div key={i} className="event-card">
@@ -201,8 +197,12 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                     <span className="sep">|</span>
                     <span>Session type: {e.sessionType || '—'}</span>
                   </div>
-                  <div className="meta-line">🎤 <span>{e.talent1}{e.talent2 ? ', ' + e.talent2 : ''}</span></div>
-                  <div className="meta-line">☎️ <span>{e.phone || '—'}</span></div>
+                  <div className="meta-line">
+                    🎤 <span>{e.talent1}{e.talent2 ? ', ' + e.talent2 : ''}</span>
+                  </div>
+                  <div className="meta-line">
+                    ☎️ <span>{e.phone || '—'}</span>
+                  </div>
                 </div>
               </div>
             ))}
