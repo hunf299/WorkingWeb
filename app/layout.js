@@ -1,7 +1,7 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Working Calendar',
+  title: 'Work Schedule',
   description: 'Fetch từ Google Sheet → .ics cho iPhone'
 };
 
