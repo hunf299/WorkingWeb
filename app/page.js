@@ -22,14 +22,13 @@ export default function Page(){
             title: it.brandChannel,   // Summary = brandChannel
             start: slot.start,
             end: slot.end,
-            location: it.room,
-            desc:
-`Session type: ${it.sessionType}
-Talent: ${it.talent1}${it.talent2 ? ', ' + it.talent2 : ''}
-Room: ${it.room}
-Phone: ${it.phone}
-Time slot: ${it.timeSlot}
-Nguồn: Google Sheet ${it.rawDate}`
+            sessionType: it.sessionType,
+            talent1: it.talent1,
+            talent2: it.talent2,
+            room: it.room,
+            phone: it.phone,
+            rawDate: it.rawDate,
+            timeSlot: it.timeSlot
           });
         }
       }
@@ -42,7 +41,20 @@ Nguồn: Google Sheet ${it.rawDate}`
       alert('Không có ca hôm nay');
       return;
     }
-    const ics=buildICS(todayEvents);
+    const entries = todayEvents.map(e=>({
+      title: e.title,
+      start: e.start,
+      end: e.end,
+      location: e.room,
+      desc:
+`Session type: ${e.sessionType}
+Talent: ${e.talent1}${e.talent2 ? ', ' + e.talent2 : ''}
+Room: ${e.room}
+Phone: ${e.phone}
+Time slot: ${e.timeSlot}
+Nguồn: Google Sheet ${e.rawDate}`
+    }));
+    const ics=buildICS(entries);
     const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
@@ -58,24 +70,24 @@ Nguồn: Google Sheet ${it.rawDate}`
   }
 
   return (
-    <div style={{padding:20,maxWidth:600,margin:"0 auto"}}>
+    <div className="container">
       <h1>Lịch hôm nay ({today.toLocaleDateString('vi-VN')})</h1>
+
       {todayEvents.length?(
         <>
-          <ul>
-            {todayEvents.map((e,i)=>(
-              <li key={i} style={{marginBottom:10}}>
-                <b>{e.title}</b> ⏰ {e.start.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})}
-                – {e.end.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})}
-                <br/>
-                <small>📍 {e.location} | {e.desc.split('\n')[0]}</small>
-              </li>
-            ))}
-          </ul>
-          <button
-            onClick={downloadICS}
-            style={{padding:'10px 20px',fontSize:16,marginTop:10,cursor:'pointer'}}
-          >
+          {todayEvents.map((e,i)=>(
+            <div key={i} className="event-card">
+              <h2>{e.title}</h2>
+              <p><b>Session type:</b> {e.sessionType}</p>
+              <p><b>Thời gian:</b> {e.start.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})}
+                – {e.end.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})}</p>
+              <p><b>Talent:</b> {e.talent1}{e.talent2 ? ', ' + e.talent2 : ''}</p>
+              <p><b>Room:</b> {e.room}</p>
+              <p><b>Phone:</b> {e.phone}</p>
+            </div>
+          ))}
+
+          <button onClick={downloadICS}>
             Tải lịch hôm nay (.ics)
           </button>
         </>
