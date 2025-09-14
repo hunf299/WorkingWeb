@@ -5,16 +5,6 @@ import { google } from 'googleapis';
 import { parseVNDate, parseSlot, isSameDay } from '../../../lib/parse';
 import { NextResponse } from 'next/server';
 
-export async function GET(req) {
-  // (tuỳ chọn) kiểm tra CRON_SECRET
-  const auth = req.headers.get('authorization') || '';
-  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new NextResponse('Unauthorized', { status: 401 });
-  }
-
-  return NextResponse.json({ ok: true });
-}
-
 /* ---------- Helpers ---------- */
 
 const TZ = 'Asia/Ho_Chi_Minh';
