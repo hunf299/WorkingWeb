@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { parseVNDate, parseSlot, isSameDay } from '../lib/parse';
+import { parseSlot } from '../lib/parse';
 import { buildICS } from '../lib/ics';
 
 function toYMD(d) {
@@ -13,6 +13,32 @@ function toYMD(d) {
 function fromYMD(s) {
   const [y, m, d] = s.split('-').map(Number);
   return new Date(y, (m || 1) - 1, d || 1, 0, 0, 0, 0);
+}
+
+function rawDateToYMD(rawDate) {
+  if (!rawDate) return null;
+  const normalized = rawDate.trim();
+  let d, m, y;
+  if (normalized.includes('/')) {
+    const parts = normalized.split('/').map(p => p.trim());
+    if (parts.length !== 3) return null;
+    [d, m, y] = parts;
+  } else if (normalized.includes('-')) {
+    const parts = normalized.split('-').map(p => p.trim());
+    if (parts.length !== 3) return null;
+    if (parts[0].length === 4) {
+      [y, m, d] = parts;
+    } else {
+      [d, m, y] = parts;
+    }
+  } else {
+    return null;
+  }
+  if (!d || !m || !y) return null;
+  const dd = d.padStart(2, '0');
+  const mm = m.padStart(2, '0');
+  const yyyy = y.padStart(4, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function fmtHM(dt) {
@@ -28,9 +54,25 @@ function twoHourBucket(dt) {
   return `${h1}:00–${h2}:00`;
 }
 
+function groupEventsByBucket(events) {
+  const map = new Map();
+  for (const e of events) {
+    const key = twoHourBucket(e.start);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(e);
+  }
+  return Array.from(map.entries())
+    .sort(([a], [b]) => Number(a.slice(0, 2)) - Number(b.slice(0, 2)))
+    .map(([bucket, items]) => ({
+      bucket,
+      items: items.slice().sort((a, b) => a.start - b.start)
+    }));
+}
+
 export default function Page() {
   const [rawItems, setRawItems] = useState([]);      // dữ liệu raw từ sheet
   const [selectedDateStr, setSelectedDateStr] = useState(toYMD(new Date())); // yyyy-mm-dd
+  const [daysToShow, setDaysToShow] = useState(1);   // số ngày hiển thị bắt đầu từ ngày chọn
   const [query, setQuery] = useState('');            // filter/search
   const [loading, setLoading] = useState(true);
 
@@ -48,14 +90,23 @@ export default function Page() {
     })();
   }, []);
 
-  // Chuyển rawItems -> events của ngày đang chọn (parse ngày + time slot)
+  // Chuyển rawItems -> events của các ngày đang chọn (parse ngày + time slot)
   const selectedDayEvents = useMemo(() => {
-    const day = fromYMD(selectedDateStr);
+    const startDay = fromYMD(selectedDateStr);
+    const rangeMap = new Map();
+    const rangeLength = Math.max(1, daysToShow);
+    for (let i = 0; i < rangeLength; i++) {
+      const d = new Date(startDay);
+      d.setDate(d.getDate() + i);
+      rangeMap.set(toYMD(d), d);
+    }
     const out = [];
     for (const it of rawItems) {
-      const d = parseVNDate(it.rawDate);
-      if (!d || !isSameDay(d, day)) continue;
-      const slot = parseSlot(it.timeSlot, d);
+      const dateKey = rawDateToYMD(it.rawDate);
+      if (!dateKey) continue;
+      const matchedDay = rangeMap.get(dateKey);
+      if (!matchedDay) continue;
+      const slot = parseSlot(it.timeSlot, matchedDay);
       if (!slot) continue;
       out.push({
         title: it.brandChannel,           // Summary = brandChannel
@@ -67,12 +118,19 @@ export default function Page() {
         room: it.room,
         coor: it.coor,
         rawDate: it.rawDate,
-        timeSlot: it.timeSlot
+        timeSlot: it.timeSlot,
+        date: matchedDay,
+        dateKey,
+        dateLabel: matchedDay.toLocaleDateString('vi-VN', {
+          weekday: 'short',
+          day: '2-digit',
+          month: '2-digit'
+        })
       });
     }
     // sort theo start time
     return out.sort((a, b) => a.start - b.start);
-  }, [rawItems, selectedDateStr]);
+  }, [rawItems, selectedDateStr, daysToShow]);
 
   // Áp dụng filter/search (theo text)
   const filteredEvents = useMemo(() => {
@@ -81,30 +139,39 @@ export default function Page() {
     return selectedDayEvents.filter(e => {
       const hay = [
         e.title, e.sessionType, e.talent1, e.talent2 || '',
-        e.room || '', e.coor || '', e.timeSlot || ''
+        e.room || '', e.coor || '', e.timeSlot || '', e.dateLabel
       ].join(' ').toLowerCase();
       return hay.includes(q);
     });
   }, [selectedDayEvents, query]);
 
   // Group theo bucket 2 giờ (dựa trên start time)
-  const grouped = useMemo(() => {
-    const map = new Map();
+  const groupedSingleDay = useMemo(() => {
+    if (daysToShow > 1) return [];
+    return groupEventsByBucket(filteredEvents);
+  }, [filteredEvents, daysToShow]);
+
+  const groupedMultipleDays = useMemo(() => {
+    if (daysToShow <= 1) return [];
+    const dayMap = new Map();
     for (const e of filteredEvents) {
-const key = twoHourBucket(e.start);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(e);
+      if (!dayMap.has(e.dateKey)) {
+        dayMap.set(e.dateKey, {
+          date: e.date,
+          label: e.dateLabel,
+          events: []
+        });
+      }
+      dayMap.get(e.dateKey).events.push(e);
     }
-    // Trả về mảng {bucket, items[]} theo thứ tự thời gian
-    return Array.from(map.entries())
-      .sort(([a], [b]) => {
-        // so sánh theo giờ bắt đầu của bucket
-        const ah = Number(a.slice(0, 2));
-        const bh = Number(b.slice(0, 2));
-        return ah - bh;
-      })
-      .map(([bucket, items]) => ({ bucket, items }));
-  }, [filteredEvents]);
+    return Array.from(dayMap.values())
+      .sort((a, b) => a.date - b.date)
+      .map(day => ({
+        dayKey: toYMD(day.date),
+        dayLabel: day.label,
+        buckets: groupEventsByBucket(day.events)
+      }));
+  }, [filteredEvents, daysToShow]);
 
   // Tải ICS cho các ca đang hiển thị (áp dụng filter hiện tại)
   function downloadICSForDay() {
@@ -151,7 +218,8 @@ Nguồn: Google Sheet ${ev.rawDate}`,
     const a = document.createElement('a');
     const d = fromYMD(selectedDateStr);
     const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
-    a.href = url; a.download = `work-${y}${m}${dd}.ics`;
+    const suffix = daysToShow > 1 ? `-${String(daysToShow)}d` : '';
+    a.href = url; a.download = `work-${y}${m}${dd}${suffix}.ics`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   }
@@ -174,6 +242,22 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         </div>
 
         <div className="toolbar-row">
+          <label className="lbl" htmlFor="days-to-show">Số ngày</label>
+          <select
+            id="days-to-show"
+            className="date-input"
+            value={daysToShow}
+            onChange={e => setDaysToShow(Math.max(1, Number(e.target.value) || 1))}
+          >
+            {[1, 2, 3, 4, 5, 6, 7].map(n => (
+              <option key={n} value={n}>
+                {n} ngày
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="toolbar-row">
           <label className="lbl" htmlFor="q">Tìm</label>
           <input
             id="q"
@@ -190,7 +274,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
 
         <div className="toolbar-actions">
           <button className="btn" onClick={downloadICSForDay}>
-            Tải lịch ngày (.ics)
+            Tải lịch đang xem (.ics)
           </button>
         </div>
       </div>
@@ -198,9 +282,45 @@ Nguồn: Google Sheet ${ev.rawDate}`,
       {/* Danh sách nhóm theo 2h */}
       {loading ? (
         <div className="event-card"><i>Đang tải dữ liệu…</i></div>
-      ) : grouped.length ? (
-        grouped.map((g, gi) => (
-<div key={gi} className="group">
+      ) : daysToShow > 1 ? (
+        groupedMultipleDays.length ? (
+          groupedMultipleDays.map(day => (
+            <div key={day.dayKey} className="day-section">
+              <div className="day-head">{day.dayLabel}</div>
+              {day.buckets.map(g => (
+                <div key={g.bucket} className="group">
+                  <div className="group-head">{g.bucket}</div>
+                  {g.items.map((e, i) => (
+                    <div key={i} className="event-card">
+                      <h2 className="event-title">{e.title}</h2>
+                      <div className="event-time">⏰ {fmtHM(e.start)}–{fmtHM(e.end)}</div>
+                      <div className="event-date">📅 {e.dateLabel}</div>
+                      <div className="event-meta">
+                        <div className="meta-line">
+                          📍 <span>{e.room || '—'}</span>
+                        </div>
+                        <div className="meta-line">
+                          📝 <span>Session type: {e.sessionType || '—'}</span>
+                        </div>
+                        <div className="meta-line">
+                          🎤 <span>{e.talent1}{e.talent2 ? ', ' + e.talent2 : ''}</span>
+                        </div>
+                        <div className="meta-line">
+                          🖥️ <span>{e.coor || '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ))
+        ) : (
+          <p>Không có sự kiện trong khoảng ngày này.</p>
+        )
+      ) : groupedSingleDay.length ? (
+        groupedSingleDay.map(g => (
+          <div key={g.bucket} className="group">
             <div className="group-head">{g.bucket}</div>
             {g.items.map((e, i) => (
               <div key={i} className="event-card">
@@ -222,10 +342,10 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 </div>
               </div>
             ))}
-</div>
+          </div>
         ))
       ) : (
-          <p>Không có sự kiện cho ngày này.</p>
+        <p>Không có sự kiện cho ngày này.</p>
       )}
     </div>
   );
