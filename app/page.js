@@ -106,55 +106,55 @@ const key = twoHourBucket(e.start);
       .map(([bucket, items]) => ({ bucket, items }));
   }, [filteredEvents]);
 
-  // Tải ICS cho cả ngày (KHÔNG phụ thuộc filter)
+  // Tải ICS cho các ca đang hiển thị (áp dụng filter hiện tại)
   function downloadICSForDay() {
-  if (!selectedDayEvents.length) {
-    alert('Không có ca cho ngày đã chọn');
-    return;
-  }
-  // Nhóm theo brand/title để chỉ alarm cho ca đầu chuỗi liên tiếp
-  const byTitle = new Map();
-  for (const e of selectedDayEvents) {
-    if (!byTitle.has(e.title)) byTitle.set(e.title, []);
-    byTitle.get(e.title).push(e);
-  }
+    if (!filteredEvents.length) {
+      alert('Không có ca nào khớp với bộ lọc hiện tại');
+      return;
+    }
+    // Nhóm theo brand/title để chỉ alarm cho ca đầu chuỗi liên tiếp
+    const byTitle = new Map();
+    for (const e of filteredEvents) {
+      if (!byTitle.has(e.title)) byTitle.set(e.title, []);
+      byTitle.get(e.title).push(e);
+    }
 
-  const TOLERANCE = 5 * 60 * 1000; // 5 phút
-  const entries = [];
-  for (const arr of byTitle.values()) {
-    arr.sort((a,b)=>a.start-b.start);
-    let prevEnd = null;
-    for (const ev of arr) {
-      const contiguous = prevEnd && Math.abs(ev.start - prevEnd) <= TOLERANCE;
-      const hasAlarm = !contiguous; // chỉ ca đầu chuỗi mới có alarm
-      entries.push({
-        title: ev.title,
-        start: ev.start,
-        end: ev.end,
-        location: ev.room,
-        desc:
+    const TOLERANCE = 5 * 60 * 1000; // 5 phút
+    const entries = [];
+    for (const arr of byTitle.values()) {
+      arr.sort((a,b)=>a.start-b.start);
+      let prevEnd = null;
+      for (const ev of arr) {
+        const contiguous = prevEnd && Math.abs(ev.start - prevEnd) <= TOLERANCE;
+        const hasAlarm = !contiguous; // chỉ ca đầu chuỗi mới có alarm
+        entries.push({
+          title: ev.title,
+          start: ev.start,
+          end: ev.end,
+          location: ev.room,
+          desc:
 `Session type: ${ev.sessionType}
 Talent: ${ev.talent1}${ev.talent2 ? ', ' + ev.talent2 : ''}
 Room: ${ev.room}
 Coordinator: ${ev.coor}
 Time slot: ${ev.timeSlot}
 Nguồn: Google Sheet ${ev.rawDate}`,
-        alarm: hasAlarm
-      });
-      prevEnd = ev.end;
+          alarm: hasAlarm
+        });
+        prevEnd = ev.end;
+      }
     }
-  }
 
-  const ics = buildICS(entries, 30);
-  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const d = fromYMD(selectedDateStr);
-  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
-  a.href = url; a.download = `work-${y}${m}${dd}.ics`;
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
-}
+    const ics = buildICS(entries, 30);
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const d = fromYMD(selectedDateStr);
+    const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+    a.href = url; a.download = `work-${y}${m}${dd}.ics`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="container">
