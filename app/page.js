@@ -54,6 +54,17 @@ function twoHourBucket(dt) {
   return `${h1}:00–${h2}:00`;
 }
 
+const DAY_RANGE_OPTIONS = [
+  1, 2, 3, 4, 5, 6, 7, 15, 30
+].map(n => ({
+  value: n,
+  label: n === 1
+    ? '1 ngày'
+    : n === 30
+      ? '1 tháng (30 ngày)'
+      : `${n} ngày`
+}));
+
 function groupEventsByBucket(events) {
   const map = new Map();
   for (const e of events) {
@@ -249,9 +260,9 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             value={daysToShow}
             onChange={e => setDaysToShow(Math.max(1, Number(e.target.value) || 1))}
           >
-            {[1, 2, 3, 4, 5, 6, 7].map(n => (
-              <option key={n} value={n}>
-                {n} ngày
+            {DAY_RANGE_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
               </option>
             ))}
           </select>
