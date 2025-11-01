@@ -65,7 +65,7 @@ export default function Page() {
         talent1: it.talent1,
         talent2: it.talent2,
         room: it.room,
-        phone: it.phone,
+        coor: it.coor,
         rawDate: it.rawDate,
         timeSlot: it.timeSlot
       });
@@ -81,7 +81,7 @@ export default function Page() {
     return selectedDayEvents.filter(e => {
       const hay = [
         e.title, e.sessionType, e.talent1, e.talent2 || '',
-        e.room || '', e.phone || '', e.timeSlot || ''
+        e.room || '', e.coor || '', e.timeSlot || ''
       ].join(' ').toLowerCase();
       return hay.includes(q);
     });
@@ -136,7 +136,7 @@ const key = twoHourBucket(e.start);
 `Session type: ${ev.sessionType}
 Talent: ${ev.talent1}${ev.talent2 ? ', ' + ev.talent2 : ''}
 Room: ${ev.room}
-Phone: ${ev.phone}
+Coordinator: ${ev.coor}
 Time slot: ${ev.timeSlot}
 Nguồn: Google Sheet ${ev.rawDate}`,
         alarm: hasAlarm
@@ -179,7 +179,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             id="q"
             type="text"
             className="text-input"
-            placeholder="Brand / Session / Talent / Room / Phone…"
+            placeholder="Brand / Session / Talent / Room / Coordinator…"
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
@@ -209,22 +209,23 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 <div className="event-meta">
                   <div className="meta-line">
                     📍 <span>{e.room || '—'}</span>
-                    <span className="sep">|</span>
-                    <span>Session type: {e.sessionType || '—'}</span>
+                  </div>
+                  <div className="meta-line">
+                    📝 <span>Session type: {e.sessionType || '—'}</span>
                   </div>
                   <div className="meta-line">
                     🎤 <span>{e.talent1}{e.talent2 ? ', ' + e.talent2 : ''}</span>
                   </div>
                   <div className="meta-line">
-                    ☎️ <span>{e.phone || '—'}</span>
+                    🖥️ <span>{e.coor || '—'}</span>
                   </div>
                 </div>
               </div>
             ))}
-          </div>
+</div>
         ))
       ) : (
-        <p>Không có sự kiện cho ngày này.</p>
+          <p>Không có sự kiện cho ngày này.</p>
       )}
     </div>
   );

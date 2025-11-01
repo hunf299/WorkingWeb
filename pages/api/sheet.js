@@ -11,9 +11,10 @@ export default async function handler(req, res) {
         timeSlot: r[3] || '',
         talent1: r[4] || '',
         talent2: r[5] || '',
-        room: r[6] || '',
-        phone: r[7] || ''
+        coor: `${r[6] || ''} - ${r[7] || ''}`,
+        room: `${r[8] || ''} - ${r[9] || ''} - ${r[10] || ''}`
     }));
     res.status(200).json({ items });
+    console.log(url);
 }
 
