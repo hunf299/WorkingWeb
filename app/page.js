@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { parseSlot } from '../lib/parse';
 import { buildICS } from '../lib/ics';
 import { supabase } from '../lib/supabase';
@@ -94,6 +94,11 @@ export default function Page() {
   const [trialUser, setTrialUser] = useState(null);
   const [fingerprint, setFingerprint] = useState(null);
   const [hasAppliedLoginSearch, setHasAppliedLoginSearch] = useState(false);
+  const [shouldFetchSuggestions, setShouldFetchSuggestions] = useState(false);
+  const [nameSuggestions, setNameSuggestions] = useState([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const suggestionTimerRef = useRef(null);
+  const lastSuggestionQueryRef = useRef('');
 
   // fetch sheet
   useEffect(() => {
@@ -179,17 +184,6 @@ export default function Page() {
     }
   }, [trialUser, hasAppliedLoginSearch]);
 
-  function normalizeName(value) {
-    const raw = `${value ?? ''}`;
-    const normalizedForm = typeof raw.normalize === 'function'
-      ? raw.normalize('NFKC')
-      : raw;
-    return normalizedForm
-      .trim()
-      .replace(/\s+/g, ' ')
-      .toLowerCase();
-  }
-
   async function handleLoginSubmit(e) {
     e.preventDefault();
     const name = nameInput.trim();
@@ -198,30 +192,10 @@ export default function Page() {
       return;
     }
     setLoginError('');
+    setShouldFetchSuggestions(false);
+    setNameSuggestions([]);
     setLoggingIn(true);
     try {
-      const normalized = normalizeName(name);
-      const { data: existing, error: lookupError } = await supabase
-        .from('users_trial')
-        .select('id')
-        .eq('name_norm', normalized)
-        .limit(1)
-        .maybeSingle();
-
-      if (lookupError) {
-        throw lookupError;
-      }
-
-      if (!existing) {
-        setTrialUser(null);
-        setShowLoginModal(true);
-        if (typeof window !== 'undefined') {
-          window.localStorage.removeItem('trial_user');
-        }
-        setLoginError('Tên không tồn tại trong hệ thống. Vui lòng nhập lại.');
-        return;
-      }
-
       const payload = { p_name: name };
       if (fingerprint) {
         payload.p_fp = fingerprint;
@@ -234,18 +208,38 @@ export default function Page() {
       if (!response) {
         throw new Error('Không nhận được phản hồi từ máy chủ.');
       }
+      const { status } = response || {};
+      const knownStatuses = ['active', 'expired', 'blocked'];
+      if (!knownStatuses.includes(status)) {
+        setHasAppliedLoginSearch(false);
+        setTrialUser(null);
+        setNameInput(name);
+        setShowLoginModal(true);
+        setLoginError('Tên không tồn tại trong hệ thống. Vui lòng nhập lại.');
+        setShouldFetchSuggestions(true);
+        return;
+      }
+
       setHasAppliedLoginSearch(false);
       setTrialUser(response);
       setNameInput(response.name || name);
-      if (response.status === 'active') {
+      if (status === 'active') {
         setShowLoginModal(false);
+        setShouldFetchSuggestions(false);
+        setNameSuggestions([]);
+        setLoginError('');
       } else {
         setShowLoginModal(true);
-        if (response.status === 'expired') {
-          setLoginError('Thời gian dùng thử đã hết. Vui lòng liên hệ để gia hạn.');
-        } else if (response.status === 'blocked') {
-          setLoginError('Tài khoản của bạn đã bị chặn.');
+        let message = '';
+        if (status === 'expired') {
+          message = 'Thời gian dùng thử đã hết. Vui lòng liên hệ để gia hạn.';
+        } else if (status === 'blocked') {
+          message = 'Tài khoản của bạn đã bị chặn.';
+        } else {
+          message = 'Tên không tồn tại trong hệ thống. Vui lòng nhập lại.';
         }
+        setLoginError(message);
+        setShouldFetchSuggestions(true);
       }
     } catch (err) {
       console.error(err);
@@ -255,11 +249,80 @@ export default function Page() {
       const friendlyMessage = /permission denied/i.test(message)
         ? 'Không thể xác minh tên ở thời điểm hiện tại. Vui lòng thử lại sau.'
         : message;
-      setLoginError(friendlyMessage || 'Đăng nhập thất bại.');
+      const finalMessage = friendlyMessage || 'Đăng nhập thất bại.';
+      setLoginError(finalMessage);
+      setShowLoginModal(true);
+      if (/không tồn tại/i.test(finalMessage) || /not\s+found/i.test(finalMessage)) {
+        setShouldFetchSuggestions(true);
+        setTrialUser(null);
+      }
     } finally {
       setLoggingIn(false);
     }
   }
+
+  useEffect(() => {
+    if (!shouldFetchSuggestions) {
+      setNameSuggestions([]);
+      lastSuggestionQueryRef.current = '';
+      if (suggestionTimerRef.current) {
+        clearTimeout(suggestionTimerRef.current);
+        suggestionTimerRef.current = null;
+      }
+      return;
+    }
+
+    const query = nameInput.trim();
+    if (!query) {
+      setNameSuggestions([]);
+      return;
+    }
+
+    if (suggestionTimerRef.current) {
+      clearTimeout(suggestionTimerRef.current);
+    }
+
+    suggestionTimerRef.current = setTimeout(() => {
+      if (lastSuggestionQueryRef.current === query) {
+        return;
+      }
+      lastSuggestionQueryRef.current = query;
+      setSuggestionsLoading(true);
+      supabase
+        .rpc('suggest_user_names', { p_query: query, p_limit: 2 })
+        .then(({ data, error }) => {
+          if (error) {
+            throw error;
+          }
+          const items = Array.isArray(data)
+            ? data
+            : [];
+          const names = items
+            .map(item => {
+              if (!item) return null;
+              if (typeof item === 'string') return item;
+              if (typeof item.name === 'string') return item.name;
+              return null;
+            })
+            .filter(Boolean);
+          setNameSuggestions(names);
+        })
+        .catch(err => {
+          console.error('suggest_user_names failed', err);
+          lastSuggestionQueryRef.current = '';
+        })
+        .finally(() => {
+          setSuggestionsLoading(false);
+        });
+    }, 300);
+
+    return () => {
+      if (suggestionTimerRef.current) {
+        clearTimeout(suggestionTimerRef.current);
+        suggestionTimerRef.current = null;
+      }
+    };
+  }, [nameInput, shouldFetchSuggestions]);
 
   const isActiveUser = trialUser?.status === 'active';
   const trialInfo = useMemo(() => {
@@ -550,10 +613,38 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 disabled={loggingIn}
               />
               <button className="btn" type="submit" disabled={loggingIn}>
-                {loggingIn ? 'Đang xử lý…' : 'Tiếp tục'}
+                {loggingIn ? 'Đang xử lý…' : 'Xác thực'}
               </button>
             </form>
             {loginError && <div className="modal-error">{loginError}</div>}
+            {shouldFetchSuggestions && nameSuggestions.length > 0 && (
+              <div className="modal-suggestions">
+                <div className="modal-suggestions-title">Có phải bạn muốn:</div>
+                <div className="modal-suggestions-list">
+                  {nameSuggestions.map(s => (
+                    <button
+                      type="button"
+                      key={s}
+                      className="modal-suggestion"
+                      onClick={() => {
+                        setNameInput(s);
+                        setShouldFetchSuggestions(false);
+                        setNameSuggestions([]);
+                        setLoginError('');
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {shouldFetchSuggestions && suggestionsLoading && nameSuggestions.length === 0 && (
+              <div className="modal-suggestions modal-suggestions--loading">Đang tìm gợi ý…</div>
+            )}
+            {shouldFetchSuggestions && !suggestionsLoading && nameSuggestions.length === 0 && nameInput.trim() && (
+              <div className="modal-suggestions modal-suggestions--empty">Không tìm thấy gợi ý phù hợp.</div>
+            )}
             {trialUser && trialUser.status !== 'active' && trialUser.status !== 'blocked' && trialUser.status !== 'expired' && (
               <div className="modal-hint">Trạng thái: {trialUser.status}</div>
             )}
