@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { parseSlot } from '../lib/parse';
 import { buildICS } from '../lib/ics';
-import { supabase } from '../lib/supabase';
 
 function toYMD(d) {
   const y = d.getFullYear();
@@ -92,7 +91,6 @@ export default function Page() {
   const [loginError, setLoginError] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
   const [trialUser, setTrialUser] = useState(null);
-  const [fingerprint, setFingerprint] = useState(null);
   const [hasAppliedLoginSearch, setHasAppliedLoginSearch] = useState(false);
   const [shouldFetchSuggestions, setShouldFetchSuggestions] = useState(false);
   const [nameSuggestions, setNameSuggestions] = useState([]);
@@ -112,38 +110,6 @@ export default function Page() {
         setLoading(false);
       }
     })();
-  }, []);
-
-  // Lấy fingerprint đơn giản của trình duyệt cho RPC
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    let mounted = true;
-    async function computeFingerprint() {
-      const base = [
-        navigator.userAgent || '',
-        window.screen ? `${window.screen.width}x${window.screen.height}` : '',
-        Intl.DateTimeFormat().resolvedOptions().timeZone || '',
-        navigator.language || ''
-      ].join('|');
-      if (window.crypto?.subtle && window.TextEncoder) {
-        try {
-          const encoder = new TextEncoder();
-          const data = encoder.encode(base);
-          const digest = await window.crypto.subtle.digest('SHA-256', data);
-          const hashArray = Array.from(new Uint8Array(digest));
-          const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-          if (mounted) setFingerprint(hashHex);
-          return;
-        } catch (err) {
-          console.warn('Fingerprint hash failed, falling back to raw string', err);
-        }
-      }
-      if (mounted) setFingerprint(base);
-    }
-    computeFingerprint();
-    return () => {
-      mounted = false;
-    };
   }, []);
 
   // Đọc trạng thái đăng nhập từ localStorage (nếu có)
@@ -194,53 +160,56 @@ export default function Page() {
     setLoginError('');
     setShouldFetchSuggestions(false);
     setNameSuggestions([]);
+    setNameInput(name);
     setLoggingIn(true);
     try {
-      const payload = { p_name: name };
-      if (fingerprint) {
-        payload.p_fp = fingerprint;
+      const res = await fetch('/api/login-by-name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      const response = await res.json();
+      if (!res.ok) {
+        const errorMessage = typeof response?.error === 'string'
+          ? response.error
+          : 'Đăng nhập thất bại.';
+        throw new Error(errorMessage);
       }
-      const { data, error } = await supabase.rpc('ensure_user_and_status', payload);
-      if (error) {
-        throw error;
-      }
-      const response = Array.isArray(data) ? data[0] : data;
-      if (!response) {
-        throw new Error('Không nhận được phản hồi từ máy chủ.');
-      }
-      const { status } = response || {};
-      const knownStatuses = ['active', 'expired', 'blocked'];
-      if (!knownStatuses.includes(status)) {
-        setHasAppliedLoginSearch(false);
-        setTrialUser(null);
-        setNameInput(name);
-        setShowLoginModal(true);
-        setLoginError('Tên không tồn tại trong hệ thống. Vui lòng nhập lại.');
-        setShouldFetchSuggestions(true);
-        return;
+
+      const status = response?.status;
+      if (!status) {
+        throw new Error('Đăng nhập thất bại.');
       }
 
       setHasAppliedLoginSearch(false);
-      setTrialUser(response);
-      setNameInput(response.name || name);
+
       if (status === 'active') {
+        setTrialUser(response);
+        setNameInput(response.name || name);
         setShowLoginModal(false);
         setShouldFetchSuggestions(false);
         setNameSuggestions([]);
         setLoginError('');
-      } else {
-        setShowLoginModal(true);
-        let message = '';
-        if (status === 'expired') {
-          message = 'Thời gian dùng thử đã hết. Vui lòng liên hệ để gia hạn.';
-        } else if (status === 'blocked') {
-          message = 'Tài khoản của bạn đã bị chặn.';
-        } else {
-          message = 'Tên không tồn tại trong hệ thống. Vui lòng nhập lại.';
-        }
-        setLoginError(message);
-        setShouldFetchSuggestions(true);
+        return;
       }
+
+      if (status === 'expired') {
+        setTrialUser(response);
+        setNameInput(response.name || name);
+        setLoginError('Thời gian dùng thử đã hết. Vui lòng liên hệ để gia hạn.');
+      } else if (status === 'blocked') {
+        setTrialUser({ status: 'blocked', name });
+        setLoginError('Tài khoản của bạn đã bị chặn.');
+      } else if (status === 'not_found') {
+        setTrialUser(null);
+        setLoginError(response?.message || 'Tên không tồn tại, vui lòng nhập lại.');
+      } else {
+        setTrialUser(null);
+        setLoginError('Đăng nhập thất bại.');
+      }
+
+      setShowLoginModal(true);
+      setShouldFetchSuggestions(['blocked', 'expired', 'not_found'].includes(status));
     } catch (err) {
       console.error(err);
       const message = typeof err?.message === 'string'
@@ -288,27 +257,16 @@ export default function Page() {
       }
       lastSuggestionQueryRef.current = query;
       setSuggestionsLoading(true);
-      supabase
-        .rpc('suggest_user_names', { p_query: query, p_limit: 2 })
-        .then(({ data, error }) => {
-          if (error) {
-            throw error;
-          }
-          const items = Array.isArray(data)
-            ? data
+      fetch(`/api/suggest-names?q=${encodeURIComponent(query)}&limit=2`)
+        .then(res => res.json())
+        .then(data => {
+          const names = Array.isArray(data?.suggestions)
+            ? data.suggestions.filter(item => typeof item === 'string' && item.trim().length > 0)
             : [];
-          const names = items
-            .map(item => {
-              if (!item) return null;
-              if (typeof item === 'string') return item;
-              if (typeof item.name === 'string') return item.name;
-              return null;
-            })
-            .filter(Boolean);
           setNameSuggestions(names);
         })
         .catch(err => {
-          console.error('suggest_user_names failed', err);
+          console.error('suggest-names failed', err);
           lastSuggestionQueryRef.current = '';
         })
         .finally(() => {
