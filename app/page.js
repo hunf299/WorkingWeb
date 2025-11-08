@@ -179,6 +179,17 @@ export default function Page() {
     }
   }, [trialUser, hasAppliedLoginSearch]);
 
+  function normalizeName(value) {
+    const raw = `${value ?? ''}`;
+    const normalizedForm = typeof raw.normalize === 'function'
+      ? raw.normalize('NFKC')
+      : raw;
+    return normalizedForm
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+  }
+
   async function handleLoginSubmit(e) {
     e.preventDefault();
     const name = nameInput.trim();
@@ -189,6 +200,28 @@ export default function Page() {
     setLoginError('');
     setLoggingIn(true);
     try {
+      const normalized = normalizeName(name);
+      const { data: existing, error: lookupError } = await supabase
+        .from('users_trial')
+        .select('id')
+        .eq('name_norm', normalized)
+        .limit(1)
+        .maybeSingle();
+
+      if (lookupError) {
+        throw lookupError;
+      }
+
+      if (!existing) {
+        setTrialUser(null);
+        setShowLoginModal(true);
+        if (typeof window !== 'undefined') {
+          window.localStorage.removeItem('trial_user');
+        }
+        setLoginError('Tên không tồn tại trong hệ thống. Vui lòng nhập lại.');
+        return;
+      }
+
       const payload = { p_name: name };
       if (fingerprint) {
         payload.p_fp = fingerprint;
@@ -216,7 +249,13 @@ export default function Page() {
       }
     } catch (err) {
       console.error(err);
-      setLoginError(err.message || 'Đăng nhập thất bại.');
+      const message = typeof err?.message === 'string'
+        ? err.message
+        : 'Đăng nhập thất bại.';
+      const friendlyMessage = /permission denied/i.test(message)
+        ? 'Không thể xác minh tên ở thời điểm hiện tại. Vui lòng thử lại sau.'
+        : message;
+      setLoginError(friendlyMessage || 'Đăng nhập thất bại.');
     } finally {
       setLoggingIn(false);
     }
