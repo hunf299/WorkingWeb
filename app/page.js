@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { parseSlot } from '../lib/parse';
 import { buildICS } from '../lib/ics';
+import { supabase } from '../lib/supabase';
 
 function toYMD(d) {
   const y = d.getFullYear();
@@ -86,6 +87,13 @@ export default function Page() {
   const [daysToShow, setDaysToShow] = useState(1);   // số ngày hiển thị bắt đầu từ ngày chọn
   const [query, setQuery] = useState('');            // filter/search
   const [loading, setLoading] = useState(true);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [trialUser, setTrialUser] = useState(null);
+  const [fingerprint, setFingerprint] = useState(null);
+  const [hasAppliedLoginSearch, setHasAppliedLoginSearch] = useState(false);
 
   // fetch sheet
   useEffect(() => {
@@ -100,6 +108,134 @@ export default function Page() {
       }
     })();
   }, []);
+
+  // Lấy fingerprint đơn giản của trình duyệt cho RPC
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let mounted = true;
+    async function computeFingerprint() {
+      const base = [
+        navigator.userAgent || '',
+        window.screen ? `${window.screen.width}x${window.screen.height}` : '',
+        Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+        navigator.language || ''
+      ].join('|');
+      if (window.crypto?.subtle && window.TextEncoder) {
+        try {
+          const encoder = new TextEncoder();
+          const data = encoder.encode(base);
+          const digest = await window.crypto.subtle.digest('SHA-256', data);
+          const hashArray = Array.from(new Uint8Array(digest));
+          const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+          if (mounted) setFingerprint(hashHex);
+          return;
+        } catch (err) {
+          console.warn('Fingerprint hash failed, falling back to raw string', err);
+        }
+      }
+      if (mounted) setFingerprint(base);
+    }
+    computeFingerprint();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Đọc trạng thái đăng nhập từ localStorage (nếu có)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem('trial_user');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setTrialUser(parsed);
+        setNameInput(parsed?.name || '');
+        if (parsed?.status === 'active') {
+          setShowLoginModal(false);
+        } else {
+          setShowLoginModal(true);
+        }
+        return;
+      } catch (err) {
+        console.warn('Không đọc được trial_user từ localStorage', err);
+      }
+    }
+    setShowLoginModal(true);
+  }, []);
+
+  // Lưu trạng thái vào localStorage mỗi khi cập nhật
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!trialUser) return;
+    window.localStorage.setItem('trial_user', JSON.stringify(trialUser));
+  }, [trialUser]);
+
+  // Sau khi đăng nhập thành công, tự động áp dụng tìm kiếm theo tên
+  useEffect(() => {
+    if (!trialUser) return;
+    if (trialUser.status === 'active' && trialUser.name && !hasAppliedLoginSearch) {
+      setQuery(trialUser.name);
+      setHasAppliedLoginSearch(true);
+    }
+  }, [trialUser, hasAppliedLoginSearch]);
+
+  async function handleLoginSubmit(e) {
+    e.preventDefault();
+    const name = nameInput.trim();
+    if (!name) {
+      setLoginError('Vui lòng nhập tên của bạn.');
+      return;
+    }
+    setLoginError('');
+    setLoggingIn(true);
+    try {
+      const payload = { p_name: name };
+      if (fingerprint) {
+        payload.p_fp = fingerprint;
+      }
+      const { data, error } = await supabase.rpc('ensure_user_and_status', payload);
+      if (error) {
+        throw error;
+      }
+      const response = Array.isArray(data) ? data[0] : data;
+      if (!response) {
+        throw new Error('Không nhận được phản hồi từ máy chủ.');
+      }
+      setHasAppliedLoginSearch(false);
+      setTrialUser(response);
+      setNameInput(response.name || name);
+      if (response.status === 'active') {
+        setShowLoginModal(false);
+      } else {
+        setShowLoginModal(true);
+        if (response.status === 'expired') {
+          setLoginError('Thời gian dùng thử đã hết. Vui lòng liên hệ để gia hạn.');
+        } else if (response.status === 'blocked') {
+          setLoginError('Tài khoản của bạn đã bị chặn.');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setLoginError(err.message || 'Đăng nhập thất bại.');
+    } finally {
+      setLoggingIn(false);
+    }
+  }
+
+  const isActiveUser = trialUser?.status === 'active';
+  const trialInfo = useMemo(() => {
+    if (!trialUser) return null;
+    if (!trialUser.trial_expires_at) return null;
+    try {
+      const expireDate = new Date(trialUser.trial_expires_at);
+      const formatted = expireDate.toLocaleDateString('vi-VN', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+      });
+      return { formatted, daysLeft: trialUser.days_left };
+    } catch (err) {
+      return null;
+    }
+  }, [trialUser]);
 
   // Chuyển rawItems -> events của các ngày đang chọn (parse ngày + time slot)
   const selectedDayEvents = useMemo(() => {
@@ -277,6 +413,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             placeholder="Brand / Session / Talent / Room / Coordinator…"
             value={query}
             onChange={e => setQuery(e.target.value)}
+            disabled={!isActiveUser}
           />
           {query && (
             <button className="btn ghost" onClick={() => setQuery('')}>Xóa</button>
@@ -284,7 +421,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         </div>
 
         <div className="toolbar-actions">
-          <button className="btn" onClick={downloadICSForDay}>
+          <button className="btn" onClick={downloadICSForDay} disabled={!isActiveUser}>
             Tải lịch đang xem (.ics)
           </button>
         </div>
@@ -357,6 +494,42 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         ))
       ) : (
         <p>Không có sự kiện cho ngày này.</p>
+      )}
+
+      {showLoginModal && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <h2>Đăng nhập bằng tên</h2>
+            <p className="modal-desc">Nhập tên của bạn để kích hoạt phiên dùng thử và tìm kiếm lịch làm việc.</p>
+            <form className="modal-form" onSubmit={handleLoginSubmit}>
+              <input
+                type="text"
+                className="text-input"
+                placeholder="Ví dụ: Nguyễn Văn A"
+                value={nameInput}
+                onChange={e => setNameInput(e.target.value)}
+                disabled={loggingIn}
+              />
+              <button className="btn" type="submit" disabled={loggingIn}>
+                {loggingIn ? 'Đang xử lý…' : 'Tiếp tục'}
+              </button>
+            </form>
+            {loginError && <div className="modal-error">{loginError}</div>}
+            {trialUser && trialUser.status !== 'active' && trialUser.status !== 'blocked' && trialUser.status !== 'expired' && (
+              <div className="modal-hint">Trạng thái: {trialUser.status}</div>
+            )}
+            {trialUser && (trialUser.status === 'expired' || trialUser.status === 'blocked') && (
+              <div className="modal-hint">
+                <strong>Trạng thái:</strong> {trialUser.status === 'expired' ? 'Dùng thử đã hết hạn' : 'Đã bị chặn'}
+              </div>
+            )}
+            {isActiveUser && trialInfo && (
+              <div className="modal-hint">
+                Dùng thử còn lại {trialInfo.daysLeft} ngày (hết hạn vào {trialInfo.formatted}).
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
