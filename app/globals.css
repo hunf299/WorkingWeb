@@ -244,6 +244,58 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   margin-bottom: 8px;
 }
 
+.modal-suggestions {
+  background: #f3f4f6;
+  color: #1f2937;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: .9rem;
+  margin-top: 8px;
+}
+
+.modal-suggestions-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.modal-suggestions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.modal-suggestion {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: .85rem;
+  cursor: pointer;
+  transition: background-color .2s ease, color .2s ease, border-color .2s ease;
+}
+
+.modal-suggestion:hover,
+.modal-suggestion:focus {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #fff;
+}
+
+.modal-suggestion:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+}
+
+.modal-suggestions--loading {
+  text-align: center;
+  color: #4b5563;
+}
+
+.modal-suggestions--empty {
+  text-align: center;
+  color: #6b7280;
+}
+
 .modal-hint {
   background: #eff6ff;
   color: #1d4ed8;
@@ -263,6 +315,27 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   .modal-error {
     background: rgba(248, 113, 113, 0.2);
     color: #fecaca;
+  }
+  .modal-suggestions {
+    background: rgba(107, 114, 128, 0.25);
+    color: #e5e7eb;
+  }
+  .modal-suggestion {
+    background: rgba(17, 24, 39, 0.6);
+    border-color: rgba(156, 163, 175, 0.5);
+    color: #e5e7eb;
+  }
+  .modal-suggestion:hover,
+  .modal-suggestion:focus {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: rgba(96, 165, 250, 0.6);
+    color: #bfdbfe;
+  }
+  .modal-suggestions--loading {
+    color: #d1d5db;
+  }
+  .modal-suggestions--empty {
+    color: #9ca3af;
   }
   .modal-hint {
     background: rgba(59, 130, 246, 0.15);
