@@ -59,6 +59,17 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   background: transparent; color: #2563eb; border: 1px solid #2563eb;
 }
 .btn.ghost:hover { background: rgba(37,99,235,.06); }
+.btn[disabled], .btn:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+  background: #9ca3af;
+  border-color: #9ca3af;
+}
+
+.text-input:disabled, .date-input:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
 
 /* Group header (2h bucket) */
 .group { margin-bottom: 16px; }
@@ -170,4 +181,91 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   .btn:active { background: #1d4ed8; }
   .btn.ghost { color: #93c5fd; border-color: #93c5fd; }
   .btn.ghost:hover { background: rgba(147,197,253,.08); }
+  .btn[disabled], .btn:disabled {
+    background: #4b5563;
+    border-color: #4b5563;
+  }
+  .text-input:disabled, .date-input:disabled {
+    background: #374151;
+    border-color: #4b5563;
+    color: #9ca3af;
+  }
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+}
+
+.modal-card h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.modal-desc {
+  font-size: .95rem;
+  color: #4b5563;
+  margin-bottom: 16px;
+}
+
+.modal-form {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.modal-form .text-input {
+  flex: 1;
+}
+
+.modal-error {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: .9rem;
+  margin-bottom: 8px;
+}
+
+.modal-hint {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: .9rem;
+  margin-top: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .modal-card {
+    background: #1f2937;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
+  }
+  .modal-card h2 { color: #f9fafb; }
+  .modal-desc { color: #d1d5db; }
+  .modal-error {
+    background: rgba(248, 113, 113, 0.2);
+    color: #fecaca;
+  }
+  .modal-hint {
+    background: rgba(59, 130, 246, 0.15);
+    color: #bfdbfe;
+  }
 }
