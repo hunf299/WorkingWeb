@@ -1252,7 +1252,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                               target="_blank"
                               rel="noopener noreferrer"
                             >
-                              💬 Vào nhóm Zalo
+                              💬 Zalo
                             </a>
                           )}
                         </div>
@@ -1285,7 +1285,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                                         target="_blank"
                                         rel="noopener noreferrer"
                                       >
-                                        💬 Vào nhóm Zalo
+                                        💬 Zalo
                                       </a>
                                     )}
                                   </span>
@@ -1342,7 +1342,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        💬 Vào nhóm Zalo
+                        💬 Zalo
                       </a>
                     )}
                   </div>
@@ -1374,7 +1374,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 >
-                                  💬 Vào nhóm Zalo
+                                  💬 Zalo
                                 </a>
                               )}
                             </span>
