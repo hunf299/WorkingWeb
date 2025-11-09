@@ -41,7 +41,7 @@ export default async function handler(req, res) {
         talent1: r[4] || '',
         talent2: r[5] || '',
         coor: `${r[6] || ''} - ${r[7] || ''}`,
-        room: `${r[8] || ''} - ${r[9] || ''} - ${r[10] || ''}`
+        room: `${r[8] || ''} / ${r[9] || ''} / ${r[10] || ''}`
     }));
 
     const hostLinks = hostRows.slice(1).map(r => ({
