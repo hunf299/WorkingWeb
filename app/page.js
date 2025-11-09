@@ -108,8 +108,10 @@ export default function Page() {
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [searchSuggestionsLoading, setSearchSuggestionsLoading] = useState(false);
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
+  const [isSearchBoxFocused, setIsSearchBoxFocused] = useState(false);
   const searchSuggestionTimerRef = useRef(null);
   const lastSearchSuggestionQueryRef = useRef('');
+  const searchBoxRef = useRef(null);
   const isActiveUser = trialUser?.status === 'active';
 
   // fetch sheet
@@ -463,7 +465,14 @@ export default function Page() {
       };
     }
 
-    setShowSearchSuggestions(true);
+    setShowSearchSuggestions(isSearchBoxFocused);
+
+    if (!isSearchBoxFocused) {
+      return () => {
+        cancelled = true;
+        clearSearchTimer();
+      };
+    }
 
     if (lastSearchSuggestionQueryRef.current === trimmed) {
       return () => {
@@ -510,7 +519,7 @@ export default function Page() {
       cancelled = true;
       clearSearchTimer();
     };
-  }, [query, isActiveUser]);
+  }, [query, isActiveUser, isSearchBoxFocused]);
   const trialInfo = useMemo(() => {
     if (!trialUser) return null;
     if (!trialUser.trial_expires_at) return null;
@@ -799,7 +808,24 @@ Nguồn: Google Sheet ${ev.rawDate}`,
 
         <div className="toolbar-row toolbar-row--search">
           <label className="lbl" htmlFor="q">Tìm</label>
-          <div className="search-box">
+          <div
+            className="search-box"
+            ref={searchBoxRef}
+            onFocus={() => {
+              setIsSearchBoxFocused(true);
+              if (isActiveUser && query.trim()) {
+                setShowSearchSuggestions(true);
+              }
+            }}
+            onBlur={event => {
+              const next = event.relatedTarget;
+              if (next && searchBoxRef.current?.contains(next)) {
+                return;
+              }
+              setIsSearchBoxFocused(false);
+              setShowSearchSuggestions(false);
+            }}
+          >
             <input
               id="q"
               type="text"
@@ -831,7 +857,10 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                         key={name}
                         className="search-suggestion"
                         role="option"
-                        onClick={() => setQuery(name)}
+                        onClick={() => {
+                          setQuery(name);
+                          setShowSearchSuggestions(false);
+                        }}
                       >
                         {name}
                       </button>
