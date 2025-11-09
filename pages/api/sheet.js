@@ -1,10 +1,39 @@
 export default async function handler(req, res) {
-    const { SHEET_ID, SHEET_RANGE, GOOGLE_API_KEY } = process.env;
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(SHEET_RANGE)}?key=${GOOGLE_API_KEY}`;
-    const r = await fetch(url, { cache: 'no-store' });
-    const data = await r.json();
-    const rows = data.values || [];
-    const items = rows.slice(1).map(r => ({
+    const {
+        SHEET_ID,
+        SHEET_RANGE,
+        SHEET_ID_2,
+        SHEET_RANGE_HOST,
+        SHEET_RANGE_BRAND,
+        GOOGLE_API_KEY
+    } = process.env;
+
+    const fetchSheetValues = async (sheetId, range) => {
+        if (!sheetId || !range || !GOOGLE_API_KEY) {
+            return [];
+        }
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}?key=${GOOGLE_API_KEY}`;
+        try {
+            const response = await fetch(url, { cache: 'no-store' });
+            if (!response.ok) {
+                console.error('Failed to fetch sheet', { sheetId, range, status: response.status });
+                return [];
+            }
+            const data = await response.json();
+            return data.values || [];
+        } catch (err) {
+            console.error('Error fetching sheet', { sheetId, range, err });
+            return [];
+        }
+    };
+
+    const [itemRows, hostRows, brandRows] = await Promise.all([
+        fetchSheetValues(SHEET_ID, SHEET_RANGE),
+        fetchSheetValues(SHEET_ID_2 || SHEET_ID, SHEET_RANGE_HOST),
+        fetchSheetValues(SHEET_ID_2 || SHEET_ID, SHEET_RANGE_BRAND)
+    ]);
+
+    const items = itemRows.slice(1).map(r => ({
         rawDate: r[0] || '',
         brandChannel: r[1] || '',
         sessionType: r[2] || '',
@@ -14,7 +43,21 @@ export default async function handler(req, res) {
         coor: `${r[6] || ''} - ${r[7] || ''}`,
         room: `${r[8] || ''} - ${r[9] || ''} - ${r[10] || ''}`
     }));
-    res.status(200).json({ items });
-    console.log(url);
+
+    const hostLinks = hostRows.slice(1).map(r => ({
+        name: (r[0] || '').toString().trim(),
+        link: (r[1] || '').toString().trim()
+    })).filter(entry => entry.name && entry.link);
+
+    const brandLinks = brandRows.slice(1).map(r => ({
+        name: (r[0] || '').toString().trim(),
+        link: (r[1] || '').toString().trim()
+    })).filter(entry => entry.name && entry.link);
+
+    res.status(200).json({
+        items,
+        hostLinks,
+        brandLinks
+    });
 }
 
