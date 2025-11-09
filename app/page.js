@@ -80,6 +80,68 @@ function groupEventsByBucket(events) {
     }));
 }
 
+const BRAND_CANONICAL_REPLACEMENTS = [
+  { pattern: /\bTTS\b/g, replacement: 'TIKTOK' },
+  { pattern: /\bSHP\b/g, replacement: 'SHOPEE' },
+  { pattern: /\bLZD\b/g, replacement: 'LAZADA' }
+];
+
+const BRAND_CANONICAL_KEYWORDS = ['TIKTOK', 'SHOPEE', 'LAZADA'];
+
+const SPECIAL_HOST_LINKS = {
+  'điểu nhi': 'https://zalo.me/g/pcmwxc142'
+};
+
+function normalizeBrandLabel(label) {
+  if (!label) return '';
+  let upper = label.toUpperCase();
+  for (const { pattern, replacement } of BRAND_CANONICAL_REPLACEMENTS) {
+    upper = upper.replace(pattern, replacement);
+  }
+  return upper.replace(/\s+/g, ' ').trim();
+}
+
+function extractTokensFromCanonical(canonicalLabel) {
+  const tokens = new Set();
+  if (!canonicalLabel) return tokens;
+  for (const keyword of BRAND_CANONICAL_KEYWORDS) {
+    if (canonicalLabel.includes(keyword)) {
+      tokens.add(keyword);
+    }
+  }
+  return tokens;
+}
+
+function createBrandMetadata(label) {
+  const canonical = normalizeBrandLabel(label);
+  const aliases = new Set();
+  const tokens = extractTokensFromCanonical(canonical);
+  if (!canonical) {
+    return { canonical, aliases, tokens };
+  }
+
+  aliases.add(canonical);
+  const withoutPrefix = canonical.replace(/^BRAND\s*[-:–]\s*/, '').trim();
+  if (withoutPrefix) {
+    aliases.add(withoutPrefix);
+    const parts = withoutPrefix
+      .split(/\s*&\s*|\s*\/\s*|\s*,\s*|\s*\+\s*/)
+      .map(part => part.replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+    for (const part of parts) {
+      aliases.add(part);
+      aliases.add(`BRAND - ${part}`);
+    }
+  }
+
+  for (const token of tokens) {
+    aliases.add(token);
+    aliases.add(`BRAND - ${token}`);
+  }
+
+  return { canonical, aliases, tokens };
+}
+
 export default function Page() {
   const [rawItems, setRawItems] = useState([]);      // dữ liệu raw từ sheet
   const [selectedDateStr, setSelectedDateStr] = useState(toYMD(new Date())); // yyyy-mm-dd
@@ -91,6 +153,8 @@ export default function Page() {
   const [filterSessionType, setFilterSessionType] = useState('');
   const [filterHost, setFilterHost] = useState('');
   const [filterCoordinator, setFilterCoordinator] = useState('');
+  const [hostLinks, setHostLinks] = useState([]);
+  const [brandLinks, setBrandLinks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
@@ -114,6 +178,128 @@ export default function Page() {
   const searchBoxRef = useRef(null);
   const isActiveUser = trialUser?.status === 'active';
 
+  const hostLinkMap = useMemo(() => {
+    const map = new Map();
+    for (const entry of hostLinks) {
+      const name = typeof entry?.name === 'string' ? entry.name.trim() : '';
+      const link = typeof entry?.link === 'string' ? entry.link.trim() : '';
+      if (!name || !link) continue;
+      map.set(name.toLowerCase(), link);
+    }
+    for (const [rawName, link] of Object.entries(SPECIAL_HOST_LINKS)) {
+      const normalizedName = typeof rawName === 'string' ? rawName.trim().toLowerCase() : '';
+      const normalizedLink = typeof link === 'string' ? link.trim() : '';
+      if (!normalizedName || !normalizedLink) continue;
+      map.set(normalizedName, normalizedLink);
+    }
+    return map;
+  }, [hostLinks]);
+
+  const normalizedBrandLinks = useMemo(() => {
+    return brandLinks
+      .map(entry => {
+        const name = typeof entry?.name === 'string' ? entry.name.trim() : '';
+        const link = typeof entry?.link === 'string' ? entry.link.trim() : '';
+        const { canonical, aliases, tokens } = createBrandMetadata(name);
+        return {
+          name,
+          link,
+          canonical,
+          aliases,
+          tokens
+        };
+      })
+      .filter(entry => entry.name && entry.link);
+  }, [brandLinks]);
+
+  function findHostLink(hostName) {
+    if (!hostName) return null;
+    const normalized = hostName.trim();
+    if (!normalized) return null;
+    return hostLinkMap.get(normalized.toLowerCase()) || null;
+  }
+
+  function findBrandLink(brandName) {
+    if (!brandName) return null;
+    const normalized = brandName.trim();
+    if (!normalized) return null;
+    const targetMeta = createBrandMetadata(normalized);
+    const targetAliases = targetMeta.aliases;
+    const targetTokens = targetMeta.tokens;
+    const targetCanonical = targetMeta.canonical;
+
+    if (!targetCanonical && !targetTokens.size) {
+      return null;
+    }
+
+    const aliasMatches = [];
+    if (targetAliases.size) {
+      for (const entry of normalizedBrandLinks) {
+        if (!entry.aliases?.size) continue;
+        let bestAlias = null;
+        for (const alias of entry.aliases) {
+          if (!targetAliases.has(alias)) continue;
+          if (!bestAlias || alias === targetCanonical || alias.length > bestAlias.length) {
+            bestAlias = alias;
+          }
+        }
+        if (bestAlias) {
+          aliasMatches.push({ entry, alias: bestAlias });
+        }
+      }
+    }
+
+    if (aliasMatches.length) {
+      aliasMatches.sort((a, b) => {
+        const aExact = a.alias === targetCanonical ? 0 : 1;
+        const bExact = b.alias === targetCanonical ? 0 : 1;
+        if (aExact !== bExact) return aExact - bExact;
+
+        const aTokenDiff = Math.abs((a.entry.tokens?.size || 0) - (targetTokens.size || 0));
+        const bTokenDiff = Math.abs((b.entry.tokens?.size || 0) - (targetTokens.size || 0));
+        if (aTokenDiff !== bTokenDiff) return aTokenDiff - bTokenDiff;
+
+        const aTokenSize = a.entry.tokens?.size ?? 0;
+        const bTokenSize = b.entry.tokens?.size ?? 0;
+        if (aTokenSize !== bTokenSize) return aTokenSize - bTokenSize;
+
+        const aLen = a.entry.canonical?.length ?? Infinity;
+        const bLen = b.entry.canonical?.length ?? Infinity;
+        return aLen - bLen;
+      });
+      return aliasMatches[0].entry.link;
+    }
+
+    if (targetTokens.size) {
+      const matches = normalizedBrandLinks
+        .filter(entry => entry.tokens?.size)
+        .filter(entry => {
+          for (const token of targetTokens) {
+            if (!entry.tokens.has(token)) return false;
+          }
+          return true;
+        })
+        .sort((a, b) => {
+          const diff = (a.tokens?.size ?? 0) - (b.tokens?.size ?? 0);
+          if (diff !== 0) return diff;
+          const aLen = a.canonical?.length ?? Infinity;
+          const bLen = b.canonical?.length ?? Infinity;
+          return aLen - bLen;
+        });
+      if (matches.length) {
+        return matches[0].link;
+      }
+    }
+
+    const fallback = normalizedBrandLinks.find(entry => {
+      const candidate = entry.canonical || normalizeBrandLabel(entry.name);
+      if (!candidate || !targetCanonical) return false;
+      return candidate.includes(targetCanonical) || targetCanonical.includes(candidate);
+    });
+
+    return fallback?.link || null;
+  }
+
   // fetch sheet
   useEffect(() => {
     (async () => {
@@ -122,6 +308,8 @@ export default function Page() {
         const r = await fetch('/api/sheet', { cache: 'no-store' });
         const j = await r.json();
         setRawItems(j.items || []);
+        setHostLinks(Array.isArray(j.hostLinks) ? j.hostLinks : []);
+        setBrandLinks(Array.isArray(j.brandLinks) ? j.brandLinks : []);
       } finally {
         setLoading(false);
       }
@@ -920,27 +1108,85 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               {day.buckets.map(g => (
                 <div key={g.bucket} className="group">
                   <div className="group-head">{g.bucket}</div>
-                  {g.items.map((e, i) => (
-                    <div key={i} className="event-card">
-                      <h2 className="event-title">{e.title}</h2>
-                      <div className="event-time">⏰ {fmtHM(e.start)}–{fmtHM(e.end)}</div>
-                      <div className="event-date">📅 {e.dateLabel}</div>
-                      <div className="event-meta">
-                        <div className="meta-line">
-                          📍 <span>{e.room || '—'}</span>
+                  {g.items.map((e, i) => {
+                    const brandLink = findBrandLink(e.title);
+                    const hostEntries = (() => {
+                      const entries = [];
+                      const seen = new Set();
+                      for (const raw of [e.talent1, e.talent2]) {
+                        const name = (raw || '').trim();
+                        if (!name) continue;
+                        const key = name.toLowerCase();
+                        if (seen.has(key)) continue;
+                        seen.add(key);
+                        entries.push({ name, link: findHostLink(name) });
+                      }
+                      return entries;
+                    })();
+                    return (
+                      <div key={i} className="event-card">
+                        <div className="event-title-row">
+                          <h2 className="event-title">{e.title}</h2>
+                          {brandLink && (
+                            <a
+                              href={brandLink}
+                              className="zalo-link-button"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              💬 Vào nhóm Zalo
+                            </a>
+                          )}
                         </div>
-                        <div className="meta-line">
-                          📝 <span>Session type: {e.sessionType || '—'}</span>
-                        </div>
-                        <div className="meta-line">
-                          🎤 <span>{e.talent1}{e.talent2 ? ', ' + e.talent2 : ''}</span>
-                        </div>
-                        <div className="meta-line">
-                          🖥️ <span>{e.coor || '—'}</span>
+                        <div className="event-time">⏰ {fmtHM(e.start)}–{fmtHM(e.end)}</div>
+                        <div className="event-date">📅 {e.dateLabel}</div>
+                        <div className="event-meta">
+                          <div className="meta-line">
+                            <span aria-hidden="true">📍</span>
+                            <div className="meta-line-content">
+                              <span>{e.room || '—'}</span>
+                            </div>
+                          </div>
+                          <div className="meta-line">
+                            <span aria-hidden="true">📝</span>
+                            <div className="meta-line-content">
+                              <span>Session type: {e.sessionType || '—'}</span>
+                            </div>
+                          </div>
+                          <div className="meta-line">
+                            <span aria-hidden="true">🎤</span>
+                            <div className="meta-line-content meta-line-content--hosts">
+                              {hostEntries.length ? (
+                                hostEntries.map(entry => (
+                                  <span key={entry.name} className="meta-host-entry">
+                                    <span>{entry.name}</span>
+                                    {entry.link && (
+                                      <a
+                                        href={entry.link}
+                                        className="zalo-link-button zalo-link-button--inline"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        💬 Vào nhóm Zalo
+                                      </a>
+                                    )}
+                                  </span>
+                                ))
+                              ) : (
+                                <span>—</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="meta-line">
+                            <span aria-hidden="true">🖥️</span>
+                            <div className="meta-line-content">
+                              <span>{e.coor || '—'}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ))}
             </div>
@@ -952,26 +1198,84 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         groupedSingleDay.map(g => (
           <div key={g.bucket} className="group">
             <div className="group-head">{g.bucket}</div>
-            {g.items.map((e, i) => (
-              <div key={i} className="event-card">
-                <h2 className="event-title">{e.title}</h2>
-                <div className="event-time">⏰ {fmtHM(e.start)}–{fmtHM(e.end)}</div>
-                <div className="event-meta">
-                  <div className="meta-line">
-                    📍 <span>{e.room || '—'}</span>
+            {g.items.map((e, i) => {
+              const brandLink = findBrandLink(e.title);
+              const hostEntries = (() => {
+                const entries = [];
+                const seen = new Set();
+                for (const raw of [e.talent1, e.talent2]) {
+                  const name = (raw || '').trim();
+                  if (!name) continue;
+                  const key = name.toLowerCase();
+                  if (seen.has(key)) continue;
+                  seen.add(key);
+                  entries.push({ name, link: findHostLink(name) });
+                }
+                return entries;
+              })();
+              return (
+                <div key={i} className="event-card">
+                  <div className="event-title-row">
+                    <h2 className="event-title">{e.title}</h2>
+                    {brandLink && (
+                      <a
+                        href={brandLink}
+                        className="zalo-link-button"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        💬 Vào nhóm Zalo
+                      </a>
+                    )}
                   </div>
-                  <div className="meta-line">
-                    📝 <span>Session type: {e.sessionType || '—'}</span>
-                  </div>
-                  <div className="meta-line">
-                    🎤 <span>{e.talent1}{e.talent2 ? ', ' + e.talent2 : ''}</span>
-                  </div>
-                  <div className="meta-line">
-                    🖥️ <span>{e.coor || '—'}</span>
+                  <div className="event-time">⏰ {fmtHM(e.start)}–{fmtHM(e.end)}</div>
+                  <div className="event-meta">
+                    <div className="meta-line">
+                      <span aria-hidden="true">📍</span>
+                      <div className="meta-line-content">
+                        <span>{e.room || '—'}</span>
+                      </div>
+                    </div>
+                    <div className="meta-line">
+                      <span aria-hidden="true">📝</span>
+                      <div className="meta-line-content">
+                        <span>Session type: {e.sessionType || '—'}</span>
+                      </div>
+                    </div>
+                    <div className="meta-line">
+                      <span aria-hidden="true">🎤</span>
+                      <div className="meta-line-content meta-line-content--hosts">
+                        {hostEntries.length ? (
+                          hostEntries.map(entry => (
+                            <span key={entry.name} className="meta-host-entry">
+                              <span>{entry.name}</span>
+                              {entry.link && (
+                                <a
+                                  href={entry.link}
+                                  className="zalo-link-button zalo-link-button--inline"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  💬 Vào nhóm Zalo
+                                </a>
+                              )}
+                            </span>
+                          ))
+                        ) : (
+                          <span>—</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="meta-line">
+                      <span aria-hidden="true">🖥️</span>
+                      <div className="meta-line-content">
+                        <span>{e.coor || '—'}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ))
       ) : (
