@@ -1262,7 +1262,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                           <div className="meta-line">
                             <span aria-hidden="true">📍</span>
                             <div className="meta-line-content">
-                              <span>{e.room || '—'}</span>
+                              <span>{e.room || '/'}</span>
                             </div>
                           </div>
                           <div className="meta-line">
@@ -1351,7 +1351,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                     <div className="meta-line">
                       <span aria-hidden="true">📍</span>
                       <div className="meta-line-content">
-                        <span>{e.room || '—'}</span>
+                        <span>{e.room || '/'}</span>
                       </div>
                     </div>
                     <div className="meta-line">
