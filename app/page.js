@@ -98,6 +98,11 @@ export default function Page() {
   const [pendingVerificationName, setPendingVerificationName] = useState(null);
   const suggestionTimerRef = useRef(null);
   const lastSuggestionQueryRef = useRef('');
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [searchSuggestionsLoading, setSearchSuggestionsLoading] = useState(false);
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
+  const searchSuggestionTimerRef = useRef(null);
+  const lastSearchSuggestionQueryRef = useRef('');
 
   // fetch sheet
   useEffect(() => {
@@ -315,6 +320,10 @@ export default function Page() {
       clearTimeout(suggestionTimerRef.current);
       suggestionTimerRef.current = null;
     }
+    if (searchSuggestionTimerRef.current) {
+      clearTimeout(searchSuggestionTimerRef.current);
+      searchSuggestionTimerRef.current = null;
+    }
     setTrialUser(null);
     setNameInput('');
     setQuery('');
@@ -324,6 +333,10 @@ export default function Page() {
     setShouldFetchSuggestions(false);
     setNameSuggestions([]);
     setHasAppliedLoginSearch(false);
+    setSearchSuggestions([]);
+    setSearchSuggestionsLoading(false);
+    setShowSearchSuggestions(false);
+    lastSearchSuggestionQueryRef.current = '';
   }
 
   useEffect(() => {
@@ -379,6 +392,89 @@ export default function Page() {
   }, [nameInput, shouldFetchSuggestions]);
 
   const isActiveUser = trialUser?.status === 'active';
+
+  useEffect(() => {
+    let cancelled = false;
+    const clearSearchTimer = () => {
+      if (searchSuggestionTimerRef.current) {
+        clearTimeout(searchSuggestionTimerRef.current);
+        searchSuggestionTimerRef.current = null;
+      }
+    };
+
+    if (!isActiveUser) {
+      clearSearchTimer();
+      setSearchSuggestions([]);
+      setSearchSuggestionsLoading(false);
+      setShowSearchSuggestions(false);
+      lastSearchSuggestionQueryRef.current = '';
+      return () => {
+        cancelled = true;
+        clearSearchTimer();
+      };
+    }
+
+    const trimmed = query.trim();
+    if (!trimmed) {
+      clearSearchTimer();
+      setSearchSuggestions([]);
+      setSearchSuggestionsLoading(false);
+      setShowSearchSuggestions(false);
+      lastSearchSuggestionQueryRef.current = '';
+      return () => {
+        cancelled = true;
+        clearSearchTimer();
+      };
+    }
+
+    setShowSearchSuggestions(true);
+
+    if (lastSearchSuggestionQueryRef.current === trimmed) {
+      return () => {
+        cancelled = true;
+        clearSearchTimer();
+      };
+    }
+
+    clearSearchTimer();
+    const currentQuery = trimmed;
+    searchSuggestionTimerRef.current = setTimeout(() => {
+      if (cancelled) return;
+      setSearchSuggestionsLoading(true);
+      lastSearchSuggestionQueryRef.current = currentQuery;
+      fetch(`/api/suggest-names?q=${encodeURIComponent(currentQuery)}&limit=5`)
+        .then(res => res.json())
+        .then(data => {
+          if (cancelled) return;
+          if (lastSearchSuggestionQueryRef.current !== currentQuery) {
+            return;
+          }
+          const names = Array.isArray(data?.suggestions)
+            ? data.suggestions.filter(item => typeof item === 'string' && item.trim().length > 0)
+            : [];
+          setSearchSuggestions(names);
+        })
+        .catch(err => {
+          console.error('suggest-names (search) failed', err);
+          if (cancelled) return;
+          if (lastSearchSuggestionQueryRef.current === currentQuery) {
+            setSearchSuggestions([]);
+            setSearchSuggestionsLoading(false);
+          }
+        })
+        .finally(() => {
+          if (cancelled) return;
+          if (lastSearchSuggestionQueryRef.current === currentQuery) {
+            setSearchSuggestionsLoading(false);
+          }
+        });
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearSearchTimer();
+    };
+  }, [query, isActiveUser]);
   const trialInfo = useMemo(() => {
     if (!trialUser) return null;
     if (!trialUser.trial_expires_at) return null;
@@ -560,17 +656,55 @@ Nguồn: Google Sheet ${ev.rawDate}`,
           </select>
         </div>
 
-        <div className="toolbar-row">
+        <div className="toolbar-row toolbar-row--search">
           <label className="lbl" htmlFor="q">Tìm</label>
-          <input
-            id="q"
-            type="text"
-            className="text-input"
-            placeholder="Brand / Session / Talent / Room / Coordinator…"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            disabled={!isActiveUser}
-          />
+          <div className="search-box">
+            <input
+              id="q"
+              type="text"
+              className="text-input"
+              placeholder="Brand / Session / Talent / Room / Coordinator…"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              disabled={!isActiveUser}
+              aria-autocomplete="list"
+              aria-haspopup="listbox"
+              aria-expanded={Boolean(isActiveUser && showSearchSuggestions)}
+              aria-controls="search-suggestions"
+            />
+            {isActiveUser && showSearchSuggestions && (
+              <div
+                id="search-suggestions"
+                className="search-suggestions"
+                role="listbox"
+                aria-label="Gợi ý tìm kiếm"
+              >
+                {searchSuggestionsLoading && (
+                  <div className="search-suggestions-status">Đang tìm gợi ý…</div>
+                )}
+                {!searchSuggestionsLoading && searchSuggestions.length > 0 && (
+                  <div className="search-suggestions-list">
+                    {searchSuggestions.map(name => (
+                      <button
+                        type="button"
+                        key={name}
+                        className="search-suggestion"
+                        role="option"
+                        onClick={() => setQuery(name)}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {!searchSuggestionsLoading && searchSuggestions.length === 0 && (
+                  <div className="search-suggestions-status search-suggestions-status--empty">
+                    Không tìm thấy gợi ý phù hợp.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           {query && (
             <button className="btn ghost" onClick={() => setQuery('')}>Xóa</button>
           )}
