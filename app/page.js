@@ -85,6 +85,12 @@ export default function Page() {
   const [selectedDateStr, setSelectedDateStr] = useState(toYMD(new Date())); // yyyy-mm-dd
   const [daysToShow, setDaysToShow] = useState(1);   // số ngày hiển thị bắt đầu từ ngày chọn
   const [query, setQuery] = useState('');            // filter/search
+  const [filterBrand, setFilterBrand] = useState('');
+  const [filterTime, setFilterTime] = useState('');
+  const [filterRoom, setFilterRoom] = useState('');
+  const [filterSessionType, setFilterSessionType] = useState('');
+  const [filterHost, setFilterHost] = useState('');
+  const [filterCoordinator, setFilterCoordinator] = useState('');
   const [loading, setLoading] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [nameInput, setNameInput] = useState('');
@@ -337,6 +343,12 @@ export default function Page() {
     setSearchSuggestionsLoading(false);
     setShowSearchSuggestions(false);
     lastSearchSuggestionQueryRef.current = '';
+    setFilterBrand('');
+    setFilterTime('');
+    setFilterRoom('');
+    setFilterSessionType('');
+    setFilterHost('');
+    setFilterCoordinator('');
   }
 
   useEffect(() => {
@@ -531,18 +543,84 @@ export default function Page() {
     return out.sort((a, b) => a.start - b.start);
   }, [rawItems, selectedDateStr, daysToShow]);
 
+  const filterOptions = useMemo(() => {
+    const brands = new Set();
+    const times = new Set();
+    const rooms = new Set();
+    const sessionTypes = new Set();
+    const hosts = new Set();
+    const coordinators = new Set();
+
+    for (const e of selectedDayEvents) {
+      const title = (e.title || '').trim();
+      if (title) brands.add(title);
+
+      const slot = (e.timeSlot || '').trim();
+      if (slot) times.add(slot);
+
+      const room = (e.room || '').trim();
+      if (room) rooms.add(room);
+
+      const sessionType = (e.sessionType || '').trim();
+      if (sessionType) sessionTypes.add(sessionType);
+
+      const talent1 = (e.talent1 || '').trim();
+      if (talent1) hosts.add(talent1);
+
+      const talent2 = (e.talent2 || '').trim();
+      if (talent2) hosts.add(talent2);
+
+      const coor = (e.coor || '').trim();
+      if (coor) coordinators.add(coor);
+    }
+
+    const sort = arr => Array.from(arr).sort((a, b) => a.localeCompare(b, 'vi', { sensitivity: 'base' }));
+
+    return {
+      brands: sort(brands),
+      times: sort(times),
+      rooms: sort(rooms),
+      sessionTypes: sort(sessionTypes),
+      hosts: sort(hosts),
+      coordinators: sort(coordinators)
+    };
+  }, [selectedDayEvents]);
+
   // Áp dụng filter/search (theo text)
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return selectedDayEvents;
     return selectedDayEvents.filter(e => {
+      const brand = (e.title || '').trim();
+      if (filterBrand && brand !== filterBrand) return false;
+
+      const timeSlot = (e.timeSlot || '').trim();
+      if (filterTime && timeSlot !== filterTime) return false;
+
+      const room = (e.room || '').trim();
+      if (filterRoom && room !== filterRoom) return false;
+
+      const sessionType = (e.sessionType || '').trim();
+      if (filterSessionType && sessionType !== filterSessionType) return false;
+
+      if (filterHost) {
+        const hosts = [e.talent1, e.talent2]
+          .map(h => (h || '').trim())
+          .filter(Boolean);
+        if (!hosts.includes(filterHost)) return false;
+      }
+
+      const coordinator = (e.coor || '').trim();
+      if (filterCoordinator && coordinator !== filterCoordinator) return false;
+
+      if (!q) return true;
+
       const hay = [
         e.title, e.sessionType, e.talent1, e.talent2 || '',
         e.room || '', e.coor || '', e.timeSlot || '', e.dateLabel
       ].join(' ').toLowerCase();
       return hay.includes(q);
     });
-  }, [selectedDayEvents, query]);
+  }, [selectedDayEvents, query, filterBrand, filterTime, filterRoom, filterSessionType, filterHost, filterCoordinator]);
 
   // Group theo bucket 2 giờ (dựa trên start time)
   const groupedSingleDay = useMemo(() => {
@@ -625,7 +703,40 @@ Nguồn: Google Sheet ${ev.rawDate}`,
 
   return (
     <div className="container">
-      <h1>Lịch làm việc</h1>
+      <div className="page-header">
+        <h1>Lịch làm việc</h1>
+        {trialUser && (
+          <button
+            type="button"
+            className="icon-button"
+            onClick={handleLogout}
+            disabled={loggingIn}
+            aria-label="Đăng xuất"
+          >
+            <svg
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              className="icon"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9l3.75 3-3.75 3M21 12H9"
+              />
+            </svg>
+            <span className="sr-only">Đăng xuất</span>
+          </button>
+        )}
+      </div>
 
       {/* Toolbar: chọn ngày + tìm kiếm + nút ICS */}
       <div className="toolbar">
@@ -711,24 +822,120 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         </div>
 
         <div className="toolbar-actions">
-          {trialUser && (
+          <div className="filters-grid">
+            <div className="filter-group">
+              <label className="filter-label" htmlFor="filter-brand">Brand</label>
+              <select
+                id="filter-brand"
+                className="date-input"
+                value={filterBrand}
+                onChange={e => setFilterBrand(e.target.value)}
+                disabled={!isActiveUser}
+              >
+                <option value="">Tất cả</option>
+                {filterOptions.brands.map(option => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-group">
+              <label className="filter-label" htmlFor="filter-time">Khung giờ</label>
+              <select
+                id="filter-time"
+                className="date-input"
+                value={filterTime}
+                onChange={e => setFilterTime(e.target.value)}
+                disabled={!isActiveUser}
+              >
+                <option value="">Tất cả</option>
+                {filterOptions.times.map(option => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-group">
+              <label className="filter-label" htmlFor="filter-room">Phòng</label>
+              <select
+                id="filter-room"
+                className="date-input"
+                value={filterRoom}
+                onChange={e => setFilterRoom(e.target.value)}
+                disabled={!isActiveUser}
+              >
+                <option value="">Tất cả</option>
+                {filterOptions.rooms.map(option => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-group">
+              <label className="filter-label" htmlFor="filter-session">Session type</label>
+              <select
+                id="filter-session"
+                className="date-input"
+                value={filterSessionType}
+                onChange={e => setFilterSessionType(e.target.value)}
+                disabled={!isActiveUser}
+              >
+                <option value="">Tất cả</option>
+                {filterOptions.sessionTypes.map(option => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-group">
+              <label className="filter-label" htmlFor="filter-host">Host</label>
+              <select
+                id="filter-host"
+                className="date-input"
+                value={filterHost}
+                onChange={e => setFilterHost(e.target.value)}
+                disabled={!isActiveUser}
+              >
+                <option value="">Tất cả</option>
+                {filterOptions.hosts.map(option => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-group">
+              <label className="filter-label" htmlFor="filter-coordinator">Coordinator</label>
+              <select
+                id="filter-coordinator"
+                className="date-input"
+                value={filterCoordinator}
+                onChange={e => setFilterCoordinator(e.target.value)}
+                disabled={!isActiveUser}
+              >
+                <option value="">Tất cả</option>
+                {filterOptions.coordinators.map(option => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="toolbar-buttons">
             <button
               type="button"
-              className="btn ghost"
-              onClick={handleLogout}
-              disabled={loggingIn}
+              className="btn"
+              onClick={downloadICSForDay}
+              disabled={!isActiveUser}
             >
-              Đăng xuất
+              Tải lịch đang xem (.ics)
             </button>
-          )}
-          <button
-            type="button"
-            className="btn"
-            onClick={downloadICSForDay}
-            disabled={!isActiveUser}
-          >
-            Tải lịch đang xem (.ics)
-          </button>
+          </div>
         </div>
       </div>
 
