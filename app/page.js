@@ -80,6 +80,142 @@ function groupEventsByBucket(events) {
     }));
 }
 
+const BRAND_CANONICAL_REPLACEMENTS = [
+  { pattern: /\bTTS\b/g, replacement: 'TIKTOK' },
+  { pattern: /\bSHP\b/g, replacement: 'SHOPEE' },
+  { pattern: /\bLZD\b/g, replacement: 'LAZADA' }
+];
+
+const BRAND_CANONICAL_KEYWORDS = ['TIKTOK', 'SHOPEE', 'LAZADA'];
+
+const SPECIAL_HOST_LINKS = {
+  'điểu nhi': 'https://zalo.me/g/pcmwxc142'
+};
+
+function normalizeBrandLabel(label) {
+  if (!label) return '';
+  let upper = label.toUpperCase();
+  for (const { pattern, replacement } of BRAND_CANONICAL_REPLACEMENTS) {
+    upper = upper.replace(pattern, replacement);
+  }
+  return upper.replace(/\s+/g, ' ').trim();
+}
+
+function extractTokensFromCanonical(canonicalLabel) {
+  const tokens = new Set();
+  if (!canonicalLabel) return tokens;
+  for (const keyword of BRAND_CANONICAL_KEYWORDS) {
+    if (canonicalLabel.includes(keyword)) {
+      tokens.add(keyword);
+    }
+  }
+  return tokens;
+}
+
+function extractBrandCore(label) {
+  if (!label) return '';
+  const cleaned = label.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return '';
+  const [head] = cleaned.split(/\s*[-–—:]\s*/);
+  return head ? head.trim() : '';
+}
+
+function normalizeBrandCore(core) {
+  if (!core) return '';
+  return core.replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+function removeDiacritics(str) {
+  if (!str) return '';
+  if (typeof str.normalize === 'function') {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+  return str;
+}
+
+function simplifyBrandForMatch(value) {
+  if (!value) return '';
+  const upper = removeDiacritics(value.toUpperCase());
+  return upper.replace(/[^A-Z0-9]/g, '');
+}
+
+function longestCommonSubsequenceLength(a, b) {
+  if (!a || !b) return 0;
+  const m = a.length;
+  const n = b.length;
+  if (!m || !n) return 0;
+  const dp = new Array(n + 1).fill(0);
+  for (let i = 1; i <= m; i++) {
+    let prev = 0;
+    for (let j = 1; j <= n; j++) {
+      const temp = dp[j];
+      if (a[i - 1] === b[j - 1]) {
+        dp[j] = prev + 1;
+      } else {
+        dp[j] = Math.max(dp[j], dp[j - 1]);
+      }
+      prev = temp;
+    }
+  }
+  return dp[n];
+}
+
+function computeNormalizedSimilarity(a, b) {
+  if (!a || !b) return 0;
+  const lcs = longestCommonSubsequenceLength(a, b);
+  if (!lcs) return 0;
+  return lcs / Math.max(a.length, b.length);
+}
+
+function createBrandMetadata(label) {
+  const canonical = normalizeBrandLabel(label);
+  const aliases = new Set();
+  const tokens = extractTokensFromCanonical(canonical);
+  const coreRaw = extractBrandCore(label);
+  const brandCore = normalizeBrandCore(coreRaw);
+
+  if (canonical) {
+    aliases.add(canonical);
+  }
+
+  const withoutPrefix = canonical.replace(/^BRAND\s*[-:–]\s*/, '').trim();
+  if (withoutPrefix) {
+    aliases.add(withoutPrefix);
+    const parts = withoutPrefix
+      .split(/\s*&\s*|\s*\/\s*|\s*,\s*|\s*\+\s*/)
+      .map(part => part.replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+    for (const part of parts) {
+      aliases.add(part);
+      aliases.add(`BRAND - ${part}`);
+    }
+  }
+
+  if (brandCore) {
+    aliases.add(brandCore);
+    aliases.add(`BRAND - ${brandCore}`);
+  }
+
+  const aliasSimplified = new Set();
+  for (const alias of aliases) {
+    const simplified = simplifyBrandForMatch(alias);
+    if (simplified) aliasSimplified.add(simplified);
+  }
+
+  const canonicalSimplified = simplifyBrandForMatch(canonical);
+  const brandCoreSimplified = simplifyBrandForMatch(brandCore);
+
+  return {
+    canonical,
+    canonicalSimplified,
+    aliases,
+    aliasSimplified,
+    tokens,
+    brandCore,
+    brandCoreSimplified
+  };
+}
+
 export default function Page() {
   const [rawItems, setRawItems] = useState([]);      // dữ liệu raw từ sheet
   const [selectedDateStr, setSelectedDateStr] = useState(toYMD(new Date())); // yyyy-mm-dd
@@ -91,6 +227,8 @@ export default function Page() {
   const [filterSessionType, setFilterSessionType] = useState('');
   const [filterHost, setFilterHost] = useState('');
   const [filterCoordinator, setFilterCoordinator] = useState('');
+  const [hostLinks, setHostLinks] = useState([]);
+  const [brandLinks, setBrandLinks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
@@ -114,6 +252,172 @@ export default function Page() {
   const searchBoxRef = useRef(null);
   const isActiveUser = trialUser?.status === 'active';
 
+  const hostLinkMap = useMemo(() => {
+    const map = new Map();
+    for (const entry of hostLinks) {
+      const name = typeof entry?.name === 'string' ? entry.name.trim() : '';
+      const link = typeof entry?.link === 'string' ? entry.link.trim() : '';
+      if (!name || !link) continue;
+      map.set(name.toLowerCase(), link);
+    }
+    for (const [rawName, link] of Object.entries(SPECIAL_HOST_LINKS)) {
+      const normalizedName = typeof rawName === 'string' ? rawName.trim().toLowerCase() : '';
+      const normalizedLink = typeof link === 'string' ? link.trim() : '';
+      if (!normalizedName || !normalizedLink) continue;
+      map.set(normalizedName, normalizedLink);
+    }
+    return map;
+  }, [hostLinks]);
+
+  const normalizedBrandLinks = useMemo(() => {
+    return brandLinks
+      .map(entry => {
+        const name = typeof entry?.name === 'string' ? entry.name.trim() : '';
+        const link = typeof entry?.link === 'string' ? entry.link.trim() : '';
+        const {
+          canonical,
+          canonicalSimplified,
+          aliases,
+          aliasSimplified,
+          tokens,
+          brandCore,
+          brandCoreSimplified
+        } = createBrandMetadata(name);
+        return {
+          name,
+          link,
+          canonical,
+          canonicalSimplified,
+          aliases,
+          aliasSimplified,
+          tokens,
+          brandCore,
+          brandCoreSimplified
+        };
+      })
+      .filter(entry => entry.name && entry.link);
+  }, [brandLinks]);
+
+  function findHostLink(hostName) {
+    if (!hostName) return null;
+    const normalized = hostName.trim();
+    if (!normalized) return null;
+    return hostLinkMap.get(normalized.toLowerCase()) || null;
+  }
+
+  function countMissingTokens(entryTokens, targetTokens) {
+    if (!targetTokens?.size) return 0;
+    if (!entryTokens?.size) return targetTokens.size;
+    let missing = 0;
+    for (const token of targetTokens) {
+      if (!entryTokens.has(token)) missing += 1;
+    }
+    return missing;
+  }
+
+  function countExtraTokens(entryTokens, targetTokens) {
+    const entrySize = entryTokens?.size ?? 0;
+    const targetSize = targetTokens?.size ?? 0;
+    return Math.max(0, entrySize - targetSize);
+  }
+
+  function computeEntrySimilarity(entry, targetMeta) {
+    if (!targetMeta) return 0;
+    const comparisons = [];
+
+    if (entry.brandCoreSimplified && targetMeta.brandCoreSimplified) {
+      comparisons.push(computeNormalizedSimilarity(entry.brandCoreSimplified, targetMeta.brandCoreSimplified));
+    }
+
+    if (entry.canonicalSimplified && targetMeta.canonicalSimplified) {
+      comparisons.push(computeNormalizedSimilarity(entry.canonicalSimplified, targetMeta.canonicalSimplified));
+    }
+
+    if (entry.canonicalSimplified) {
+      if (targetMeta.brandCoreSimplified) {
+        comparisons.push(computeNormalizedSimilarity(entry.canonicalSimplified, targetMeta.brandCoreSimplified));
+      }
+      for (const targetAlias of targetMeta.aliasSimplified) {
+        comparisons.push(computeNormalizedSimilarity(entry.canonicalSimplified, targetAlias));
+      }
+    }
+
+    if (entry.brandCoreSimplified) {
+      if (targetMeta.canonicalSimplified) {
+        comparisons.push(computeNormalizedSimilarity(entry.brandCoreSimplified, targetMeta.canonicalSimplified));
+      }
+      for (const targetAlias of targetMeta.aliasSimplified) {
+        comparisons.push(computeNormalizedSimilarity(entry.brandCoreSimplified, targetAlias));
+      }
+    }
+
+    for (const alias of entry.aliasSimplified) {
+      if (targetMeta.brandCoreSimplified) {
+        comparisons.push(computeNormalizedSimilarity(alias, targetMeta.brandCoreSimplified));
+      }
+      if (targetMeta.canonicalSimplified) {
+        comparisons.push(computeNormalizedSimilarity(alias, targetMeta.canonicalSimplified));
+      }
+      for (const targetAlias of targetMeta.aliasSimplified) {
+        comparisons.push(computeNormalizedSimilarity(alias, targetAlias));
+      }
+    }
+
+    if (!comparisons.length) return 0;
+    return Math.max(...comparisons);
+  }
+
+  function findBrandLink(brandName) {
+    if (!brandName) return null;
+    const normalized = brandName.trim();
+    if (!normalized) return null;
+    const targetMeta = createBrandMetadata(normalized);
+    const targetTokens = targetMeta.tokens;
+
+    if (!targetMeta.canonical && !targetMeta.brandCore && !targetTokens.size) {
+      return null;
+    }
+
+    const scored = normalizedBrandLinks
+      .map(entry => {
+        const similarity = computeEntrySimilarity(entry, targetMeta);
+        const missingTokens = countMissingTokens(entry.tokens, targetTokens);
+        const extraTokens = countExtraTokens(entry.tokens, targetTokens);
+        return { entry, similarity, missingTokens, extraTokens };
+      })
+      .filter(candidate => candidate.similarity > 0 || candidate.missingTokens === 0);
+
+    if (!scored.length) {
+      return null;
+    }
+
+    scored.sort((a, b) => {
+      if (a.missingTokens !== b.missingTokens) return a.missingTokens - b.missingTokens;
+      if (b.similarity !== a.similarity) return b.similarity - a.similarity;
+      if (a.extraTokens !== b.extraTokens) return a.extraTokens - b.extraTokens;
+      const aLen = a.entry.canonical?.length ?? Infinity;
+      const bLen = b.entry.canonical?.length ?? Infinity;
+      return aLen - bLen;
+    });
+
+    const best = scored[0];
+    if (!best) return null;
+
+    if (best.missingTokens > 0 && targetTokens.size) {
+      return null;
+    }
+
+    if (best.similarity <= 0) {
+      return null;
+    }
+
+    if (best.similarity < 0.3) {
+      return null;
+    }
+
+    return best.entry.link;
+  }
+
   // fetch sheet
   useEffect(() => {
     (async () => {
@@ -122,6 +426,8 @@ export default function Page() {
         const r = await fetch('/api/sheet', { cache: 'no-store' });
         const j = await r.json();
         setRawItems(j.items || []);
+        setHostLinks(Array.isArray(j.hostLinks) ? j.hostLinks : []);
+        setBrandLinks(Array.isArray(j.brandLinks) ? j.brandLinks : []);
       } finally {
         setLoading(false);
       }
@@ -920,27 +1226,85 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               {day.buckets.map(g => (
                 <div key={g.bucket} className="group">
                   <div className="group-head">{g.bucket}</div>
-                  {g.items.map((e, i) => (
-                    <div key={i} className="event-card">
-                      <h2 className="event-title">{e.title}</h2>
-                      <div className="event-time">⏰ {fmtHM(e.start)}–{fmtHM(e.end)}</div>
-                      <div className="event-date">📅 {e.dateLabel}</div>
-                      <div className="event-meta">
-                        <div className="meta-line">
-                          📍 <span>{e.room || '—'}</span>
+                  {g.items.map((e, i) => {
+                    const brandLink = findBrandLink(e.title);
+                    const hostEntries = (() => {
+                      const entries = [];
+                      const seen = new Set();
+                      for (const raw of [e.talent1, e.talent2]) {
+                        const name = (raw || '').trim();
+                        if (!name) continue;
+                        const key = name.toLowerCase();
+                        if (seen.has(key)) continue;
+                        seen.add(key);
+                        entries.push({ name, link: findHostLink(name) });
+                      }
+                      return entries;
+                    })();
+                    return (
+                      <div key={i} className="event-card">
+                        <div className="event-title-row">
+                          <h2 className="event-title">{e.title}</h2>
+                          {brandLink && (
+                            <a
+                              href={brandLink}
+                              className="zalo-link-button"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              💬 Vào nhóm Zalo
+                            </a>
+                          )}
                         </div>
-                        <div className="meta-line">
-                          📝 <span>Session type: {e.sessionType || '—'}</span>
-                        </div>
-                        <div className="meta-line">
-                          🎤 <span>{e.talent1}{e.talent2 ? ', ' + e.talent2 : ''}</span>
-                        </div>
-                        <div className="meta-line">
-                          🖥️ <span>{e.coor || '—'}</span>
+                        <div className="event-time">⏰ {fmtHM(e.start)}–{fmtHM(e.end)}</div>
+                        <div className="event-date">📅 {e.dateLabel}</div>
+                        <div className="event-meta">
+                          <div className="meta-line">
+                            <span aria-hidden="true">📍</span>
+                            <div className="meta-line-content">
+                              <span>{e.room || '—'}</span>
+                            </div>
+                          </div>
+                          <div className="meta-line">
+                            <span aria-hidden="true">📝</span>
+                            <div className="meta-line-content">
+                              <span>Session type: {e.sessionType || '—'}</span>
+                            </div>
+                          </div>
+                          <div className="meta-line">
+                            <span aria-hidden="true">🎤</span>
+                            <div className="meta-line-content meta-line-content--hosts">
+                              {hostEntries.length ? (
+                                hostEntries.map(entry => (
+                                  <span key={entry.name} className="meta-host-entry">
+                                    <span>{entry.name}</span>
+                                    {entry.link && (
+                                      <a
+                                        href={entry.link}
+                                        className="zalo-link-button zalo-link-button--inline"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        💬 Vào nhóm Zalo
+                                      </a>
+                                    )}
+                                  </span>
+                                ))
+                              ) : (
+                                <span>—</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="meta-line">
+                            <span aria-hidden="true">🖥️</span>
+                            <div className="meta-line-content">
+                              <span>{e.coor || '—'}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ))}
             </div>
@@ -952,26 +1316,84 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         groupedSingleDay.map(g => (
           <div key={g.bucket} className="group">
             <div className="group-head">{g.bucket}</div>
-            {g.items.map((e, i) => (
-              <div key={i} className="event-card">
-                <h2 className="event-title">{e.title}</h2>
-                <div className="event-time">⏰ {fmtHM(e.start)}–{fmtHM(e.end)}</div>
-                <div className="event-meta">
-                  <div className="meta-line">
-                    📍 <span>{e.room || '—'}</span>
+            {g.items.map((e, i) => {
+              const brandLink = findBrandLink(e.title);
+              const hostEntries = (() => {
+                const entries = [];
+                const seen = new Set();
+                for (const raw of [e.talent1, e.talent2]) {
+                  const name = (raw || '').trim();
+                  if (!name) continue;
+                  const key = name.toLowerCase();
+                  if (seen.has(key)) continue;
+                  seen.add(key);
+                  entries.push({ name, link: findHostLink(name) });
+                }
+                return entries;
+              })();
+              return (
+                <div key={i} className="event-card">
+                  <div className="event-title-row">
+                    <h2 className="event-title">{e.title}</h2>
+                    {brandLink && (
+                      <a
+                        href={brandLink}
+                        className="zalo-link-button"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        💬 Vào nhóm Zalo
+                      </a>
+                    )}
                   </div>
-                  <div className="meta-line">
-                    📝 <span>Session type: {e.sessionType || '—'}</span>
-                  </div>
-                  <div className="meta-line">
-                    🎤 <span>{e.talent1}{e.talent2 ? ', ' + e.talent2 : ''}</span>
-                  </div>
-                  <div className="meta-line">
-                    🖥️ <span>{e.coor || '—'}</span>
+                  <div className="event-time">⏰ {fmtHM(e.start)}–{fmtHM(e.end)}</div>
+                  <div className="event-meta">
+                    <div className="meta-line">
+                      <span aria-hidden="true">📍</span>
+                      <div className="meta-line-content">
+                        <span>{e.room || '—'}</span>
+                      </div>
+                    </div>
+                    <div className="meta-line">
+                      <span aria-hidden="true">📝</span>
+                      <div className="meta-line-content">
+                        <span>Session type: {e.sessionType || '—'}</span>
+                      </div>
+                    </div>
+                    <div className="meta-line">
+                      <span aria-hidden="true">🎤</span>
+                      <div className="meta-line-content meta-line-content--hosts">
+                        {hostEntries.length ? (
+                          hostEntries.map(entry => (
+                            <span key={entry.name} className="meta-host-entry">
+                              <span>{entry.name}</span>
+                              {entry.link && (
+                                <a
+                                  href={entry.link}
+                                  className="zalo-link-button zalo-link-button--inline"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  💬 Vào nhóm Zalo
+                                </a>
+                              )}
+                            </span>
+                          ))
+                        ) : (
+                          <span>—</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="meta-line">
+                      <span aria-hidden="true">🖥️</span>
+                      <div className="meta-line-content">
+                        <span>{e.coor || '—'}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ))
       ) : (
