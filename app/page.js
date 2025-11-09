@@ -95,6 +95,7 @@ export default function Page() {
   const [shouldFetchSuggestions, setShouldFetchSuggestions] = useState(false);
   const [nameSuggestions, setNameSuggestions] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [pendingVerificationName, setPendingVerificationName] = useState(null);
   const suggestionTimerRef = useRef(null);
   const lastSuggestionQueryRef = useRef('');
 
@@ -126,6 +127,10 @@ export default function Page() {
         } else {
           setShowLoginModal(true);
         }
+        const cachedName = typeof parsed?.name === 'string' ? parsed.name.trim() : '';
+        if (cachedName) {
+          setPendingVerificationName(cachedName);
+        }
         return;
       } catch (err) {
         console.warn('Không đọc được trial_user từ localStorage', err);
@@ -149,6 +154,77 @@ export default function Page() {
       setHasAppliedLoginSearch(true);
     }
   }, [trialUser, hasAppliedLoginSearch]);
+
+  function applyTrialStatusResponse(response, fallbackName, { enableSuggestions = true } = {}) {
+    const status = response?.status;
+    const normalizedName = (response?.name || fallbackName || '').trim();
+    if (!status) {
+      setTrialUser(null);
+      setLoginError('Đăng nhập thất bại.');
+      setShowLoginModal(true);
+      setShouldFetchSuggestions(false);
+      setNameSuggestions([]);
+      return;
+    }
+
+    const shouldSuggest = enableSuggestions && ['blocked', 'expired', 'not_found'].includes(status);
+
+    if (status === 'active') {
+      setHasAppliedLoginSearch(false);
+      setTrialUser(response);
+      setNameInput(normalizedName);
+      setShowLoginModal(false);
+      setShouldFetchSuggestions(false);
+      setNameSuggestions([]);
+      setLoginError('');
+      return;
+    }
+
+    if (status === 'expired') {
+      setTrialUser(response);
+      setNameInput(normalizedName);
+      setLoginError('Thời gian dùng thử đã hết. Vui lòng liên hệ để gia hạn.');
+      setShowLoginModal(true);
+      setShouldFetchSuggestions(shouldSuggest);
+      if (!shouldSuggest) {
+        setNameSuggestions([]);
+      }
+      return;
+    }
+
+    if (status === 'blocked') {
+      setTrialUser({ status: 'blocked', name: normalizedName });
+      setNameInput(normalizedName);
+      setLoginError('Tài khoản của bạn đã bị chặn.');
+      setShowLoginModal(true);
+      setShouldFetchSuggestions(shouldSuggest);
+      if (!shouldSuggest) {
+        setNameSuggestions([]);
+      }
+      return;
+    }
+
+    if (status === 'not_found') {
+      setTrialUser(null);
+      setNameInput(normalizedName);
+      setLoginError(response?.message || 'Tên không tồn tại, vui lòng nhập lại.');
+      setShowLoginModal(true);
+      setShouldFetchSuggestions(shouldSuggest);
+      if (!shouldSuggest) {
+        setNameSuggestions([]);
+      }
+      return;
+    }
+
+    setTrialUser(null);
+    setNameInput(normalizedName);
+    setLoginError('Đăng nhập thất bại.');
+    setShowLoginModal(true);
+    setShouldFetchSuggestions(shouldSuggest);
+    if (!shouldSuggest) {
+      setNameSuggestions([]);
+    }
+  }
 
   async function handleLoginSubmit(e) {
     e.preventDefault();
@@ -176,40 +252,7 @@ export default function Page() {
         throw new Error(errorMessage);
       }
 
-      const status = response?.status;
-      if (!status) {
-        throw new Error('Đăng nhập thất bại.');
-      }
-
-      setHasAppliedLoginSearch(false);
-
-      if (status === 'active') {
-        setTrialUser(response);
-        setNameInput(response.name || name);
-        setShowLoginModal(false);
-        setShouldFetchSuggestions(false);
-        setNameSuggestions([]);
-        setLoginError('');
-        return;
-      }
-
-      if (status === 'expired') {
-        setTrialUser(response);
-        setNameInput(response.name || name);
-        setLoginError('Thời gian dùng thử đã hết. Vui lòng liên hệ để gia hạn.');
-      } else if (status === 'blocked') {
-        setTrialUser({ status: 'blocked', name });
-        setLoginError('Tài khoản của bạn đã bị chặn.');
-      } else if (status === 'not_found') {
-        setTrialUser(null);
-        setLoginError(response?.message || 'Tên không tồn tại, vui lòng nhập lại.');
-      } else {
-        setTrialUser(null);
-        setLoginError('Đăng nhập thất bại.');
-      }
-
-      setShowLoginModal(true);
-      setShouldFetchSuggestions(['blocked', 'expired', 'not_found'].includes(status));
+      applyTrialStatusResponse(response, name, { enableSuggestions: true });
     } catch (err) {
       console.error(err);
       const message = typeof err?.message === 'string'
@@ -229,6 +272,40 @@ export default function Page() {
       setLoggingIn(false);
     }
   }
+
+  async function refreshTrialStatus(name) {
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (!trimmed) return;
+    try {
+      const res = await fetch('/api/login-by-name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed })
+      });
+      const response = await res.json();
+      if (!res.ok) {
+        console.error('refreshTrialStatus failed', response);
+        return;
+      }
+      applyTrialStatusResponse(response, trimmed, { enableSuggestions: false });
+    } catch (err) {
+      console.error('refreshTrialStatus error', err);
+    }
+  }
+
+  useEffect(() => {
+    if (!pendingVerificationName) return;
+    let cancelled = false;
+    (async () => {
+      await refreshTrialStatus(pendingVerificationName);
+      if (!cancelled) {
+        setPendingVerificationName(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingVerificationName]);
 
   function handleLogout() {
     if (typeof window !== 'undefined') {
