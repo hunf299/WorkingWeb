@@ -80,25 +80,62 @@ function groupEventsByBucket(events) {
     }));
 }
 
-const BRAND_KEYWORD_MAP = {
-  TTS: 'TIKTOK',
-  TIKTOK: 'TIKTOK',
-  SHP: 'SHOPEE',
-  SHOPEE: 'SHOPEE',
-  LZD: 'LAZADA',
-  LAZADA: 'LAZADA'
-};
+const BRAND_CANONICAL_REPLACEMENTS = [
+  { pattern: /\bTTS\b/g, replacement: 'TIKTOK' },
+  { pattern: /\bSHP\b/g, replacement: 'SHOPEE' },
+  { pattern: /\bLZD\b/g, replacement: 'LAZADA' }
+];
 
-function extractBrandTokens(label) {
-  if (!label) return new Set();
-  const upper = label.toUpperCase();
+const BRAND_CANONICAL_KEYWORDS = ['TIKTOK', 'SHOPEE', 'LAZADA'];
+
+function normalizeBrandLabel(label) {
+  if (!label) return '';
+  let upper = label.toUpperCase();
+  for (const { pattern, replacement } of BRAND_CANONICAL_REPLACEMENTS) {
+    upper = upper.replace(pattern, replacement);
+  }
+  return upper.replace(/\s+/g, ' ').trim();
+}
+
+function extractTokensFromCanonical(canonicalLabel) {
   const tokens = new Set();
-  for (const [needle, canonical] of Object.entries(BRAND_KEYWORD_MAP)) {
-    if (upper.includes(needle)) {
-      tokens.add(canonical);
+  if (!canonicalLabel) return tokens;
+  for (const keyword of BRAND_CANONICAL_KEYWORDS) {
+    if (canonicalLabel.includes(keyword)) {
+      tokens.add(keyword);
     }
   }
   return tokens;
+}
+
+function createBrandMetadata(label) {
+  const canonical = normalizeBrandLabel(label);
+  const aliases = new Set();
+  const tokens = extractTokensFromCanonical(canonical);
+  if (!canonical) {
+    return { canonical, aliases, tokens };
+  }
+
+  aliases.add(canonical);
+  const withoutPrefix = canonical.replace(/^BRAND\s*[-:–]\s*/, '').trim();
+  if (withoutPrefix) {
+    aliases.add(withoutPrefix);
+    const parts = withoutPrefix
+      .split(/\s*&\s*|\s*\/\s*|\s*,\s*|\s*\+\s*/)
+      .map(part => part.replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+    for (const part of parts) {
+      aliases.add(part);
+      aliases.add(`BRAND - ${part}`);
+    }
+  }
+
+  for (const token of tokens) {
+    aliases.add(token);
+    aliases.add(`BRAND - ${token}`);
+  }
+
+  return { canonical, aliases, tokens };
 }
 
 export default function Page() {
@@ -153,10 +190,13 @@ export default function Page() {
       .map(entry => {
         const name = typeof entry?.name === 'string' ? entry.name.trim() : '';
         const link = typeof entry?.link === 'string' ? entry.link.trim() : '';
+        const { canonical, aliases, tokens } = createBrandMetadata(name);
         return {
           name,
           link,
-          tokens: extractBrandTokens(name)
+          canonical,
+          aliases,
+          tokens
         };
       })
       .filter(entry => entry.name && entry.link);
@@ -173,32 +213,78 @@ export default function Page() {
     if (!brandName) return null;
     const normalized = brandName.trim();
     if (!normalized) return null;
-    const upper = normalized.toUpperCase();
+    const targetMeta = createBrandMetadata(normalized);
+    const targetAliases = targetMeta.aliases;
+    const targetTokens = targetMeta.tokens;
+    const targetCanonical = targetMeta.canonical;
 
-    const exact = normalizedBrandLinks.find(entry => entry.name.toUpperCase() === upper);
-    if (exact?.link) {
-      return exact.link;
+    if (!targetCanonical && !targetTokens.size) {
+      return null;
     }
 
-    const eventTokens = extractBrandTokens(normalized);
-    if (eventTokens.size) {
+    const aliasMatches = [];
+    if (targetAliases.size) {
+      for (const entry of normalizedBrandLinks) {
+        if (!entry.aliases?.size) continue;
+        let bestAlias = null;
+        for (const alias of entry.aliases) {
+          if (!targetAliases.has(alias)) continue;
+          if (!bestAlias || alias === targetCanonical || alias.length > bestAlias.length) {
+            bestAlias = alias;
+          }
+        }
+        if (bestAlias) {
+          aliasMatches.push({ entry, alias: bestAlias });
+        }
+      }
+    }
+
+    if (aliasMatches.length) {
+      aliasMatches.sort((a, b) => {
+        const aExact = a.alias === targetCanonical ? 0 : 1;
+        const bExact = b.alias === targetCanonical ? 0 : 1;
+        if (aExact !== bExact) return aExact - bExact;
+
+        const aTokenDiff = Math.abs((a.entry.tokens?.size || 0) - (targetTokens.size || 0));
+        const bTokenDiff = Math.abs((b.entry.tokens?.size || 0) - (targetTokens.size || 0));
+        if (aTokenDiff !== bTokenDiff) return aTokenDiff - bTokenDiff;
+
+        const aTokenSize = a.entry.tokens?.size ?? 0;
+        const bTokenSize = b.entry.tokens?.size ?? 0;
+        if (aTokenSize !== bTokenSize) return aTokenSize - bTokenSize;
+
+        const aLen = a.entry.canonical?.length ?? Infinity;
+        const bLen = b.entry.canonical?.length ?? Infinity;
+        return aLen - bLen;
+      });
+      return aliasMatches[0].entry.link;
+    }
+
+    if (targetTokens.size) {
       const matches = normalizedBrandLinks
-        .filter(entry => entry.tokens.size)
+        .filter(entry => entry.tokens?.size)
         .filter(entry => {
-          for (const token of eventTokens) {
+          for (const token of targetTokens) {
             if (!entry.tokens.has(token)) return false;
           }
           return true;
         })
-        .sort((a, b) => a.tokens.size - b.tokens.size);
+        .sort((a, b) => {
+          const diff = (a.tokens?.size ?? 0) - (b.tokens?.size ?? 0);
+          if (diff !== 0) return diff;
+          const aLen = a.canonical?.length ?? Infinity;
+          const bLen = b.canonical?.length ?? Infinity;
+          return aLen - bLen;
+        });
       if (matches.length) {
         return matches[0].link;
       }
     }
 
     const fallback = normalizedBrandLinks.find(entry => {
-      const candidate = entry.name.toUpperCase();
-      return candidate.includes(upper) || upper.includes(candidate);
+      const candidate = entry.canonical || normalizeBrandLabel(entry.name);
+      if (!candidate || !targetCanonical) return false;
+      return candidate.includes(targetCanonical) || targetCanonical.includes(candidate);
     });
 
     return fallback?.link || null;
