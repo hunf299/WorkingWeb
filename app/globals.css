@@ -305,6 +305,16 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   margin-top: 8px;
 }
 
+.modal-footer {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modal-footer .btn {
+  width: 100%;
+}
+
 @media (prefers-color-scheme: dark) {
   .modal-card {
     background: #1f2937;

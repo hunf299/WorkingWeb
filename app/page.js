@@ -230,6 +230,25 @@ export default function Page() {
     }
   }
 
+  function handleLogout() {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('trial_user');
+    }
+    if (suggestionTimerRef.current) {
+      clearTimeout(suggestionTimerRef.current);
+      suggestionTimerRef.current = null;
+    }
+    setTrialUser(null);
+    setNameInput('');
+    setQuery('');
+    setShowLoginModal(true);
+    setLoggingIn(false);
+    setLoginError('');
+    setShouldFetchSuggestions(false);
+    setNameSuggestions([]);
+    setHasAppliedLoginSearch(false);
+  }
+
   useEffect(() => {
     if (!shouldFetchSuggestions) {
       setNameSuggestions([]);
@@ -481,7 +500,22 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         </div>
 
         <div className="toolbar-actions">
-          <button className="btn" onClick={downloadICSForDay} disabled={!isActiveUser}>
+          {trialUser && (
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={handleLogout}
+              disabled={loggingIn}
+            >
+              Đăng xuất
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn"
+            onClick={downloadICSForDay}
+            disabled={!isActiveUser}
+          >
             Tải lịch đang xem (.ics)
           </button>
         </div>
@@ -614,6 +648,18 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             {isActiveUser && trialInfo && (
               <div className="modal-hint">
                 Dùng thử còn lại {trialInfo.daysLeft} ngày (hết hạn vào {trialInfo.formatted}).
+              </div>
+            )}
+            {trialUser && (
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={handleLogout}
+                  disabled={loggingIn}
+                >
+                  Đăng xuất / Xóa tên đã lưu
+                </button>
               </div>
             )}
           </div>
