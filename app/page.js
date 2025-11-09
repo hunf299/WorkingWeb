@@ -88,6 +88,10 @@ const BRAND_CANONICAL_REPLACEMENTS = [
 
 const BRAND_CANONICAL_KEYWORDS = ['TIKTOK', 'SHOPEE', 'LAZADA'];
 
+const SPECIAL_HOST_LINKS = {
+  'điểu nhi': 'https://zalo.me/g/pcmwxc142'
+};
+
 function normalizeBrandLabel(label) {
   if (!label) return '';
   let upper = label.toUpperCase();
@@ -181,6 +185,12 @@ export default function Page() {
       const link = typeof entry?.link === 'string' ? entry.link.trim() : '';
       if (!name || !link) continue;
       map.set(name.toLowerCase(), link);
+    }
+    for (const [rawName, link] of Object.entries(SPECIAL_HOST_LINKS)) {
+      const normalizedName = typeof rawName === 'string' ? rawName.trim().toLowerCase() : '';
+      const normalizedLink = typeof link === 'string' ? link.trim() : '';
+      if (!normalizedName || !normalizedLink) continue;
+      map.set(normalizedName, normalizedLink);
     }
     return map;
   }, [hostLinks]);
