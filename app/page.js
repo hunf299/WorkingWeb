@@ -594,7 +594,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         <div className="modal-backdrop">
           <div className="modal-card">
             <h2>Đăng nhập bằng tên</h2>
-            <p className="modal-desc">Nhập tên của bạn để kích hoạt phiên dùng thử và tìm kiếm lịch làm việc.</p>
+            <p className="modal-desc">Nhập tên của bạn để đăng nhập và tìm kiếm lịch làm việc.</p>
             <form className="modal-form" onSubmit={handleLoginSubmit}>
               <input
                 type="text"
