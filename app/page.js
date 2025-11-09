@@ -93,6 +93,7 @@ export default function Page() {
   const [filterCoordinator, setFilterCoordinator] = useState('');
   const [loading, setLoading] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
@@ -109,6 +110,7 @@ export default function Page() {
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const searchSuggestionTimerRef = useRef(null);
   const lastSearchSuggestionQueryRef = useRef('');
+  const isActiveUser = trialUser?.status === 'active';
 
   // fetch sheet
   useEffect(() => {
@@ -165,6 +167,25 @@ export default function Page() {
       setHasAppliedLoginSearch(true);
     }
   }, [trialUser, hasAppliedLoginSearch]);
+
+  useEffect(() => {
+    if (!isActiveUser) {
+      setShowFiltersModal(false);
+    }
+  }, [isActiveUser]);
+
+  useEffect(() => {
+    if (!showFiltersModal) return;
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setShowFiltersModal(false);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showFiltersModal]);
 
   function applyTrialStatusResponse(response, fallbackName, { enableSuggestions = true } = {}) {
     const status = response?.status;
@@ -318,6 +339,15 @@ export default function Page() {
     };
   }, [pendingVerificationName]);
 
+  function resetFilters() {
+    setFilterBrand('');
+    setFilterTime('');
+    setFilterRoom('');
+    setFilterSessionType('');
+    setFilterHost('');
+    setFilterCoordinator('');
+  }
+
   function handleLogout() {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('trial_user');
@@ -343,12 +373,8 @@ export default function Page() {
     setSearchSuggestionsLoading(false);
     setShowSearchSuggestions(false);
     lastSearchSuggestionQueryRef.current = '';
-    setFilterBrand('');
-    setFilterTime('');
-    setFilterRoom('');
-    setFilterSessionType('');
-    setFilterHost('');
-    setFilterCoordinator('');
+    resetFilters();
+    setShowFiltersModal(false);
   }
 
   useEffect(() => {
@@ -402,8 +428,6 @@ export default function Page() {
       }
     };
   }, [nameInput, shouldFetchSuggestions]);
-
-  const isActiveUser = trialUser?.status === 'active';
 
   useEffect(() => {
     let cancelled = false;
@@ -585,6 +609,12 @@ export default function Page() {
       coordinators: sort(coordinators)
     };
   }, [selectedDayEvents]);
+
+  const hasActiveFilters = useMemo(
+    () => Boolean(filterBrand || filterTime || filterRoom || filterSessionType || filterHost || filterCoordinator),
+    [filterBrand, filterTime, filterRoom, filterSessionType, filterHost, filterCoordinator]
+  );
+  const filterButtonLabel = hasActiveFilters ? 'Bộ lọc (đang áp dụng)' : 'Bộ lọc';
 
   // Áp dụng filter/search (theo text)
   const filteredEvents = useMemo(() => {
@@ -822,111 +852,22 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         </div>
 
         <div className="toolbar-actions">
-          <div className="filters-grid">
-            <div className="filter-group">
-              <label className="filter-label" htmlFor="filter-brand">Brand</label>
-              <select
-                id="filter-brand"
-                className="date-input"
-                value={filterBrand}
-                onChange={e => setFilterBrand(e.target.value)}
-                disabled={!isActiveUser}
-              >
-                <option value="">Tất cả</option>
-                {filterOptions.brands.map(option => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-group">
-              <label className="filter-label" htmlFor="filter-time">Khung giờ</label>
-              <select
-                id="filter-time"
-                className="date-input"
-                value={filterTime}
-                onChange={e => setFilterTime(e.target.value)}
-                disabled={!isActiveUser}
-              >
-                <option value="">Tất cả</option>
-                {filterOptions.times.map(option => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-group">
-              <label className="filter-label" htmlFor="filter-room">Phòng</label>
-              <select
-                id="filter-room"
-                className="date-input"
-                value={filterRoom}
-                onChange={e => setFilterRoom(e.target.value)}
-                disabled={!isActiveUser}
-              >
-                <option value="">Tất cả</option>
-                {filterOptions.rooms.map(option => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-group">
-              <label className="filter-label" htmlFor="filter-session">Session type</label>
-              <select
-                id="filter-session"
-                className="date-input"
-                value={filterSessionType}
-                onChange={e => setFilterSessionType(e.target.value)}
-                disabled={!isActiveUser}
-              >
-                <option value="">Tất cả</option>
-                {filterOptions.sessionTypes.map(option => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-group">
-              <label className="filter-label" htmlFor="filter-host">Host</label>
-              <select
-                id="filter-host"
-                className="date-input"
-                value={filterHost}
-                onChange={e => setFilterHost(e.target.value)}
-                disabled={!isActiveUser}
-              >
-                <option value="">Tất cả</option>
-                {filterOptions.hosts.map(option => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-group">
-              <label className="filter-label" htmlFor="filter-coordinator">Coordinator</label>
-              <select
-                id="filter-coordinator"
-                className="date-input"
-                value={filterCoordinator}
-                onChange={e => setFilterCoordinator(e.target.value)}
-                disabled={!isActiveUser}
-              >
-                <option value="">Tất cả</option>
-                {filterOptions.coordinators.map(option => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
           <div className="toolbar-buttons">
+            <button
+              type="button"
+              className="btn ghost filter-trigger"
+              onClick={() => setShowFiltersModal(true)}
+              disabled={!isActiveUser}
+              aria-haspopup="dialog"
+              aria-expanded={showFiltersModal}
+              aria-controls="filters-modal"
+              aria-label={filterButtonLabel}
+              title={filterButtonLabel}
+              data-active={hasActiveFilters}
+            >
+              <span className="filter-trigger-label">Bộ lọc</span>
+              {hasActiveFilters && <span className="filter-trigger-indicator" aria-hidden="true" />}
+            </button>
             <button
               type="button"
               className="btn"
@@ -1080,6 +1021,160 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {showFiltersModal && (
+        <div
+          className="modal-backdrop filters-modal-backdrop"
+          onClick={() => setShowFiltersModal(false)}
+        >
+          <div
+            id="filters-modal"
+            className="modal-card filters-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="filters-modal-title"
+            aria-describedby="filters-modal-description"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="filters-modal-header">
+              <h2 id="filters-modal-title">Bộ lọc lịch</h2>
+              <button
+                type="button"
+                className="modal-close-button"
+                onClick={() => setShowFiltersModal(false)}
+                aria-label="Đóng bộ lọc"
+              >
+                ×
+              </button>
+            </div>
+            <p id="filters-modal-description" className="modal-desc">
+              Chọn các tiêu chí lọc để thu hẹp danh sách lịch hiển thị.
+            </p>
+            <div className="filters-modal-body">
+              <div className="filters-grid">
+                <div className="filter-group">
+                  <label className="filter-label" htmlFor="filter-brand">Brand</label>
+                  <select
+                    id="filter-brand"
+                    className="date-input"
+                    value={filterBrand}
+                    onChange={e => setFilterBrand(e.target.value)}
+                    disabled={!isActiveUser}
+                  >
+                    <option value="">Tất cả</option>
+                    {filterOptions.brands.map(option => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="filter-group">
+                  <label className="filter-label" htmlFor="filter-time">Khung giờ</label>
+                  <select
+                    id="filter-time"
+                    className="date-input"
+                    value={filterTime}
+                    onChange={e => setFilterTime(e.target.value)}
+                    disabled={!isActiveUser}
+                  >
+                    <option value="">Tất cả</option>
+                    {filterOptions.times.map(option => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="filter-group">
+                  <label className="filter-label" htmlFor="filter-room">Phòng</label>
+                  <select
+                    id="filter-room"
+                    className="date-input"
+                    value={filterRoom}
+                    onChange={e => setFilterRoom(e.target.value)}
+                    disabled={!isActiveUser}
+                  >
+                    <option value="">Tất cả</option>
+                    {filterOptions.rooms.map(option => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="filter-group">
+                  <label className="filter-label" htmlFor="filter-session">Session type</label>
+                  <select
+                    id="filter-session"
+                    className="date-input"
+                    value={filterSessionType}
+                    onChange={e => setFilterSessionType(e.target.value)}
+                    disabled={!isActiveUser}
+                  >
+                    <option value="">Tất cả</option>
+                    {filterOptions.sessionTypes.map(option => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="filter-group">
+                  <label className="filter-label" htmlFor="filter-host">Host</label>
+                  <select
+                    id="filter-host"
+                    className="date-input"
+                    value={filterHost}
+                    onChange={e => setFilterHost(e.target.value)}
+                    disabled={!isActiveUser}
+                  >
+                    <option value="">Tất cả</option>
+                    {filterOptions.hosts.map(option => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="filter-group">
+                  <label className="filter-label" htmlFor="filter-coordinator">Coordinator</label>
+                  <select
+                    id="filter-coordinator"
+                    className="date-input"
+                    value={filterCoordinator}
+                    onChange={e => setFilterCoordinator(e.target.value)}
+                    disabled={!isActiveUser}
+                  >
+                    <option value="">Tất cả</option>
+                    {filterOptions.coordinators.map(option => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="filters-modal-footer">
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={resetFilters}
+                disabled={!hasActiveFilters}
+              >
+                Xóa bộ lọc
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setShowFiltersModal(false)}
+              >
+                Xong
+              </button>
+            </div>
           </div>
         </div>
       )}
