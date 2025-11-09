@@ -265,8 +265,44 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   font-weight: 800;
   letter-spacing: .3px;
   color: #111827;
-  margin-bottom: 6px;
+  margin-bottom: 0;
   text-transform: uppercase;
+}
+
+.event-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.zalo-link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 9999px;
+  background: #0ea5e9;
+  color: #fff;
+  font-size: .8rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background .2s ease, transform .2s ease;
+}
+
+.zalo-link-button:hover,
+.zalo-link-button:focus-visible {
+  background: #0284c7;
+}
+
+.zalo-link-button:active {
+  transform: scale(.98);
+}
+
+.zalo-link-button--inline {
+  padding: 4px 8px;
+  font-size: .75rem;
 }
 
 /* Time ngay sau title: to + nổi bật */
@@ -296,6 +332,23 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   display: flex;
   align-items: baseline;
   gap: 6px;
+}
+
+.meta-line-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.meta-line-content--hosts {
+  gap: 12px;
+}
+
+.meta-host-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .meta-line .sep { opacity: .6; margin: 0 6px; }
 
