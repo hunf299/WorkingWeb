@@ -125,6 +125,48 @@ function normalizeBrandCore(core) {
   return core.replace(/\s+/g, ' ').trim().toUpperCase();
 }
 
+function removeDiacritics(str) {
+  if (!str) return '';
+  if (typeof str.normalize === 'function') {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+  return str;
+}
+
+function simplifyBrandForMatch(value) {
+  if (!value) return '';
+  const upper = removeDiacritics(value.toUpperCase());
+  return upper.replace(/[^A-Z0-9]/g, '');
+}
+
+function longestCommonSubsequenceLength(a, b) {
+  if (!a || !b) return 0;
+  const m = a.length;
+  const n = b.length;
+  if (!m || !n) return 0;
+  const dp = new Array(n + 1).fill(0);
+  for (let i = 1; i <= m; i++) {
+    let prev = 0;
+    for (let j = 1; j <= n; j++) {
+      const temp = dp[j];
+      if (a[i - 1] === b[j - 1]) {
+        dp[j] = prev + 1;
+      } else {
+        dp[j] = Math.max(dp[j], dp[j - 1]);
+      }
+      prev = temp;
+    }
+  }
+  return dp[n];
+}
+
+function computeNormalizedSimilarity(a, b) {
+  if (!a || !b) return 0;
+  const lcs = longestCommonSubsequenceLength(a, b);
+  if (!lcs) return 0;
+  return lcs / Math.max(a.length, b.length);
+}
+
 function createBrandMetadata(label) {
   const canonical = normalizeBrandLabel(label);
   const aliases = new Set();
@@ -154,7 +196,24 @@ function createBrandMetadata(label) {
     aliases.add(`BRAND - ${brandCore}`);
   }
 
-  return { canonical, aliases, tokens, brandCore };
+  const aliasSimplified = new Set();
+  for (const alias of aliases) {
+    const simplified = simplifyBrandForMatch(alias);
+    if (simplified) aliasSimplified.add(simplified);
+  }
+
+  const canonicalSimplified = simplifyBrandForMatch(canonical);
+  const brandCoreSimplified = simplifyBrandForMatch(brandCore);
+
+  return {
+    canonical,
+    canonicalSimplified,
+    aliases,
+    aliasSimplified,
+    tokens,
+    brandCore,
+    brandCoreSimplified
+  };
 }
 
 export default function Page() {
@@ -215,14 +274,25 @@ export default function Page() {
       .map(entry => {
         const name = typeof entry?.name === 'string' ? entry.name.trim() : '';
         const link = typeof entry?.link === 'string' ? entry.link.trim() : '';
-        const { canonical, aliases, tokens, brandCore } = createBrandMetadata(name);
+        const {
+          canonical,
+          canonicalSimplified,
+          aliases,
+          aliasSimplified,
+          tokens,
+          brandCore,
+          brandCoreSimplified
+        } = createBrandMetadata(name);
         return {
           name,
           link,
           canonical,
+          canonicalSimplified,
           aliases,
+          aliasSimplified,
           tokens,
-          brandCore
+          brandCore,
+          brandCoreSimplified
         };
       })
       .filter(entry => entry.name && entry.link);
@@ -251,22 +321,50 @@ export default function Page() {
     return Math.max(0, entrySize - targetSize);
   }
 
-  function selectBestBrandEntry(entries, targetTokens) {
-    if (!entries.length) return null;
-    const sorted = entries.slice().sort((a, b) => {
-      const aMissing = countMissingTokens(a.tokens, targetTokens);
-      const bMissing = countMissingTokens(b.tokens, targetTokens);
-      if (aMissing !== bMissing) return aMissing - bMissing;
+  function computeEntrySimilarity(entry, targetMeta) {
+    if (!targetMeta) return 0;
+    const comparisons = [];
 
-      const aExtra = countExtraTokens(a.tokens, targetTokens);
-      const bExtra = countExtraTokens(b.tokens, targetTokens);
-      if (aExtra !== bExtra) return aExtra - bExtra;
+    if (entry.brandCoreSimplified && targetMeta.brandCoreSimplified) {
+      comparisons.push(computeNormalizedSimilarity(entry.brandCoreSimplified, targetMeta.brandCoreSimplified));
+    }
 
-      const aLen = a.canonical?.length ?? Infinity;
-      const bLen = b.canonical?.length ?? Infinity;
-      return aLen - bLen;
-    });
-    return sorted[0];
+    if (entry.canonicalSimplified && targetMeta.canonicalSimplified) {
+      comparisons.push(computeNormalizedSimilarity(entry.canonicalSimplified, targetMeta.canonicalSimplified));
+    }
+
+    if (entry.canonicalSimplified) {
+      if (targetMeta.brandCoreSimplified) {
+        comparisons.push(computeNormalizedSimilarity(entry.canonicalSimplified, targetMeta.brandCoreSimplified));
+      }
+      for (const targetAlias of targetMeta.aliasSimplified) {
+        comparisons.push(computeNormalizedSimilarity(entry.canonicalSimplified, targetAlias));
+      }
+    }
+
+    if (entry.brandCoreSimplified) {
+      if (targetMeta.canonicalSimplified) {
+        comparisons.push(computeNormalizedSimilarity(entry.brandCoreSimplified, targetMeta.canonicalSimplified));
+      }
+      for (const targetAlias of targetMeta.aliasSimplified) {
+        comparisons.push(computeNormalizedSimilarity(entry.brandCoreSimplified, targetAlias));
+      }
+    }
+
+    for (const alias of entry.aliasSimplified) {
+      if (targetMeta.brandCoreSimplified) {
+        comparisons.push(computeNormalizedSimilarity(alias, targetMeta.brandCoreSimplified));
+      }
+      if (targetMeta.canonicalSimplified) {
+        comparisons.push(computeNormalizedSimilarity(alias, targetMeta.canonicalSimplified));
+      }
+      for (const targetAlias of targetMeta.aliasSimplified) {
+        comparisons.push(computeNormalizedSimilarity(alias, targetAlias));
+      }
+    }
+
+    if (!comparisons.length) return 0;
+    return Math.max(...comparisons);
   }
 
   function findBrandLink(brandName) {
@@ -274,81 +372,50 @@ export default function Page() {
     const normalized = brandName.trim();
     if (!normalized) return null;
     const targetMeta = createBrandMetadata(normalized);
-    const targetAliases = targetMeta.aliases;
     const targetTokens = targetMeta.tokens;
-    const targetCanonical = targetMeta.canonical;
-    const targetBrandCore = targetMeta.brandCore;
 
-    if (!targetCanonical && !targetBrandCore && !targetTokens.size) {
+    if (!targetMeta.canonical && !targetMeta.brandCore && !targetTokens.size) {
       return null;
     }
 
-    const brandCoreCandidates = targetBrandCore
-      ? normalizedBrandLinks.filter(entry => entry.brandCore === targetBrandCore)
-      : [];
-    const bestBrandCoreCandidate = selectBestBrandEntry(brandCoreCandidates, targetTokens);
-    if (bestBrandCoreCandidate && countMissingTokens(bestBrandCoreCandidate.tokens, targetTokens) === 0) {
-      return bestBrandCoreCandidate.link;
+    const scored = normalizedBrandLinks
+      .map(entry => {
+        const similarity = computeEntrySimilarity(entry, targetMeta);
+        const missingTokens = countMissingTokens(entry.tokens, targetTokens);
+        const extraTokens = countExtraTokens(entry.tokens, targetTokens);
+        return { entry, similarity, missingTokens, extraTokens };
+      })
+      .filter(candidate => candidate.similarity > 0 || candidate.missingTokens === 0);
+
+    if (!scored.length) {
+      return null;
     }
 
-    const aliasMatches = [];
-    if (targetAliases.size) {
-      for (const entry of normalizedBrandLinks) {
-        if (!entry.aliases?.size) continue;
-        if (targetBrandCore && entry.brandCore && entry.brandCore !== targetBrandCore) {
-          continue;
-        }
-        let bestAlias = null;
-        for (const alias of entry.aliases) {
-          if (!targetAliases.has(alias)) continue;
-          if (!bestAlias || alias === targetCanonical || alias.length > bestAlias.length) {
-            bestAlias = alias;
-          }
-        }
-        if (bestAlias) {
-          aliasMatches.push({ entry, alias: bestAlias });
-        }
-      }
-    }
-
-    if (aliasMatches.length) {
-      aliasMatches.sort((a, b) => {
-        const aMissing = countMissingTokens(a.entry.tokens, targetTokens);
-        const bMissing = countMissingTokens(b.entry.tokens, targetTokens);
-        if (aMissing !== bMissing) return aMissing - bMissing;
-
-        const aExtra = countExtraTokens(a.entry.tokens, targetTokens);
-        const bExtra = countExtraTokens(b.entry.tokens, targetTokens);
-        if (aExtra !== bExtra) return aExtra - bExtra;
-
-        const aExact = a.alias === targetCanonical ? 0 : 1;
-        const bExact = b.alias === targetCanonical ? 0 : 1;
-        if (aExact !== bExact) return aExact - bExact;
-
-        const aLen = a.entry.canonical?.length ?? Infinity;
-        const bLen = b.entry.canonical?.length ?? Infinity;
-        return aLen - bLen;
-      });
-      return aliasMatches[0].entry.link;
-    }
-
-    if (bestBrandCoreCandidate) {
-      return bestBrandCoreCandidate.link;
-    }
-
-    const fallback = normalizedBrandLinks.find(entry => {
-      const candidate = entry.canonical || normalizeBrandLabel(entry.name);
-      if (!candidate) return false;
-      if (targetCanonical && (candidate.includes(targetCanonical) || targetCanonical.includes(candidate))) {
-        return true;
-      }
-      if (targetBrandCore && entry.brandCore === targetBrandCore) {
-        return true;
-      }
-      return false;
+    scored.sort((a, b) => {
+      if (a.missingTokens !== b.missingTokens) return a.missingTokens - b.missingTokens;
+      if (b.similarity !== a.similarity) return b.similarity - a.similarity;
+      if (a.extraTokens !== b.extraTokens) return a.extraTokens - b.extraTokens;
+      const aLen = a.entry.canonical?.length ?? Infinity;
+      const bLen = b.entry.canonical?.length ?? Infinity;
+      return aLen - bLen;
     });
 
-    return fallback?.link || null;
+    const best = scored[0];
+    if (!best) return null;
+
+    if (best.missingTokens > 0 && targetTokens.size) {
+      return null;
+    }
+
+    if (best.similarity <= 0) {
+      return null;
+    }
+
+    if (best.similarity < 0.3) {
+      return null;
+    }
+
+    return best.entry.link;
   }
 
   // fetch sheet
