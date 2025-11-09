@@ -112,15 +112,30 @@ function extractTokensFromCanonical(canonicalLabel) {
   return tokens;
 }
 
+function extractBrandCore(label) {
+  if (!label) return '';
+  const cleaned = label.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return '';
+  const [head] = cleaned.split(/\s*[-–—:]\s*/);
+  return head ? head.trim() : '';
+}
+
+function normalizeBrandCore(core) {
+  if (!core) return '';
+  return core.replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
 function createBrandMetadata(label) {
   const canonical = normalizeBrandLabel(label);
   const aliases = new Set();
   const tokens = extractTokensFromCanonical(canonical);
-  if (!canonical) {
-    return { canonical, aliases, tokens };
+  const coreRaw = extractBrandCore(label);
+  const brandCore = normalizeBrandCore(coreRaw);
+
+  if (canonical) {
+    aliases.add(canonical);
   }
 
-  aliases.add(canonical);
   const withoutPrefix = canonical.replace(/^BRAND\s*[-:–]\s*/, '').trim();
   if (withoutPrefix) {
     aliases.add(withoutPrefix);
@@ -134,12 +149,12 @@ function createBrandMetadata(label) {
     }
   }
 
-  for (const token of tokens) {
-    aliases.add(token);
-    aliases.add(`BRAND - ${token}`);
+  if (brandCore) {
+    aliases.add(brandCore);
+    aliases.add(`BRAND - ${brandCore}`);
   }
 
-  return { canonical, aliases, tokens };
+  return { canonical, aliases, tokens, brandCore };
 }
 
 export default function Page() {
@@ -200,13 +215,14 @@ export default function Page() {
       .map(entry => {
         const name = typeof entry?.name === 'string' ? entry.name.trim() : '';
         const link = typeof entry?.link === 'string' ? entry.link.trim() : '';
-        const { canonical, aliases, tokens } = createBrandMetadata(name);
+        const { canonical, aliases, tokens, brandCore } = createBrandMetadata(name);
         return {
           name,
           link,
           canonical,
           aliases,
-          tokens
+          tokens,
+          brandCore
         };
       })
       .filter(entry => entry.name && entry.link);
@@ -219,6 +235,40 @@ export default function Page() {
     return hostLinkMap.get(normalized.toLowerCase()) || null;
   }
 
+  function countMissingTokens(entryTokens, targetTokens) {
+    if (!targetTokens?.size) return 0;
+    if (!entryTokens?.size) return targetTokens.size;
+    let missing = 0;
+    for (const token of targetTokens) {
+      if (!entryTokens.has(token)) missing += 1;
+    }
+    return missing;
+  }
+
+  function countExtraTokens(entryTokens, targetTokens) {
+    const entrySize = entryTokens?.size ?? 0;
+    const targetSize = targetTokens?.size ?? 0;
+    return Math.max(0, entrySize - targetSize);
+  }
+
+  function selectBestBrandEntry(entries, targetTokens) {
+    if (!entries.length) return null;
+    const sorted = entries.slice().sort((a, b) => {
+      const aMissing = countMissingTokens(a.tokens, targetTokens);
+      const bMissing = countMissingTokens(b.tokens, targetTokens);
+      if (aMissing !== bMissing) return aMissing - bMissing;
+
+      const aExtra = countExtraTokens(a.tokens, targetTokens);
+      const bExtra = countExtraTokens(b.tokens, targetTokens);
+      if (aExtra !== bExtra) return aExtra - bExtra;
+
+      const aLen = a.canonical?.length ?? Infinity;
+      const bLen = b.canonical?.length ?? Infinity;
+      return aLen - bLen;
+    });
+    return sorted[0];
+  }
+
   function findBrandLink(brandName) {
     if (!brandName) return null;
     const normalized = brandName.trim();
@@ -227,15 +277,27 @@ export default function Page() {
     const targetAliases = targetMeta.aliases;
     const targetTokens = targetMeta.tokens;
     const targetCanonical = targetMeta.canonical;
+    const targetBrandCore = targetMeta.brandCore;
 
-    if (!targetCanonical && !targetTokens.size) {
+    if (!targetCanonical && !targetBrandCore && !targetTokens.size) {
       return null;
+    }
+
+    const brandCoreCandidates = targetBrandCore
+      ? normalizedBrandLinks.filter(entry => entry.brandCore === targetBrandCore)
+      : [];
+    const bestBrandCoreCandidate = selectBestBrandEntry(brandCoreCandidates, targetTokens);
+    if (bestBrandCoreCandidate && countMissingTokens(bestBrandCoreCandidate.tokens, targetTokens) === 0) {
+      return bestBrandCoreCandidate.link;
     }
 
     const aliasMatches = [];
     if (targetAliases.size) {
       for (const entry of normalizedBrandLinks) {
         if (!entry.aliases?.size) continue;
+        if (targetBrandCore && entry.brandCore && entry.brandCore !== targetBrandCore) {
+          continue;
+        }
         let bestAlias = null;
         for (const alias of entry.aliases) {
           if (!targetAliases.has(alias)) continue;
@@ -251,17 +313,17 @@ export default function Page() {
 
     if (aliasMatches.length) {
       aliasMatches.sort((a, b) => {
+        const aMissing = countMissingTokens(a.entry.tokens, targetTokens);
+        const bMissing = countMissingTokens(b.entry.tokens, targetTokens);
+        if (aMissing !== bMissing) return aMissing - bMissing;
+
+        const aExtra = countExtraTokens(a.entry.tokens, targetTokens);
+        const bExtra = countExtraTokens(b.entry.tokens, targetTokens);
+        if (aExtra !== bExtra) return aExtra - bExtra;
+
         const aExact = a.alias === targetCanonical ? 0 : 1;
         const bExact = b.alias === targetCanonical ? 0 : 1;
         if (aExact !== bExact) return aExact - bExact;
-
-        const aTokenDiff = Math.abs((a.entry.tokens?.size || 0) - (targetTokens.size || 0));
-        const bTokenDiff = Math.abs((b.entry.tokens?.size || 0) - (targetTokens.size || 0));
-        if (aTokenDiff !== bTokenDiff) return aTokenDiff - bTokenDiff;
-
-        const aTokenSize = a.entry.tokens?.size ?? 0;
-        const bTokenSize = b.entry.tokens?.size ?? 0;
-        if (aTokenSize !== bTokenSize) return aTokenSize - bTokenSize;
 
         const aLen = a.entry.canonical?.length ?? Infinity;
         const bLen = b.entry.canonical?.length ?? Infinity;
@@ -270,31 +332,20 @@ export default function Page() {
       return aliasMatches[0].entry.link;
     }
 
-    if (targetTokens.size) {
-      const matches = normalizedBrandLinks
-        .filter(entry => entry.tokens?.size)
-        .filter(entry => {
-          for (const token of targetTokens) {
-            if (!entry.tokens.has(token)) return false;
-          }
-          return true;
-        })
-        .sort((a, b) => {
-          const diff = (a.tokens?.size ?? 0) - (b.tokens?.size ?? 0);
-          if (diff !== 0) return diff;
-          const aLen = a.canonical?.length ?? Infinity;
-          const bLen = b.canonical?.length ?? Infinity;
-          return aLen - bLen;
-        });
-      if (matches.length) {
-        return matches[0].link;
-      }
+    if (bestBrandCoreCandidate) {
+      return bestBrandCoreCandidate.link;
     }
 
     const fallback = normalizedBrandLinks.find(entry => {
       const candidate = entry.canonical || normalizeBrandLabel(entry.name);
-      if (!candidate || !targetCanonical) return false;
-      return candidate.includes(targetCanonical) || targetCanonical.includes(candidate);
+      if (!candidate) return false;
+      if (targetCanonical && (candidate.includes(targetCanonical) || targetCanonical.includes(candidate))) {
+        return true;
+      }
+      if (targetBrandCore && entry.brandCore === targetBrandCore) {
+        return true;
+      }
+      return false;
     });
 
     return fallback?.link || null;
