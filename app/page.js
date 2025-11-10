@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { parseSlot } from '../lib/parse';
 import { buildICS } from '../lib/ics';
-import { extractFromImage } from '../lib/ocr';
 
 function toYMD(d) {
   const y = d.getFullYear();
@@ -117,7 +116,18 @@ function buildPrefilledFormLink(values) {
     params.set(FORM_ENTRY_IDS.livestreamId2, values.id2);
   }
 
-  return `${GOOGLE_FORM_BASE_URL}?${params.toString()}`;
+  if (values.startTimeEncoded) {
+    params.delete(FORM_ENTRY_IDS.startTime);
+  }
+
+  let query = params.toString();
+  if (values.startTimeEncoded) {
+    query = query
+      ? `${query}&${FORM_ENTRY_IDS.startTime}=${values.startTimeEncoded}`
+      : `${FORM_ENTRY_IDS.startTime}=${values.startTimeEncoded}`;
+  }
+
+  return `${GOOGLE_FORM_BASE_URL}?${query}`;
 }
 
 function extractLivestreamIdFromText(raw) {
@@ -155,7 +165,7 @@ function isValidEmail(value) {
   return emailRegex.test(trimmed);
 }
 
-async function loadImageElement(source) {
+async function readImageAsDataURL(source) {
   if (!source) {
     throw new Error('Không có ảnh để xử lý.');
   }
@@ -164,68 +174,48 @@ async function loadImageElement(source) {
     throw new Error('OCR chỉ khả dụng trên trình duyệt.');
   }
 
-  if (source instanceof HTMLImageElement) {
+  if (typeof source === 'string') {
     return source;
   }
 
-  const dataUrl = await new Promise((resolve, reject) => {
-    if (typeof source === 'string') {
-      resolve(source);
-      return;
-    }
-
-    if (source instanceof Blob) {
+  if (source instanceof Blob) {
+    return await new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
       reader.onerror = () => reject(new Error('Không đọc được file ảnh.'));
       reader.readAsDataURL(source);
-      return;
-    }
-
-    reject(new Error('Định dạng ảnh không hỗ trợ.'));
-  });
-
-  return await new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('Không tải được ảnh.'));
-    img.src = dataUrl;
-  });
-}
-
-const TESSERACT_CDN_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-let tesseractLoaderPromise = null;
-
-function loadTesseractFromCdn() {
-  if (typeof window === 'undefined') {
-    return Promise.reject(new Error('OCR chỉ khả dụng trên trình duyệt.'));
-  }
-  if (window.Tesseract) {
-    return Promise.resolve(window.Tesseract);
-  }
-  if (!tesseractLoaderPromise) {
-    tesseractLoaderPromise = new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = TESSERACT_CDN_URL;
-      script.async = true;
-      script.onload = () => {
-        if (window.Tesseract) {
-          resolve(window.Tesseract);
-        } else {
-          reject(new Error('Không tải được Tesseract.'));
-        }
-      };
-      script.onerror = () => {
-        reject(new Error('Không thể tải thư viện OCR.'));
-      };
-      document.body.appendChild(script);
-    }).catch(err => {
-      tesseractLoaderPromise = null;
-      throw err;
     });
   }
-  return tesseractLoaderPromise;
+
+  if (source instanceof HTMLImageElement) {
+    const canvas = document.createElement('canvas');
+    canvas.width = source.naturalWidth || source.width;
+    canvas.height = source.naturalHeight || source.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+    ctx.drawImage(source, 0, 0);
+    return canvas.toDataURL('image/png');
+  }
+
+  throw new Error('Định dạng ảnh không hỗ trợ.');
+}
+
+function inferPlatformFromEvent(event) {
+  if (!event) return '';
+  const direct = (event.platform || '').toString().toLowerCase();
+  if (direct === 'tiktok' || direct === 'shopee') {
+    return direct;
+  }
+  const hints = [event.brandChannel, event.sessionType, event.room, event.title]
+    .filter(Boolean)
+    .map(text => text.toString().toLowerCase());
+  if (hints.some(text => text.includes('shopee') || text.includes('shp'))) {
+    return 'shopee';
+  }
+  if (hints.some(text => text.includes('tiktok') || text.includes('tts'))) {
+    return 'tiktok';
+  }
+  return '';
 }
 
 function normalizeBrandLabel(label) {
@@ -554,7 +544,8 @@ export default function Page() {
         id1: '',
         id2: '',
         gmv: '',
-        startTimeText: ''
+        startTimeText: '',
+        startTimeEncoded: ''
       },
       emailLocked: Boolean(initialEmail),
       showOptionalId: false,
@@ -606,6 +597,7 @@ export default function Page() {
         next.keyLivestream = value;
       } else if (field === 'startTimeText') {
         next.startTimeText = value;
+        next.startTimeEncoded = '';
       }
       return next;
     });
@@ -649,19 +641,38 @@ export default function Page() {
     });
 
     try {
-      const Tesseract = await loadTesseractFromCdn();
-      const image = await loadImageElement(file);
+      const dataUrl = await readImageAsDataURL(file);
+      const guessedPlatform = inferPlatformFromEvent(prefillModal?.event);
       setPrefillModal(prev => {
         if (!prev || prev.ocrStatus !== 'running') return prev;
-        return { ...prev, ocrProgress: 0.2 };
+        return { ...prev, ocrProgress: 0.3 };
       });
 
-      const extracted = await extractFromImage(Tesseract, image);
-      const hasGmv = Boolean(extracted.gmv);
-      const hasStart = Boolean(extracted.startTime);
-      const platformLabel = extracted.platform === 'tiktok'
+      const requestBody = guessedPlatform
+        ? { imageBase64: dataUrl, platform: guessedPlatform }
+        : { imageBase64: dataUrl };
+
+      const resp = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+      const payload = await resp.json().catch(() => null);
+      if (!resp.ok || !payload || payload.ok !== true) {
+        const message = payload?.error || 'Không trích xuất được dữ liệu.';
+        throw new Error(message);
+      }
+
+      const data = payload.data || {};
+      const detectedPlatform = data.platformDetected;
+      const gmvValue = sanitizeNumericString(data.gmv);
+      const startTimeValue = typeof data.startTime === 'string' ? data.startTime.trim() : '';
+      const startTimeEncoded = typeof data.startTimeEncoded === 'string' ? data.startTimeEncoded : '';
+      const hasGmv = Boolean(gmvValue);
+      const hasStart = Boolean(startTimeValue);
+      const platformLabel = detectedPlatform === 'tiktok'
         ? 'TikTok Shop Live'
-        : extracted.platform === 'shopee'
+        : detectedPlatform === 'shopee'
           ? 'Shopee Live'
           : '';
 
@@ -669,11 +680,12 @@ export default function Page() {
         if (!prev) return prev;
         const nextValues = { ...prev.values };
         if (hasGmv) {
-          nextValues.gmv = extracted.gmv;
+          nextValues.gmv = gmvValue;
         }
         if (hasStart) {
-          nextValues.startTimeText = extracted.startTime;
+          nextValues.startTimeText = startTimeValue;
         }
+        nextValues.startTimeEncoded = startTimeEncoded;
         const clearedErrors = { ...(prev.formErrors || {}) };
         if (hasGmv && clearedErrors.gmv) delete clearedErrors.gmv;
         if (hasStart && clearedErrors.startTimeText) delete clearedErrors.startTimeText;
@@ -722,6 +734,9 @@ export default function Page() {
     const id2Raw = extractLivestreamIdFromText(rawValues.id2) || sanitizeNumericString(rawValues.id2);
     const gmv = sanitizeNumericString(rawValues.gmv);
     const startTimeText = (rawValues.startTimeText || '').trim();
+    const startTimeEncoded = typeof rawValues.startTimeEncoded === 'string'
+      ? rawValues.startTimeEncoded
+      : '';
 
     const errors = {};
     if (!isValidEmail(email)) {
@@ -746,7 +761,8 @@ export default function Page() {
       id1,
       id2: id2Raw,
       gmv,
-      startTimeText
+      startTimeText,
+      startTimeEncoded
     };
 
     if (Object.keys(errors).length > 0) {
