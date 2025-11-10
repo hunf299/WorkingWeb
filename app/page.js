@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { parseSlot } from '../lib/parse';
 import { buildICS } from '../lib/ics';
 
@@ -346,7 +346,12 @@ export default function Page() {
   const [rawItems, setRawItems] = useState([]);      // dữ liệu raw từ sheet
   const [selectedDateStr, setSelectedDateStr] = useState(toYMD(new Date())); // yyyy-mm-dd
   const [daysToShow, setDaysToShow] = useState(1);   // số ngày hiển thị bắt đầu từ ngày chọn
-  const [query, setQuery] = useState('');            // filter/search
+  const [query, setQuery] = useState('');             // filter/search áp dụng
+  const [searchInput, setSearchInput] = useState(''); // giá trị người dùng đang nhập
+  const [calendarExpanded, setCalendarExpanded] = useState(false);
+  const [trialEmail, setTrialEmail] = useState('');
+  const [trialEmailStatus, setTrialEmailStatus] = useState('idle');
+  const [trialEmailError, setTrialEmailError] = useState('');
   const [filterBrand, setFilterBrand] = useState('');
   const [filterTime, setFilterTime] = useState('');
   const [filterRoom, setFilterRoom] = useState('');
@@ -366,6 +371,19 @@ export default function Page() {
   const [pendingVerificationName, setPendingVerificationName] = useState(null);
   const [prefillModal, setPrefillModal] = useState(null);
   const isActiveUser = trialUser?.status === 'active';
+  const calendarCardBodyId = 'calendar-card-fields';
+
+  const updateSearch = useCallback((value, options = {}) => {
+    const nextValue = typeof value === 'string' ? value : '';
+    setSearchInput(nextValue);
+    if (options.immediate) {
+      setQuery(nextValue);
+    }
+  }, [setQuery, setSearchInput]);
+
+  const toggleCalendarExpanded = useCallback(() => {
+    setCalendarExpanded(prev => !prev);
+  }, []);
 
   const hostLinkMap = useMemo(() => {
     const map = new Map();
@@ -412,6 +430,15 @@ export default function Page() {
       })
       .filter(entry => entry.name && entry.link);
   }, [brandLinks]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setQuery(prev => (prev === searchInput ? prev : searchInput));
+    }, 300);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchInput]);
 
   function findHostLink(hostName) {
     if (!hostName) return null;
@@ -535,7 +562,7 @@ export default function Page() {
 
   function openPrefillModalForEvent(event) {
     if (!event) return;
-    const initialEmail = typeof trialUser?.email === 'string' ? trialUser.email.trim() : '';
+    const initialEmail = typeof trialEmail === 'string' ? trialEmail.trim() : '';
     setPrefillModal({
       event,
       values: {
@@ -548,6 +575,7 @@ export default function Page() {
         startTimeEncoded: ''
       },
       emailLocked: Boolean(initialEmail),
+      emailUnlockedManually: false,
       showOptionalId: false,
       ocrStatus: 'idle',
       ocrProgress: 0,
@@ -584,6 +612,9 @@ export default function Page() {
   }
 
   function handlePrefillFieldChange(field, value) {
+    if (field === 'email') {
+      setTrialEmailError('');
+    }
     setPrefillValues(values => {
       const next = { ...values };
       if (field === 'gmv') {
@@ -621,7 +652,8 @@ export default function Page() {
   }
 
   function unlockPrefillEmail() {
-    setPrefillModal(prev => (prev ? { ...prev, emailLocked: false } : prev));
+    setTrialEmailError('');
+    setPrefillModal(prev => (prev ? { ...prev, emailLocked: false, emailUnlockedManually: true } : prev));
   }
 
   async function handlePrefillOcr(file) {
@@ -723,7 +755,86 @@ export default function Page() {
     }
   }
 
-  function handleGeneratePrefilledLink(event) {
+  async function persistTrialUserEmail(email) {
+    if (!isActiveUser) {
+      return { ok: true, email };
+    }
+
+    const trimmed = (email || '').trim();
+    if (!trimmed) {
+      return { ok: false, error: 'Email không hợp lệ.' };
+    }
+
+    setTrialEmailStatus('saving');
+    setTrialEmailError('');
+
+    try {
+      const res = await fetch('/api/trial-users/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmed })
+      });
+      let payload = null;
+      try {
+        payload = await res.json();
+      } catch (err) {
+        payload = null;
+      }
+      if (!res.ok || payload?.ok !== true) {
+        const message = typeof payload?.error === 'string'
+          ? payload.error
+          : 'Không lưu được email.';
+        throw new Error(message);
+      }
+      const savedEmail = typeof payload?.email === 'string' ? payload.email.trim() : trimmed;
+      setTrialEmail(savedEmail);
+      setTrialEmailStatus('ready');
+      setTrialEmailError('');
+      return { ok: true, email: savedEmail };
+    } catch (err) {
+      const message = err?.message || 'Không lưu được email.';
+      console.error('Lưu email thất bại', err);
+      setTrialEmailStatus('error');
+      setTrialEmailError(message);
+      return { ok: false, error: message };
+    }
+  }
+
+  useEffect(() => {
+    if (!prefillModal) return;
+    setPrefillModal(prev => {
+      if (!prev) return prev;
+      const storedEmail = typeof trialEmail === 'string' ? trialEmail.trim() : '';
+      let changed = false;
+      const next = { ...prev };
+
+      if (trialEmailStatus === 'ready') {
+        if (storedEmail) {
+          if (!prev.emailUnlockedManually) {
+            const currentEmail = typeof prev.values?.email === 'string' ? prev.values.email : '';
+            if (currentEmail !== storedEmail) {
+              next.values = { ...prev.values, email: storedEmail };
+              changed = true;
+            }
+            if (!prev.emailLocked) {
+              next.emailLocked = true;
+              changed = true;
+            }
+          }
+        } else if (prev.emailLocked && !prev.emailUnlockedManually) {
+          next.emailLocked = false;
+          changed = true;
+        }
+      } else if ((trialEmailStatus === 'error' || trialEmailStatus === 'idle') && prev.emailLocked && !prev.emailUnlockedManually && !storedEmail) {
+        next.emailLocked = false;
+        changed = true;
+      }
+
+      return changed ? next : prev;
+    });
+  }, [trialEmailStatus, trialEmail, prefillModal]);
+
+  async function handleGeneratePrefilledLink(event) {
     event.preventDefault();
     if (!prefillModal) return;
     const rawValues = prefillModal.values || {};
@@ -779,6 +890,43 @@ export default function Page() {
       return;
     }
 
+    const trimmedStoredEmail = (trialEmail || '').trim();
+    const shouldPersistEmail = isActiveUser
+      && normalizedValues.email
+      && (trialEmailStatus !== 'ready' || normalizedValues.email !== trimmedStoredEmail);
+
+    if (shouldPersistEmail) {
+      const result = await persistTrialUserEmail(normalizedValues.email);
+      if (!result.ok) {
+        const message = result.error || 'Không lưu được email.';
+        setPrefillModal(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            values: { ...prev.values, ...normalizedValues },
+            formErrors: { ...prev.formErrors, email: message },
+            link: '',
+            copyFeedback: '',
+            emailLocked: false,
+            emailUnlockedManually: true,
+          };
+        });
+        return;
+      }
+      normalizedValues.email = result.email;
+      setPrefillModal(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          values: { ...prev.values, ...normalizedValues, email: result.email },
+          emailLocked: true,
+          emailUnlockedManually: false,
+        };
+      });
+    } else if (normalizedValues.email) {
+      setPrefillModal(prev => (prev ? { ...prev, emailLocked: true, emailUnlockedManually: false } : prev));
+    }
+
     const link = buildPrefilledFormLink(normalizedValues);
     setPrefillModal(prev => {
       if (!prev) return prev;
@@ -812,6 +960,27 @@ export default function Page() {
     }
     setPrefillModal(prev => (prev ? { ...prev, copyFeedback: 'Không thể sao chép tự động, vui lòng copy thủ công.' } : prev));
   }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = window.localStorage.getItem('calendarCardExpanded');
+      if (stored === 'true') {
+        setCalendarExpanded(true);
+      }
+    } catch (err) {
+      console.warn('Không đọc được calendarCardExpanded', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem('calendarCardExpanded', calendarExpanded ? 'true' : 'false');
+    } catch (err) {
+      console.warn('Không lưu được calendarCardExpanded', err);
+    }
+  }, [calendarExpanded]);
 
   // fetch sheet
   useEffect(() => {
@@ -866,10 +1035,70 @@ export default function Page() {
   useEffect(() => {
     if (!trialUser) return;
     if (trialUser.status === 'active' && trialUser.name && !hasAppliedLoginSearch) {
-      setQuery(trialUser.name);
+      updateSearch(trialUser.name, { immediate: true });
       setHasAppliedLoginSearch(true);
     }
-  }, [trialUser, hasAppliedLoginSearch]);
+  }, [trialUser, hasAppliedLoginSearch, updateSearch]);
+
+  useEffect(() => {
+    if (!isActiveUser || !trialUser?.user_id) {
+      setTrialEmail('');
+      setTrialEmailStatus('idle');
+      setTrialEmailError('');
+      return;
+    }
+
+    let cancelled = false;
+    setTrialEmailStatus('loading');
+    setTrialEmailError('');
+
+    (async () => {
+      try {
+        const res = await fetch('/api/trial-users/email', { method: 'GET' });
+        let payload = null;
+        try {
+          payload = await res.json();
+        } catch (err) {
+          payload = null;
+        }
+        if (cancelled) return;
+        if (res.status === 401 || res.status === 403) {
+          setTrialEmail('');
+          setTrialEmailStatus('ready');
+          setTrialEmailError('');
+          return;
+        }
+        if (!res.ok) {
+          const message = typeof payload?.error === 'string'
+            ? payload.error
+            : 'Không lấy được email.';
+          setTrialEmail('');
+          setTrialEmailStatus('error');
+          setTrialEmailError(message);
+          return;
+        }
+        const exists = Boolean(payload?.exists);
+        const fetchedEmail = typeof payload?.email === 'string' ? payload.email.trim() : '';
+        if (exists && fetchedEmail) {
+          setTrialEmail(fetchedEmail);
+        } else {
+          setTrialEmail('');
+        }
+        setTrialEmailStatus('ready');
+        setTrialEmailError('');
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Fetch trial email failed', err);
+        setTrialEmail('');
+        setTrialEmailStatus('error');
+        setTrialEmailError('Không lấy được email. Vui lòng nhập thủ công.');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isActiveUser, trialUser?.user_id]);
 
   useEffect(() => {
     if (!isActiveUser) {
@@ -1043,15 +1272,23 @@ export default function Page() {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('trial_user');
     }
+    updateSearch('', { immediate: true });
+    setTrialEmail('');
+    setTrialEmailStatus('idle');
+    setTrialEmailError('');
     setTrialUser(null);
     setNameInput('');
-    setQuery('');
     setShowLoginModal(true);
     setLoggingIn(false);
     setLoginError('');
     setHasAppliedLoginSearch(false);
     resetFilters();
     setShowFiltersModal(false);
+    try {
+      fetch('/api/trial-users/email', { method: 'DELETE' }).catch(() => {});
+    } catch (err) {
+      console.warn('Không thể xóa cookie người dùng thử', err);
+    }
   }
   const trialInfo = useMemo(() => {
     if (!trialUser) return null;
@@ -1278,6 +1515,8 @@ Nguồn: Google Sheet ${ev.rawDate}`,
     URL.revokeObjectURL(url);
   }
 
+  const isEmailBusy = trialEmailStatus === 'loading' || trialEmailStatus === 'saving';
+
   return (
     <div className="container">
       <div className="page-header">
@@ -1315,55 +1554,104 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         )}
       </div>
 
-      {/* Toolbar: chọn ngày + tìm kiếm + nút ICS */}
-      <div className="toolbar">
-        <div className="toolbar-row">
-          <label className="lbl" htmlFor="pick-date">Ngày</label>
-          <input
-            id="pick-date"
-            type="date"
-            className="date-input"
-            value={selectedDateStr}
-            onChange={e => setSelectedDateStr(e.target.value)}
-          />
-        </div>
-
-        <div className="toolbar-row">
-          <label className="lbl" htmlFor="days-to-show">Số ngày</label>
-          <select
-            id="days-to-show"
-            className="date-input"
-            value={daysToShow}
-            onChange={e => setDaysToShow(Math.max(1, Number(e.target.value) || 1))}
-          >
-            {DAY_RANGE_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="toolbar-row toolbar-row--search">
-          <label className="lbl" htmlFor="q">Tìm</label>
-          <div className="search-box">
-            <input
-              id="q"
-              type="text"
-              className="text-input"
-              placeholder="Brand / Session / Talent / Room / Coordinator…"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              disabled={!isActiveUser}
-            />
+      <div className="calendar-card" data-expanded={calendarExpanded}>
+        <div className="calendar-card-header">
+          <div className="calendar-card-title">
+            <label className="calendar-card-label" htmlFor="calendar-search">Tìm kiếm</label>
+            <div className="calendar-card-search">
+              <div className="calendar-card-search-input">
+                <input
+                  id="calendar-search"
+                  type="text"
+                  className="text-input"
+                  placeholder="Brand / Session / Talent / Room / Coordinator…"
+                  value={searchInput}
+                  onChange={e => updateSearch(e.target.value)}
+                  disabled={!isActiveUser}
+                />
+                {searchInput && (
+                  <button
+                    type="button"
+                    className="btn ghost calendar-card-clear"
+                    onClick={() => updateSearch('', { immediate: true })}
+                    disabled={!isActiveUser}
+                  >
+                    Xóa
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-          {query && (
-            <button className="btn ghost" onClick={() => setQuery('')}>Xóa</button>
-          )}
+          <div className="calendar-card-actions">
+            <button
+              type="button"
+              className="btn"
+              onClick={downloadICSForDay}
+              disabled={!isActiveUser}
+            >
+              Tải lịch đang xem (.ics)
+            </button>
+            <button
+              type="button"
+              className="calendar-card-toggle"
+              onClick={toggleCalendarExpanded}
+              aria-expanded={calendarExpanded}
+              aria-controls={calendarCardBodyId}
+              aria-label={calendarExpanded ? 'Thu gọn cài đặt lịch' : 'Mở cài đặt lịch'}
+            >
+              <svg
+                className="calendar-card-chevron"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d={calendarExpanded ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}
+                />
+              </svg>
+              <span className="sr-only">{calendarExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
+            </button>
+          </div>
         </div>
-
-        <div className="toolbar-actions">
-          <div className="toolbar-buttons">
+        <div
+          id={calendarCardBodyId}
+          className="calendar-card-body"
+          aria-hidden={!calendarExpanded}
+          hidden={!calendarExpanded}
+        >
+          <div className="calendar-card-controls">
+            <div className="calendar-card-field">
+              <label htmlFor="pick-date">Ngày</label>
+              <input
+                id="pick-date"
+                type="date"
+                className="date-input"
+                value={selectedDateStr}
+                onChange={e => setSelectedDateStr(e.target.value)}
+              />
+            </div>
+            <div className="calendar-card-field">
+              <label htmlFor="days-to-show">Số ngày</label>
+              <select
+                id="days-to-show"
+                className="date-input"
+                value={daysToShow}
+                onChange={e => setDaysToShow(Math.max(1, Number(e.target.value) || 1))}
+              >
+                {DAY_RANGE_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="calendar-card-footer">
             <button
               type="button"
               className="btn ghost filter-trigger"
@@ -1378,14 +1666,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             >
               <span className="filter-trigger-label">Bộ lọc</span>
               {hasActiveFilters && <span className="filter-trigger-indicator" aria-hidden="true" />}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={downloadICSForDay}
-              disabled={!isActiveUser}
-            >
-              Tải lịch đang xem (.ics)
             </button>
           </div>
         </div>
@@ -1738,27 +2018,35 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                   <div className="prefill-field">
                     <label htmlFor="prefill-email">Email</label>
                     <div className="prefill-field-control">
-                      <input
-                        id="prefill-email"
-                        type="email"
-                        className="text-input"
-                        placeholder="example@gmail.com"
-                        value={prefillValues.email || ''}
-                        onChange={e => handlePrefillFieldChange('email', e.target.value)}
-                        disabled={prefillModal.emailLocked}
-                        autoComplete="email"
-                      />
+                      <div className="prefill-email-wrapper" aria-busy={isEmailBusy}>
+                        <input
+                          id="prefill-email"
+                          type="email"
+                          className="text-input prefill-email-input"
+                          placeholder="example@gmail.com"
+                          value={prefillValues.email || ''}
+                          onChange={e => handlePrefillFieldChange('email', e.target.value)}
+                          disabled={prefillModal.emailLocked || isEmailBusy}
+                          autoComplete="email"
+                        />
+                        {isEmailBusy && <span className="input-spinner" aria-hidden="true" />}
+                      </div>
                       {prefillModal.emailLocked && (
                         <button
                           type="button"
                           className="prefill-edit-button"
                           onClick={unlockPrefillEmail}
+                          disabled={isEmailBusy}
                         >
                           Sửa
                         </button>
                       )}
                     </div>
-                    {prefillFormErrors.email && <div className="prefill-error">{prefillFormErrors.email}</div>}
+                    {prefillFormErrors.email ? (
+                      <div className="prefill-error">{prefillFormErrors.email}</div>
+                    ) : (
+                      trialEmailError && <div className="prefill-error">{trialEmailError}</div>
+                    )}
                   </div>
 
                   <div className="prefill-field">
@@ -1880,7 +2168,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                   </div>
 
                   <div className="prefill-form-actions">
-                    <button type="submit" className="btn">Tạo link</button>
+                    <button type="submit" className="btn" disabled={isEmailBusy}>Tạo link</button>
                     <button type="button" className="btn ghost" onClick={closePrefillModal}>
                       Đóng
                     </button>

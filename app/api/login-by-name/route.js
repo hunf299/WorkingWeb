@@ -4,6 +4,9 @@ import { NextResponse } from 'next/server';
 import { getSupabaseServiceRoleClient } from '../../../lib/supabaseAdmin';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const COOKIE_NAME = 'trial_user_id';
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
+const SECURE_COOKIE = process.env.NODE_ENV === 'production';
 
 function addDaysISO(baseDate, days) {
   return new Date(baseDate.getTime() + days * DAY_MS).toISOString();
@@ -22,6 +25,30 @@ function computeDaysLeft(trialExpiresAt, now) {
     return 0;
   }
   return Math.max(0, Math.floor(diff / DAY_MS));
+}
+
+function setTrialUserCookie(response, userId) {
+  if (userId) {
+    response.cookies.set({
+      name: COOKIE_NAME,
+      value: String(userId),
+      maxAge: COOKIE_MAX_AGE,
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: SECURE_COOKIE,
+    });
+  } else {
+    response.cookies.set({
+      name: COOKIE_NAME,
+      value: '',
+      maxAge: 0,
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: SECURE_COOKIE,
+    });
+  }
 }
 
 export async function POST(req) {
@@ -58,14 +85,18 @@ export async function POST(req) {
   }
 
   if (!user) {
-    return NextResponse.json({
+    const response = NextResponse.json({
       status: 'not_found',
       message: 'Tên không tồn tại, vui lòng nhập lại.',
     });
+    setTrialUserCookie(response, null);
+    return response;
   }
 
   if (user.is_blocked) {
-    return NextResponse.json({ status: 'blocked' });
+    const response = NextResponse.json({ status: 'blocked' });
+    setTrialUserCookie(response, null);
+    return response;
   }
 
   const currentLoginCount = user.login_count ?? 0;
@@ -117,7 +148,7 @@ export async function POST(req) {
   const status = isExpired ? 'expired' : 'active';
   const daysLeft = computeDaysLeft(updatedUser.trial_expires_at, now);
 
-  return NextResponse.json({
+  const responsePayload = {
     user_id: updatedUser.id,
     name: updatedUser.name,
     email: updatedUser.email,
@@ -127,5 +158,12 @@ export async function POST(req) {
     login_count: updatedUser.login_count,
     status,
     days_left: daysLeft,
-  });
+  };
+  const response = NextResponse.json(responsePayload);
+  if (status === 'active') {
+    setTrialUserCookie(response, updatedUser.id);
+  } else {
+    setTrialUserCookie(response, null);
+  }
+  return response;
 }
