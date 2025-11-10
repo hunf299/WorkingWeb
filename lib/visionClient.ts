@@ -1,6 +1,7 @@
-import vision from '@google-cloud/vision';
+// lib/visionClient.ts
+import { ImageAnnotatorClient } from '@google-cloud/vision';
 
-let client: vision.ImageAnnotatorClient | undefined;
+let client: ImageAnnotatorClient | null = null;
 
 export function getVisionClient() {
   if (!client) {
@@ -8,7 +9,7 @@ export function getVisionClient() {
     if (!raw) throw new Error('Missing GOOGLE_APPLICATION_CREDENTIALS env');
 
     const credentials = JSON.parse(raw);
-    client = new vision.ImageAnnotatorClient({ credentials });
+    client = new ImageAnnotatorClient({ credentials });
   }
   return client;
 }
