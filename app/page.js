@@ -106,9 +106,8 @@ const FORM_ENTRY_IDS = {
 
 function encodeForPrefill(text) {
   return (text || '')
-    .replace(/@/g, '%40')
-    .replace(/:/g, '%3A')
-    .replace(/\s+/g, '+');
+    .trim()
+    .replace(/\s+/g, ' ');
 }
 
 function buildPrefilledFormLink(values) {
