@@ -54,7 +54,14 @@ const toWords = (anns: any[]): VWord[] => {
     });
 };
 
-const normalizeGMV = (s: string) => (s || '').replace(/[^\d]/g, '');
+const digitsOnly = (s: string) => (s || '').replace(/\D+/g, '');
+
+const normalizeShopeeGMV = (s: string) => {
+  if (!s) return '';
+  const noDots = s.replace(/\./g, '');
+  const [beforeComma] = noDots.split(',');
+  return digitsOnly(beforeComma);
+};
 
 const isTimeLike = (s: string) =>
   /([A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})/.test(s) ||
@@ -81,22 +88,120 @@ const extractTikTokFromVision = (result: any) => {
   const words = toWords(anns);
   const fullText = anns[0]?.description || '';
   const imageW = Math.max(...words.map(w => w.x1), 0);
+  const width = imageW > 0 ? imageW : 1;
+  const leftThreshold = width * 0.55;
 
-  let startTime = '';
-  for (let i = 0; i < words.length - 2; i += 1) {
-    const A = words[i];
-    const B = words[i + 1];
-    const C = words[i + 2];
-    if (!/^[A-Z][a-z]{2}$/.test(A.text)) continue;
-    if (!/^\d{1,2}$/.test(B.text)) continue;
-    if (!/^\d{2}:\d{2}:\d{2}$/.test(C.text)) continue;
-    if (!(sameRow(A, B) && sameRow(B, C))) continue;
-    if (!(A.cx < imageW * 0.5)) continue;
-    startTime = `${A.text} ${B.text} ${C.text}`;
-    break;
+  const lineMap = new Map<number, VWord[]>();
+  for (const w of words) {
+    const key = Math.round(w.cy / 12);
+    const arr = lineMap.get(key) || [];
+    arr.push(w);
+    lineMap.set(key, arr);
   }
+
+  const monthMap = new Map([
+    ['jan', 'Jan'],
+    ['feb', 'Feb'],
+    ['mar', 'Mar'],
+    ['apr', 'Apr'],
+    ['may', 'May'],
+    ['jun', 'Jun'],
+    ['jul', 'Jul'],
+    ['aug', 'Aug'],
+    ['sep', 'Sep'],
+    ['oct', 'Oct'],
+    ['nov', 'Nov'],
+    ['dec', 'Dec']
+  ]);
+
+  const collectTime = (line: VWord[], startIdx: number) => {
+    const parts: string[] = [];
+    let endIdx = startIdx - 1;
+    for (let idx = startIdx; idx < line.length && parts.length < 5; idx += 1) {
+      const raw = (line[idx].text || '').trim();
+      if (!raw) continue;
+      if (/UTC/i.test(raw)) return null;
+      if (!/[0-9:]/.test(raw)) break;
+      const cleaned = raw.replace(/[^0-9:]/g, '');
+      if (!cleaned) break;
+      parts.push(cleaned);
+      const normalized = parts
+        .join(' ')
+        .replace(/\s*:\s*/g, ':')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const match = normalized.match(/\b\d{2}:\d{2}:\d{2}\b/);
+      if (match) {
+        endIdx = idx;
+        return { value: match[0], endIdx };
+      }
+    }
+    return null;
+  };
+
+  const lineGroups = Array.from(lineMap.values()).map(line =>
+    line.slice().sort((a, b) => a.cx - b.cx)
+  );
+  lineGroups.sort((a, b) => (a[0]?.cy || 0) - (b[0]?.cy || 0));
+
+  type StartCandidate = { text: string; x: number; priority: number };
+  const startCandidates: StartCandidate[] = [];
+
+  for (const line of lineGroups) {
+    for (let i = 0; i < line.length; i += 1) {
+      const monthRaw = (line[i].text || '').replace(/[^A-Za-z]/g, '').toLowerCase();
+      const month = monthMap.get(monthRaw);
+      if (!month) continue;
+      const dayWord = line[i + 1];
+      if (!dayWord) continue;
+      const dayDigits = (dayWord.text || '').replace(/\D+/g, '');
+      if (!dayDigits) continue;
+
+      const timeResult = collectTime(line, i + 2);
+      if (!timeResult) continue;
+
+      const usedWords = line.slice(i, timeResult.endIdx + 1);
+      if (!usedWords.length) continue;
+      if (usedWords.some(w => /UTC/i.test(w.text))) continue;
+
+      const maxCx = Math.max(...usedWords.map(w => w.cx));
+      if (maxCx > leftThreshold) continue;
+
+      const minCx = Math.min(...usedWords.map(w => w.cx));
+      const priority = i === 0 ? 0 : 1;
+      startCandidates.push({
+        text: `${month} ${dayDigits} ${timeResult.value}`.replace(/\s+/g, ' ').trim(),
+        x: minCx,
+        priority
+      });
+    }
+  }
+
+  startCandidates.sort((a, b) => {
+    if (a.priority !== b.priority) return a.priority - b.priority;
+    if (a.x !== b.x) return a.x - b.x;
+    return 0;
+  });
+
+  let startTime = startCandidates[0]?.text || '';
+
   if (!startTime) {
-    const m = fullText.match(/([A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})(?!.*UTC)/);
+    const lineMatch = fullText
+      .split(/\r?\n/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(s => s.replace(/\s*:\s*/g, ':'))
+      .find(s => !/UTC/i.test(s) && /[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}/.test(s));
+    if (lineMatch) {
+      const m = lineMatch.match(/([A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})/);
+      if (m) startTime = m[1];
+    }
+  }
+
+  if (!startTime) {
+    const m = fullText
+      .replace(/\s*:\s*/g, ':')
+      .match(/([A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})(?![^\n]*UTC)/);
     if (m) startTime = m[1];
   }
 
@@ -119,15 +224,17 @@ const extractTikTokFromVision = (result: any) => {
     candidates.sort((a, b) => b.avgH - a.avgH);
     if (candidates.length) {
       const text = joinLine(candidates[0].line);
-      if (!isTimeLike(text)) gmv = normalizeGMV(text);
+      const normalized = text.replace(/\s*:\s*/g, ':');
+      if (!isTimeLike(normalized) && !/:/.test(normalized)) gmv = digitsOnly(normalized);
     }
   }
 
   if (!gmv) {
     const lines = fullText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     const nums = lines
-      .filter(s => !isTimeLike(s))
-      .map(s => normalizeGMV(s))
+      .map(s => s.replace(/\s*:\s*/g, ':'))
+      .filter(s => !isTimeLike(s) && !/:/.test(s))
+      .map(s => digitsOnly(s))
       .filter(n => /^\d+$/.test(n));
     gmv = nums.sort((a, b) => b.length - a.length)[0] || '';
   }
@@ -172,7 +279,7 @@ const extractShopeeFromVision = (result: any) => {
 
     if (candidates.length) {
       const text = joinLine(candidates[0].line);
-      if (!/:/.test(text)) gmv = normalizeGMV(text);
+      if (!/:/.test(text)) gmv = normalizeShopeeGMV(text);
     }
   }
 
@@ -180,7 +287,7 @@ const extractShopeeFromVision = (result: any) => {
     const lines = fullText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     const nums = lines
       .filter(s => !/:/.test(s) && !/UTC/i.test(s))
-      .map(s => normalizeGMV(s))
+      .map(s => normalizeShopeeGMV(s))
       .filter(n => /^\d+$/.test(n));
     gmv = nums.sort((a, b) => b.length - a.length)[0] || '';
   }
