@@ -104,19 +104,13 @@ const FORM_ENTRY_IDS = {
   startTime: 'entry.2116389673'
 };
 
-function encodeForPrefill(text) {
-  return (text || '')
-    .trim()
-    .replace(/\s+/g, ' ');
-}
-
 function buildPrefilledFormLink(values) {
   const params = new URLSearchParams({
-    [FORM_ENTRY_IDS.email]: encodeForPrefill(values.email || ''),
+    [FORM_ENTRY_IDS.email]: (values.email || '').trim(),
     [FORM_ENTRY_IDS.keyLivestream]: values.keyLivestream || '',
     [FORM_ENTRY_IDS.livestreamId1]: values.id1 || '',
     [FORM_ENTRY_IDS.gmv]: values.gmv || '',
-    [FORM_ENTRY_IDS.startTime]: encodeForPrefill(values.startTimeText || '')
+    [FORM_ENTRY_IDS.startTime]: (values.startTimeText || '').trim()
   });
 
   if (values.id2) {
