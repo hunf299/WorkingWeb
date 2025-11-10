@@ -257,6 +257,41 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   padding: 16px;
   margin-bottom: 12px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  position: relative;
+}
+
+.prefill-trigger {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(249, 250, 251, 0.85);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #1f2937;
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.prefill-trigger:hover,
+.prefill-trigger:focus-visible {
+  background: #eef2ff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+  transform: translateY(-1px);
+}
+
+.prefill-trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
+}
+
+.prefill-trigger-icon {
+  width: 18px;
+  height: 18px;
 }
 
 /* Title to */
@@ -638,6 +673,215 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
 .filters-modal-footer .btn {
   flex: 1 1 160px;
   min-width: 140px;
+}
+
+.prefill-modal-card {
+  max-width: 640px;
+}
+
+.prefill-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.prefill-modal-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prefill-modal-subtitle {
+  margin: 0;
+  font-size: .95rem;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.prefill-modal-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: .85rem;
+  color: #6b7280;
+}
+
+.prefill-modal-body {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.prefill-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.prefill-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prefill-field-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prefill-edit-button,
+.prefill-add-button,
+.prefill-mini-button {
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #1f2937;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: .85rem;
+  cursor: pointer;
+  transition: background-color .2s ease, border-color .2s ease, color .2s ease;
+}
+
+.prefill-edit-button:hover,
+.prefill-edit-button:focus-visible,
+.prefill-add-button:hover,
+.prefill-add-button:focus-visible,
+.prefill-mini-button:hover,
+.prefill-mini-button:focus-visible {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+  color: #0f172a;
+}
+
+.prefill-add-button,
+.prefill-mini-button {
+  align-self: flex-start;
+}
+
+.prefill-add-button {
+  border-style: dashed;
+  padding: 6px 14px;
+}
+
+.prefill-mini-button {
+  padding: 4px 10px;
+}
+
+.prefill-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.prefill-error {
+  color: #b91c1c;
+  font-size: .85rem;
+}
+
+.prefill-hint {
+  font-size: .8rem;
+  color: #6b7280;
+}
+
+.prefill-status-message {
+  font-size: .85rem;
+  color: #1f2937;
+}
+
+.prefill-status-message--success {
+  color: #047857;
+}
+
+.prefill-status-message--error {
+  color: #b91c1c;
+}
+
+.prefill-form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.prefill-result {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.prefill-result-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.prefill-result-item {
+  background: #f9fafb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prefill-result-label {
+  font-size: .8rem;
+  text-transform: uppercase;
+  color: #6b7280;
+  letter-spacing: .04em;
+}
+
+.prefill-result-value {
+  font-size: .95rem;
+  color: #111827;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.prefill-result-link {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prefill-result-textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  padding: 10px 12px;
+  font-size: .9rem;
+  font-family: inherit;
+}
+
+.prefill-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.prefill-status-message + .prefill-status-message {
+  margin-top: -4px;
+}
+
+@media (max-width: 520px) {
+  .prefill-form-actions,
+  .prefill-result-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .prefill-form-actions .btn,
+  .prefill-result-actions .btn,
+  .prefill-result-actions .btn.ghost,
+  .prefill-result-actions .prefill-edit-button {
+    width: 100%;
+  }
 }
 
 @media (prefers-color-scheme: dark) {

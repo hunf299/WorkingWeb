@@ -47,7 +47,7 @@ export async function POST(req) {
   const { data: user, error } = await supabase
     .from('users_trial')
     .select(
-      'id, name, first_login_at, trial_expires_at, last_login_at, login_count, is_blocked'
+      'id, name, email, first_login_at, trial_expires_at, last_login_at, login_count, is_blocked'
     )
     .eq('name_norm', nameNorm)
     .maybeSingle();
@@ -101,7 +101,7 @@ export async function POST(req) {
     })
     .eq('id', user.id)
     .select(
-      'id, name, first_login_at, trial_expires_at, last_login_at, login_count, is_blocked'
+      'id, name, email, first_login_at, trial_expires_at, last_login_at, login_count, is_blocked'
     )
     .single();
 
@@ -120,6 +120,7 @@ export async function POST(req) {
   return NextResponse.json({
     user_id: updatedUser.id,
     name: updatedUser.name,
+    email: updatedUser.email,
     first_login_at: updatedUser.first_login_at,
     trial_expires_at: updatedUser.trial_expires_at,
     last_login_at: updatedUser.last_login_at,

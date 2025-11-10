@@ -92,6 +92,166 @@ const SPECIAL_HOST_LINKS = {
   'điểu nhi': 'https://zalo.me/g/pcmwxc142'
 };
 
+const GOOGLE_FORM_BASE_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSeZAOqU-pF3DEa7PB_GL4xzWg5K1lhIqy0m2LuUnDf_HV4_QA/viewform';
+
+const FORM_ENTRY_IDS = {
+  email: 'entry.1317689542',
+  keyLivestream: 'entry.1361227754',
+  livestreamId1: 'entry.59862848',
+  livestreamId2: 'entry.488105340',
+  gmv: 'entry.1865421413',
+  startTime: 'entry.2116389673'
+};
+
+function encodeForPrefill(text) {
+  return (text || '')
+    .replace(/@/g, '%40')
+    .replace(/:/g, '%3A')
+    .replace(/\s+/g, '+');
+}
+
+function buildPrefilledFormLink(values) {
+  const params = new URLSearchParams({
+    [FORM_ENTRY_IDS.email]: encodeForPrefill(values.email || ''),
+    [FORM_ENTRY_IDS.keyLivestream]: values.keyLivestream || '',
+    [FORM_ENTRY_IDS.livestreamId1]: values.id1 || '',
+    [FORM_ENTRY_IDS.gmv]: values.gmv || '',
+    [FORM_ENTRY_IDS.startTime]: encodeForPrefill(values.startTimeText || '')
+  });
+
+  if (values.id2) {
+    params.set(FORM_ENTRY_IDS.livestreamId2, values.id2);
+  }
+
+  return `${GOOGLE_FORM_BASE_URL}?${params.toString()}`;
+}
+
+function extractLivestreamIdFromText(raw) {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+
+  const shopeeMatch = trimmed.match(/creator\.shopee\.vn\/dashboard\/live\/(\d+)/i);
+  if (shopeeMatch) return shopeeMatch[1];
+
+  const tiktokMatch = trimmed.match(/[?&]room_id=(\d+)/i);
+  if (tiktokMatch) return tiktokMatch[1];
+
+  if (/^\d+$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  const digitMatches = trimmed.match(/\d{5,}/g);
+  if (digitMatches && digitMatches.length) {
+    return digitMatches[digitMatches.length - 1];
+  }
+
+  return '';
+}
+
+function sanitizeNumericString(value) {
+  return (value || '').replace(/[^0-9]/g, '');
+}
+
+function isValidEmail(value) {
+  const trimmed = (value || '').trim();
+  if (!trimmed) return false;
+  if (!trimmed.includes('@')) return false;
+  const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+  return emailRegex.test(trimmed);
+}
+
+function extractGmvFromText(text) {
+  if (!text) return '';
+  const patterns = [
+    /Doanh thu \(đ\)[^\d]*([\d.,]+)/i,
+    /GMV[^\d]*\(đ\)[^\d]*([\d.,]+)/i,
+    /GMV[^\d]*direct[^\d]*([\d.,]+)/i,
+    /GMV[^\d]*trực tiếp[^\d]*([\d.,]+)/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      const normalized = sanitizeNumericString(match[1]);
+      if (normalized) return normalized;
+    }
+  }
+
+  const fallback = text.match(/\b\d{2,}(?:[.,]\d{3})+\b/);
+  if (fallback && fallback[0]) {
+    return sanitizeNumericString(fallback[0]);
+  }
+
+  return '';
+}
+
+function extractStartTimeFromText(text) {
+  if (!text) return '';
+  const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const joined = lines.join('\n');
+
+  const patterns = [
+    /Bắt đầu lúc[:\s]*([^\n]+)/i,
+    /Start time[:\s]*([^\n]+)/i,
+    /Thời lượng[^\n]*\n([^\n]+)/i,
+    /(\b\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\b)/,
+    /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\s+\d{1,2}:\d{2}:\d{2})/,
+    /(\d{1,2}:\d{2}:\d{2}\s+\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/
+  ];
+
+  for (const pattern of patterns) {
+    const match = joined.match(pattern);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+
+  return '';
+}
+
+function parseOcrText(text) {
+  const normalized = text || '';
+  return {
+    gmv: extractGmvFromText(normalized),
+    startTimeText: extractStartTimeFromText(normalized)
+  };
+}
+
+const TESSERACT_CDN_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+let tesseractLoaderPromise = null;
+
+function loadTesseractFromCdn() {
+  if (typeof window === 'undefined') {
+    return Promise.reject(new Error('OCR chỉ khả dụng trên trình duyệt.'));
+  }
+  if (window.Tesseract) {
+    return Promise.resolve(window.Tesseract);
+  }
+  if (!tesseractLoaderPromise) {
+    tesseractLoaderPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = TESSERACT_CDN_URL;
+      script.async = true;
+      script.onload = () => {
+        if (window.Tesseract) {
+          resolve(window.Tesseract);
+        } else {
+          reject(new Error('Không tải được Tesseract.'));
+        }
+      };
+      script.onerror = () => {
+        reject(new Error('Không thể tải thư viện OCR.'));
+      };
+      document.body.appendChild(script);
+    }).catch(err => {
+      tesseractLoaderPromise = null;
+      throw err;
+    });
+  }
+  return tesseractLoaderPromise;
+}
+
 function normalizeBrandLabel(label) {
   if (!label) return '';
   let upper = label.toUpperCase();
@@ -250,6 +410,7 @@ export default function Page() {
   const searchSuggestionTimerRef = useRef(null);
   const lastSearchSuggestionQueryRef = useRef('');
   const searchBoxRef = useRef(null);
+  const [prefillModal, setPrefillModal] = useState(null);
   const isActiveUser = trialUser?.status === 'active';
 
   const hostLinkMap = useMemo(() => {
@@ -418,6 +579,259 @@ export default function Page() {
     return best.entry.link;
   }
 
+  function openPrefillModalForEvent(event) {
+    if (!event) return;
+    const initialEmail = typeof trialUser?.email === 'string' ? trialUser.email.trim() : '';
+    setPrefillModal({
+      event,
+      values: {
+        email: initialEmail,
+        keyLivestream: (event.keyLivestream || '').trim(),
+        id1: '',
+        id2: '',
+        gmv: '',
+        startTimeText: ''
+      },
+      emailLocked: Boolean(initialEmail),
+      showOptionalId: false,
+      ocrStatus: 'idle',
+      ocrProgress: 0,
+      ocrError: '',
+      ocrMessage: '',
+      ocrFileName: '',
+      formErrors: {},
+      link: '',
+      copyFeedback: ''
+    });
+  }
+
+  function closePrefillModal() {
+    setPrefillModal(null);
+  }
+
+  function setPrefillValues(updater) {
+    setPrefillModal(prev => {
+      if (!prev) return prev;
+      const nextValues = typeof updater === 'function' ? updater(prev.values) : updater;
+      const clearedErrors = { ...(prev.formErrors || {}) };
+      for (const key of Object.keys(nextValues)) {
+        if (clearedErrors[key]) {
+          delete clearedErrors[key];
+        }
+      }
+      return {
+        ...prev,
+        values: { ...prev.values, ...nextValues },
+        formErrors: clearedErrors,
+        copyFeedback: ''
+      };
+    });
+  }
+
+  function handlePrefillFieldChange(field, value) {
+    setPrefillValues(values => {
+      const next = { ...values };
+      if (field === 'gmv') {
+        next.gmv = sanitizeNumericString(value);
+      } else if (field === 'id1' || field === 'id2') {
+        const extracted = extractLivestreamIdFromText(value);
+        next[field] = extracted || sanitizeNumericString(value);
+      } else if (field === 'email') {
+        next.email = value;
+      } else if (field === 'keyLivestream') {
+        next.keyLivestream = value;
+      } else if (field === 'startTimeText') {
+        next.startTimeText = value;
+      }
+      return next;
+    });
+  }
+
+  function toggleOptionalLivestreamId(show) {
+    setPrefillModal(prev => {
+      if (!prev) return prev;
+      const nextErrors = { ...(prev.formErrors || {}) };
+      if (!show) {
+        delete nextErrors.id2;
+      }
+      return {
+        ...prev,
+        showOptionalId: show,
+        values: show ? prev.values : { ...prev.values, id2: '' },
+        formErrors: show ? prev.formErrors : nextErrors,
+        copyFeedback: ''
+      };
+    });
+  }
+
+  function unlockPrefillEmail() {
+    setPrefillModal(prev => (prev ? { ...prev, emailLocked: false } : prev));
+  }
+
+  async function handlePrefillOcr(file) {
+    if (!file) return;
+    setPrefillModal(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        ocrStatus: 'running',
+        ocrProgress: 0,
+        ocrError: '',
+        ocrMessage: '',
+        ocrFileName: file.name,
+        copyFeedback: ''
+      };
+    });
+
+    try {
+      const Tesseract = await loadTesseractFromCdn();
+      const result = await Tesseract.recognize(file, 'eng+vie', {
+        logger: message => {
+          if (!message) return;
+          if (message.status === 'recognizing text') {
+            const progress = typeof message.progress === 'number' ? message.progress : 0;
+            setPrefillModal(prev => {
+              if (!prev) return prev;
+              if (prev.ocrStatus !== 'running') return prev;
+              return { ...prev, ocrProgress: progress };
+            });
+          }
+        }
+      });
+      const text = result?.data?.text || '';
+      const parsed = parseOcrText(text);
+      const hasGmv = Boolean(parsed.gmv);
+      const hasStart = Boolean(parsed.startTimeText);
+
+      setPrefillModal(prev => {
+        if (!prev) return prev;
+        const nextValues = { ...prev.values };
+        if (hasGmv) {
+          nextValues.gmv = parsed.gmv;
+        }
+        if (hasStart) {
+          nextValues.startTimeText = parsed.startTimeText;
+        }
+        const clearedErrors = { ...(prev.formErrors || {}) };
+        if (hasGmv && clearedErrors.gmv) delete clearedErrors.gmv;
+        if (hasStart && clearedErrors.startTimeText) delete clearedErrors.startTimeText;
+        const successMessage = hasGmv && hasStart
+          ? 'Đã trích xuất GMV và giờ bắt đầu.'
+          : hasGmv
+            ? 'Đã trích xuất GMV, vui lòng kiểm tra lại.'
+            : hasStart
+              ? 'Đã trích xuất giờ bắt đầu, vui lòng kiểm tra lại.'
+              : '';
+        return {
+          ...prev,
+          values: nextValues,
+          formErrors: clearedErrors,
+          ocrStatus: hasGmv || hasStart ? 'success' : 'error',
+          ocrProgress: 1,
+          ocrMessage: successMessage,
+          ocrError: hasGmv || hasStart ? '' : 'Không trích xuất được dữ liệu, vui lòng nhập tay.'
+        };
+      });
+    } catch (err) {
+      console.error('OCR recognition failed', err);
+      setPrefillModal(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          ocrStatus: 'error',
+          ocrProgress: 0,
+          ocrError: err?.message ? `${err.message} Vui lòng nhập tay.` : 'Không trích xuất được dữ liệu, vui lòng nhập tay.'
+        };
+      });
+    }
+  }
+
+  function handleGeneratePrefilledLink(event) {
+    event.preventDefault();
+    if (!prefillModal) return;
+    const rawValues = prefillModal.values || {};
+
+    const email = (rawValues.email || '').trim();
+    const keyLivestream = (rawValues.keyLivestream || '').trim();
+    const id1 = extractLivestreamIdFromText(rawValues.id1) || sanitizeNumericString(rawValues.id1);
+    const id2Raw = extractLivestreamIdFromText(rawValues.id2) || sanitizeNumericString(rawValues.id2);
+    const gmv = sanitizeNumericString(rawValues.gmv);
+    const startTimeText = (rawValues.startTimeText || '').trim();
+
+    const errors = {};
+    if (!isValidEmail(email)) {
+      errors.email = 'Email không hợp lệ.';
+    }
+    if (!keyLivestream) {
+      errors.keyLivestream = 'Vui lòng nhập Key livestream.';
+    }
+    if (!id1) {
+      errors.id1 = 'Cần ID phiên livestream 1.';
+    }
+    if (!gmv) {
+      errors.gmv = 'GMV phải là số.';
+    }
+    if (!startTimeText) {
+      errors.startTimeText = 'Vui lòng nhập giờ bắt đầu thực tế.';
+    }
+
+    const normalizedValues = {
+      email,
+      keyLivestream,
+      id1,
+      id2: id2Raw,
+      gmv,
+      startTimeText
+    };
+
+    if (Object.keys(errors).length > 0) {
+      setPrefillModal(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          values: { ...prev.values, ...normalizedValues },
+          formErrors: { ...prev.formErrors, ...errors },
+          link: '',
+          copyFeedback: ''
+        };
+      });
+      return;
+    }
+
+    const link = buildPrefilledFormLink(normalizedValues);
+    setPrefillModal(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        values: { ...prev.values, ...normalizedValues },
+        formErrors: {},
+        link,
+        copyFeedback: ''
+      };
+    });
+  }
+
+  function resetPrefillToForm() {
+    setPrefillModal(prev => {
+      if (!prev) return prev;
+      return { ...prev, link: '', copyFeedback: '' };
+    });
+  }
+
+  async function handleCopyPrefilledLink() {
+    if (!prefillModal?.link) return;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(prefillModal.link);
+        setPrefillModal(prev => (prev ? { ...prev, copyFeedback: 'Đã sao chép link vào clipboard.' } : prev));
+        return;
+      }
+    } catch (err) {
+      console.error('Copy prefilled link failed', err);
+    }
+    setPrefillModal(prev => (prev ? { ...prev, copyFeedback: 'Không thể sao chép tự động, vui lòng copy thủ công.' } : prev));
+  }
+
   // fetch sheet
   useEffect(() => {
     (async () => {
@@ -494,6 +908,19 @@ export default function Page() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [showFiltersModal]);
+
+  useEffect(() => {
+    if (!prefillModal) return;
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        closePrefillModal();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [prefillModal]);
 
   function applyTrialStatusResponse(response, fallbackName, { enableSuggestions = true } = {}) {
     const status = response?.status;
@@ -867,6 +1294,7 @@ export default function Page() {
         talent2: it.talent2,
         room: it.room,
         coor: it.coor,
+        keyLivestream: it.keyLivestream,
         rawDate: it.rawDate,
         timeSlot: it.timeSlot,
         date: matchedDay,
@@ -994,6 +1422,10 @@ export default function Page() {
         buckets: groupEventsByBucket(day.events)
       }));
   }, [filteredEvents, daysToShow]);
+
+  const prefillValues = prefillModal?.values || {};
+  const prefillFormErrors = prefillModal?.formErrors || {};
+  const showPrefillOptionalId = prefillModal ? (prefillModal.showOptionalId || Boolean(prefillValues.id2)) : false;
 
   // Tải ICS cho các ca đang hiển thị (áp dụng filter hiện tại)
   function downloadICSForDay() {
@@ -1243,6 +1675,34 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                     })();
                     return (
                       <div key={i} className="event-card">
+                        <button
+                          type="button"
+                          className="prefill-trigger"
+                          onClick={() => openPrefillModalForEvent(e)}
+                          title="Điền Google Form tự động"
+                          aria-label="Điền Google Form tự động"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            className="prefill-trigger-icon"
+                            aria-hidden="true"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M16.862 4.487a2.1 2.1 0 112.97 2.97L8.654 18.636a4.2 4.2 0 01-1.768 1.043l-3.118.89.89-3.118a4.2 4.2 0 011.043-1.768L16.862 4.487z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M15.75 6.375l1.875 1.875"
+                            />
+                          </svg>
+                        </button>
                         <div className="event-title-row">
                           <h2 className="event-title">{e.title}</h2>
                           {brandLink && (
@@ -1333,6 +1793,34 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               })();
               return (
                 <div key={i} className="event-card">
+                  <button
+                    type="button"
+                    className="prefill-trigger"
+                    onClick={() => openPrefillModalForEvent(e)}
+                    title="Điền Google Form tự động"
+                    aria-label="Điền Google Form tự động"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      className="prefill-trigger-icon"
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M16.862 4.487a2.1 2.1 0 112.97 2.97L8.654 18.636a4.2 4.2 0 01-1.768 1.043l-3.118.89.89-3.118a4.2 4.2 0 011.043-1.768L16.862 4.487z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M15.75 6.375l1.875 1.875"
+                      />
+                    </svg>
+                  </button>
                   <div className="event-title-row">
                     <h2 className="event-title">{e.title}</h2>
                     {brandLink && (
@@ -1398,6 +1886,266 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         ))
       ) : (
         <p>Không có sự kiện cho ngày này.</p>
+      )}
+
+      {prefillModal && (
+        <div
+          className="modal-backdrop prefill-modal-backdrop"
+          onClick={closePrefillModal}
+        >
+          <div
+            className="modal-card prefill-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="prefill-modal-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="prefill-modal-header">
+              <div className="prefill-modal-title-block">
+                <h2 id="prefill-modal-title">Điền Google Form</h2>
+                <p className="prefill-modal-subtitle">
+                  {prefillModal.event?.title || 'Phiên livestream'}
+                </p>
+                <div className="prefill-modal-summary">
+                  <span>📅 {prefillModal.event?.dateLabel || '—'}</span>
+                  <span>
+                    ⏰
+                    {prefillModal.event?.start && prefillModal.event?.end
+                      ? ` ${fmtHM(prefillModal.event.start)}–${fmtHM(prefillModal.event.end)}`
+                      : ' —'}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="modal-close-button"
+                onClick={closePrefillModal}
+                aria-label="Đóng điền form"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="prefill-modal-body">
+              {prefillModal.link ? (
+                <div className="prefill-result" role="group" aria-labelledby="prefill-modal-title">
+                  <div className="prefill-result-grid">
+                    <div className="prefill-result-item">
+                      <span className="prefill-result-label">Email</span>
+                      <span className="prefill-result-value">{prefillValues.email || '—'}</span>
+                    </div>
+                    <div className="prefill-result-item">
+                      <span className="prefill-result-label">Key livestream</span>
+                      <span className="prefill-result-value">{prefillValues.keyLivestream || '—'}</span>
+                    </div>
+                    <div className="prefill-result-item">
+                      <span className="prefill-result-label">ID phiên 1</span>
+                      <span className="prefill-result-value">{prefillValues.id1 || '—'}</span>
+                    </div>
+                    {prefillValues.id2 && (
+                      <div className="prefill-result-item">
+                        <span className="prefill-result-label">ID phiên 2</span>
+                        <span className="prefill-result-value">{prefillValues.id2}</span>
+                      </div>
+                    )}
+                    <div className="prefill-result-item">
+                      <span className="prefill-result-label">GMV</span>
+                      <span className="prefill-result-value">{prefillValues.gmv || '—'}</span>
+                    </div>
+                    <div className="prefill-result-item">
+                      <span className="prefill-result-label">Start time</span>
+                      <span className="prefill-result-value">{prefillValues.startTimeText || '—'}</span>
+                    </div>
+                  </div>
+                  <div className="prefill-result-link">
+                    <label htmlFor="prefill-result-link-input">Link form</label>
+                    <textarea
+                      id="prefill-result-link-input"
+                      className="prefill-result-textarea"
+                      value={prefillModal.link}
+                      readOnly
+                    />
+                  </div>
+                  {prefillModal.copyFeedback && (
+                    <div className="prefill-status-message">{prefillModal.copyFeedback}</div>
+                  )}
+                  <div className="prefill-result-actions">
+                    <button type="button" className="btn ghost" onClick={resetPrefillToForm}>
+                      Sửa
+                    </button>
+                    <button type="button" className="btn ghost" onClick={handleCopyPrefilledLink}>
+                      Copy link
+                    </button>
+                    <a
+                      href={prefillModal.link}
+                      className="btn"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Mở form
+                    </a>
+                    <button type="button" className="btn ghost" onClick={closePrefillModal}>
+                      Đóng
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <form className="prefill-form" onSubmit={handleGeneratePrefilledLink}>
+                  <div className="prefill-field">
+                    <label htmlFor="prefill-email">Email</label>
+                    <div className="prefill-field-control">
+                      <input
+                        id="prefill-email"
+                        type="email"
+                        className="text-input"
+                        placeholder="example@gmail.com"
+                        value={prefillValues.email || ''}
+                        onChange={e => handlePrefillFieldChange('email', e.target.value)}
+                        disabled={prefillModal.emailLocked}
+                        autoComplete="email"
+                      />
+                      {prefillModal.emailLocked && (
+                        <button
+                          type="button"
+                          className="prefill-edit-button"
+                          onClick={unlockPrefillEmail}
+                        >
+                          Sửa
+                        </button>
+                      )}
+                    </div>
+                    {prefillFormErrors.email && <div className="prefill-error">{prefillFormErrors.email}</div>}
+                  </div>
+
+                  <div className="prefill-field">
+                    <label htmlFor="prefill-key">Key livestream</label>
+                    <input
+                      id="prefill-key"
+                      type="text"
+                      className="text-input"
+                      placeholder="112025NSN14211H2 - G02"
+                      value={prefillValues.keyLivestream || ''}
+                      onChange={e => handlePrefillFieldChange('keyLivestream', e.target.value)}
+                    />
+                    {prefillFormErrors.keyLivestream && (
+                      <div className="prefill-error">{prefillFormErrors.keyLivestream}</div>
+                    )}
+                  </div>
+
+                  <div className="prefill-field">
+                    <label htmlFor="prefill-id1">ID phiên livestream 1</label>
+                    <input
+                      id="prefill-id1"
+                      type="text"
+                      className="text-input"
+                      placeholder="Dán link Shopee / TikTok hoặc nhập ID"
+                      value={prefillValues.id1 || ''}
+                      onChange={e => handlePrefillFieldChange('id1', e.target.value)}
+                    />
+                    <div className="prefill-hint">Tự động lấy số từ link creator.shopee.vn hoặc room_id.</div>
+                    {prefillFormErrors.id1 && <div className="prefill-error">{prefillFormErrors.id1}</div>}
+                  </div>
+
+                  {showPrefillOptionalId ? (
+                    <div className="prefill-field">
+                      <div className="prefill-field-header">
+                        <label htmlFor="prefill-id2">ID phiên livestream 2 (tuỳ chọn)</label>
+                        <button
+                          type="button"
+                          className="prefill-mini-button"
+                          onClick={() => toggleOptionalLivestreamId(false)}
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                      <input
+                        id="prefill-id2"
+                        type="text"
+                        className="text-input"
+                        placeholder="Nhập thêm ID nếu có"
+                        value={prefillValues.id2 || ''}
+                        onChange={e => handlePrefillFieldChange('id2', e.target.value)}
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="prefill-add-button"
+                      onClick={() => toggleOptionalLivestreamId(true)}
+                    >
+                      + Thêm ID phiên 2 (tuỳ chọn)
+                    </button>
+                  )}
+
+                  <div className="prefill-field">
+                    <label htmlFor="prefill-ocr">Ảnh báo cáo (tự OCR)</label>
+                    <input
+                      id="prefill-ocr"
+                      type="file"
+                      accept="image/*"
+                      onChange={event => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          handlePrefillOcr(file);
+                        }
+                        event.target.value = '';
+                      }}
+                    />
+                    {prefillModal.ocrFileName && (
+                      <div className="prefill-hint">Đã chọn: {prefillModal.ocrFileName}</div>
+                    )}
+                    {prefillModal.ocrStatus === 'running' && (
+                      <div className="prefill-status-message">Đang trích xuất… {Math.round((prefillModal.ocrProgress || 0) * 100)}%</div>
+                    )}
+                    {prefillModal.ocrMessage && (
+                      <div className="prefill-status-message prefill-status-message--success">{prefillModal.ocrMessage}</div>
+                    )}
+                    {prefillModal.ocrError && (
+                      <div className="prefill-status-message prefill-status-message--error">{prefillModal.ocrError}</div>
+                    )}
+                  </div>
+
+                  <div className="prefill-field">
+                    <label htmlFor="prefill-gmv">GMV</label>
+                    <input
+                      id="prefill-gmv"
+                      type="text"
+                      inputMode="numeric"
+                      className="text-input"
+                      placeholder="27504935"
+                      value={prefillValues.gmv || ''}
+                      onChange={e => handlePrefillFieldChange('gmv', e.target.value)}
+                    />
+                    {prefillFormErrors.gmv && <div className="prefill-error">{prefillFormErrors.gmv}</div>}
+                  </div>
+
+                  <div className="prefill-field">
+                    <label htmlFor="prefill-start-time">Giờ start time thực tế</label>
+                    <input
+                      id="prefill-start-time"
+                      type="text"
+                      className="text-input"
+                      placeholder="Nov 11 20:05:05"
+                      value={prefillValues.startTimeText || ''}
+                      onChange={e => handlePrefillFieldChange('startTimeText', e.target.value)}
+                    />
+                    <div className="prefill-hint">Có thể chỉnh sửa thủ công sau khi OCR.</div>
+                    {prefillFormErrors.startTimeText && (
+                      <div className="prefill-error">{prefillFormErrors.startTimeText}</div>
+                    )}
+                  </div>
+
+                  <div className="prefill-form-actions">
+                    <button type="submit" className="btn">Tạo link</button>
+                    <button type="button" className="btn ghost" onClick={closePrefillModal}>
+                      Đóng
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {showLoginModal && (
