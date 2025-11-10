@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { parseSlot } from '../lib/parse';
 import { buildICS } from '../lib/ics';
+import { extractFromImage } from '../lib/ocr';
 
 function toYMD(d) {
   const y = d.getFullYear();
@@ -161,61 +162,43 @@ function isValidEmail(value) {
   return emailRegex.test(trimmed);
 }
 
-function extractGmvFromText(text) {
-  if (!text) return '';
-  const patterns = [
-    /Doanh thu \(đ\)[^\d]*([\d.,]+)/i,
-    /GMV[^\d]*\(đ\)[^\d]*([\d.,]+)/i,
-    /GMV[^\d]*direct[^\d]*([\d.,]+)/i,
-    /GMV[^\d]*trực tiếp[^\d]*([\d.,]+)/i
-  ];
+async function loadImageElement(source) {
+  if (!source) {
+    throw new Error('Không có ảnh để xử lý.');
+  }
 
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match && match[1]) {
-      const normalized = sanitizeNumericString(match[1]);
-      if (normalized) return normalized;
+  if (typeof window === 'undefined') {
+    throw new Error('OCR chỉ khả dụng trên trình duyệt.');
+  }
+
+  if (source instanceof HTMLImageElement) {
+    return source;
+  }
+
+  const dataUrl = await new Promise((resolve, reject) => {
+    if (typeof source === 'string') {
+      resolve(source);
+      return;
     }
-  }
 
-  const fallback = text.match(/\b\d{2,}(?:[.,]\d{3})+\b/);
-  if (fallback && fallback[0]) {
-    return sanitizeNumericString(fallback[0]);
-  }
-
-  return '';
-}
-
-function extractStartTimeFromText(text) {
-  if (!text) return '';
-  const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-  const joined = lines.join('\n');
-
-  const patterns = [
-    /Bắt đầu lúc[:\s]*([^\n]+)/i,
-    /Start time[:\s]*([^\n]+)/i,
-    /Thời lượng[^\n]*\n([^\n]+)/i,
-    /(\b\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\b)/,
-    /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\s+\d{1,2}:\d{2}:\d{2})/,
-    /(\d{1,2}:\d{2}:\d{2}\s+\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/
-  ];
-
-  for (const pattern of patterns) {
-    const match = joined.match(pattern);
-    if (match && match[1]) {
-      return match[1].trim();
+    if (source instanceof Blob) {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Không đọc được file ảnh.'));
+      reader.readAsDataURL(source);
+      return;
     }
-  }
 
-  return '';
-}
+    reject(new Error('Định dạng ảnh không hỗ trợ.'));
+  });
 
-function parseOcrText(text) {
-  const normalized = text || '';
-  return {
-    gmv: extractGmvFromText(normalized),
-    startTimeText: extractStartTimeFromText(normalized)
-  };
+  return await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Không tải được ảnh.'));
+    img.src = dataUrl;
+  });
 }
 
 const TESSERACT_CDN_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
@@ -658,6 +641,7 @@ export default function Page() {
 
   async function handlePrefillOcr(file) {
     if (!file) return;
+    const fileName = typeof file === 'object' && file && 'name' in file ? file.name : '';
     setPrefillModal(prev => {
       if (!prev) return prev;
       return {
@@ -666,50 +650,50 @@ export default function Page() {
         ocrProgress: 0,
         ocrError: '',
         ocrMessage: '',
-        ocrFileName: file.name,
+        ocrFileName: fileName,
         copyFeedback: ''
       };
     });
 
     try {
       const Tesseract = await loadTesseractFromCdn();
-      const result = await Tesseract.recognize(file, 'eng+vie', {
-        logger: message => {
-          if (!message) return;
-          if (message.status === 'recognizing text') {
-            const progress = typeof message.progress === 'number' ? message.progress : 0;
-            setPrefillModal(prev => {
-              if (!prev) return prev;
-              if (prev.ocrStatus !== 'running') return prev;
-              return { ...prev, ocrProgress: progress };
-            });
-          }
-        }
+      const image = await loadImageElement(file);
+      setPrefillModal(prev => {
+        if (!prev || prev.ocrStatus !== 'running') return prev;
+        return { ...prev, ocrProgress: 0.2 };
       });
-      const text = result?.data?.text || '';
-      const parsed = parseOcrText(text);
-      const hasGmv = Boolean(parsed.gmv);
-      const hasStart = Boolean(parsed.startTimeText);
+
+      const extracted = await extractFromImage(Tesseract, image);
+      const hasGmv = Boolean(extracted.gmv);
+      const hasStart = Boolean(extracted.startTime);
+      const platformLabel = extracted.platform === 'tiktok'
+        ? 'TikTok Shop Live'
+        : extracted.platform === 'shopee'
+          ? 'Shopee Live'
+          : '';
 
       setPrefillModal(prev => {
         if (!prev) return prev;
         const nextValues = { ...prev.values };
         if (hasGmv) {
-          nextValues.gmv = parsed.gmv;
+          nextValues.gmv = extracted.gmv;
         }
         if (hasStart) {
-          nextValues.startTimeText = parsed.startTimeText;
+          nextValues.startTimeText = extracted.startTime;
         }
         const clearedErrors = { ...(prev.formErrors || {}) };
         if (hasGmv && clearedErrors.gmv) delete clearedErrors.gmv;
         if (hasStart && clearedErrors.startTimeText) delete clearedErrors.startTimeText;
-        const successMessage = hasGmv && hasStart
+        let successMessage = hasGmv && hasStart
           ? 'Đã trích xuất GMV và giờ bắt đầu.'
           : hasGmv
             ? 'Đã trích xuất GMV, vui lòng kiểm tra lại.'
             : hasStart
               ? 'Đã trích xuất giờ bắt đầu, vui lòng kiểm tra lại.'
               : '';
+        if (successMessage && platformLabel) {
+          successMessage = `${successMessage} (${platformLabel}).`;
+        }
         return {
           ...prev,
           values: nextValues,
@@ -721,7 +705,7 @@ export default function Page() {
         };
       });
     } catch (err) {
-      console.error('OCR recognition failed', err);
+      console.error('OCR extraction failed', err);
       setPrefillModal(prev => {
         if (!prev) return prev;
         return {
