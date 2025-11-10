@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { parseSlot } from '../lib/parse';
 import { buildICS } from '../lib/ics';
 
@@ -397,19 +397,7 @@ export default function Page() {
   const [loggingIn, setLoggingIn] = useState(false);
   const [trialUser, setTrialUser] = useState(null);
   const [hasAppliedLoginSearch, setHasAppliedLoginSearch] = useState(false);
-  const [shouldFetchSuggestions, setShouldFetchSuggestions] = useState(false);
-  const [nameSuggestions, setNameSuggestions] = useState([]);
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [pendingVerificationName, setPendingVerificationName] = useState(null);
-  const suggestionTimerRef = useRef(null);
-  const lastSuggestionQueryRef = useRef('');
-  const [searchSuggestions, setSearchSuggestions] = useState([]);
-  const [searchSuggestionsLoading, setSearchSuggestionsLoading] = useState(false);
-  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
-  const [isSearchBoxFocused, setIsSearchBoxFocused] = useState(false);
-  const searchSuggestionTimerRef = useRef(null);
-  const lastSearchSuggestionQueryRef = useRef('');
-  const searchBoxRef = useRef(null);
   const [prefillModal, setPrefillModal] = useState(null);
   const isActiveUser = trialUser?.status === 'active';
 
@@ -922,27 +910,21 @@ export default function Page() {
     };
   }, [prefillModal]);
 
-  function applyTrialStatusResponse(response, fallbackName, { enableSuggestions = true } = {}) {
+  function applyTrialStatusResponse(response, fallbackName) {
     const status = response?.status;
     const normalizedName = (response?.name || fallbackName || '').trim();
     if (!status) {
       setTrialUser(null);
       setLoginError('Đăng nhập thất bại.');
       setShowLoginModal(true);
-      setShouldFetchSuggestions(false);
-      setNameSuggestions([]);
       return;
     }
-
-    const shouldSuggest = enableSuggestions && ['blocked', 'expired', 'not_found'].includes(status);
 
     if (status === 'active') {
       setHasAppliedLoginSearch(false);
       setTrialUser(response);
       setNameInput(normalizedName);
       setShowLoginModal(false);
-      setShouldFetchSuggestions(false);
-      setNameSuggestions([]);
       setLoginError('');
       return;
     }
@@ -952,10 +934,6 @@ export default function Page() {
       setNameInput(normalizedName);
       setLoginError('Thời gian dùng thử đã hết. Vui lòng liên hệ để gia hạn.');
       setShowLoginModal(true);
-      setShouldFetchSuggestions(shouldSuggest);
-      if (!shouldSuggest) {
-        setNameSuggestions([]);
-      }
       return;
     }
 
@@ -964,10 +942,6 @@ export default function Page() {
       setNameInput(normalizedName);
       setLoginError('Tài khoản của bạn đã bị chặn.');
       setShowLoginModal(true);
-      setShouldFetchSuggestions(shouldSuggest);
-      if (!shouldSuggest) {
-        setNameSuggestions([]);
-      }
       return;
     }
 
@@ -976,10 +950,6 @@ export default function Page() {
       setNameInput(normalizedName);
       setLoginError(response?.message || 'Tên không tồn tại, vui lòng nhập lại.');
       setShowLoginModal(true);
-      setShouldFetchSuggestions(shouldSuggest);
-      if (!shouldSuggest) {
-        setNameSuggestions([]);
-      }
       return;
     }
 
@@ -987,10 +957,6 @@ export default function Page() {
     setNameInput(normalizedName);
     setLoginError('Đăng nhập thất bại.');
     setShowLoginModal(true);
-    setShouldFetchSuggestions(shouldSuggest);
-    if (!shouldSuggest) {
-      setNameSuggestions([]);
-    }
   }
 
   async function handleLoginSubmit(e) {
@@ -1001,8 +967,6 @@ export default function Page() {
       return;
     }
     setLoginError('');
-    setShouldFetchSuggestions(false);
-    setNameSuggestions([]);
     setNameInput(name);
     setLoggingIn(true);
     try {
@@ -1019,7 +983,7 @@ export default function Page() {
         throw new Error(errorMessage);
       }
 
-      applyTrialStatusResponse(response, name, { enableSuggestions: true });
+      applyTrialStatusResponse(response, name);
     } catch (err) {
       console.error(err);
       const message = typeof err?.message === 'string'
@@ -1032,7 +996,6 @@ export default function Page() {
       setLoginError(finalMessage);
       setShowLoginModal(true);
       if (/không tồn tại/i.test(finalMessage) || /not\s+found/i.test(finalMessage)) {
-        setShouldFetchSuggestions(true);
         setTrialUser(null);
       }
     } finally {
@@ -1054,7 +1017,7 @@ export default function Page() {
         console.error('refreshTrialStatus failed', response);
         return;
       }
-      applyTrialStatusResponse(response, trimmed, { enableSuggestions: false });
+      applyTrialStatusResponse(response, trimmed);
     } catch (err) {
       console.error('refreshTrialStatus error', err);
     }
@@ -1087,172 +1050,16 @@ export default function Page() {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('trial_user');
     }
-    if (suggestionTimerRef.current) {
-      clearTimeout(suggestionTimerRef.current);
-      suggestionTimerRef.current = null;
-    }
-    if (searchSuggestionTimerRef.current) {
-      clearTimeout(searchSuggestionTimerRef.current);
-      searchSuggestionTimerRef.current = null;
-    }
     setTrialUser(null);
     setNameInput('');
     setQuery('');
     setShowLoginModal(true);
     setLoggingIn(false);
     setLoginError('');
-    setShouldFetchSuggestions(false);
-    setNameSuggestions([]);
     setHasAppliedLoginSearch(false);
-    setSearchSuggestions([]);
-    setSearchSuggestionsLoading(false);
-    setShowSearchSuggestions(false);
-    lastSearchSuggestionQueryRef.current = '';
     resetFilters();
     setShowFiltersModal(false);
   }
-
-  useEffect(() => {
-    if (!shouldFetchSuggestions) {
-      setNameSuggestions([]);
-      lastSuggestionQueryRef.current = '';
-      if (suggestionTimerRef.current) {
-        clearTimeout(suggestionTimerRef.current);
-        suggestionTimerRef.current = null;
-      }
-      return;
-    }
-
-    const query = nameInput.trim();
-    if (!query) {
-      setNameSuggestions([]);
-      return;
-    }
-
-    if (suggestionTimerRef.current) {
-      clearTimeout(suggestionTimerRef.current);
-    }
-
-    suggestionTimerRef.current = setTimeout(() => {
-      if (lastSuggestionQueryRef.current === query) {
-        return;
-      }
-      lastSuggestionQueryRef.current = query;
-      setSuggestionsLoading(true);
-      fetch(`/api/suggest-names?q=${encodeURIComponent(query)}&limit=2`)
-        .then(res => res.json())
-        .then(data => {
-          const names = Array.isArray(data?.suggestions)
-            ? data.suggestions.filter(item => typeof item === 'string' && item.trim().length > 0)
-            : [];
-          setNameSuggestions(names);
-        })
-        .catch(err => {
-          console.error('suggest-names failed', err);
-          lastSuggestionQueryRef.current = '';
-        })
-        .finally(() => {
-          setSuggestionsLoading(false);
-        });
-    }, 300);
-
-    return () => {
-      if (suggestionTimerRef.current) {
-        clearTimeout(suggestionTimerRef.current);
-        suggestionTimerRef.current = null;
-      }
-    };
-  }, [nameInput, shouldFetchSuggestions]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const clearSearchTimer = () => {
-      if (searchSuggestionTimerRef.current) {
-        clearTimeout(searchSuggestionTimerRef.current);
-        searchSuggestionTimerRef.current = null;
-      }
-    };
-
-    if (!isActiveUser) {
-      clearSearchTimer();
-      setSearchSuggestions([]);
-      setSearchSuggestionsLoading(false);
-      setShowSearchSuggestions(false);
-      lastSearchSuggestionQueryRef.current = '';
-      return () => {
-        cancelled = true;
-        clearSearchTimer();
-      };
-    }
-
-    const trimmed = query.trim();
-    if (!trimmed) {
-      clearSearchTimer();
-      setSearchSuggestions([]);
-      setSearchSuggestionsLoading(false);
-      setShowSearchSuggestions(false);
-      lastSearchSuggestionQueryRef.current = '';
-      return () => {
-        cancelled = true;
-        clearSearchTimer();
-      };
-    }
-
-    setShowSearchSuggestions(isSearchBoxFocused);
-
-    if (!isSearchBoxFocused) {
-      return () => {
-        cancelled = true;
-        clearSearchTimer();
-      };
-    }
-
-    if (lastSearchSuggestionQueryRef.current === trimmed) {
-      return () => {
-        cancelled = true;
-        clearSearchTimer();
-      };
-    }
-
-    clearSearchTimer();
-    const currentQuery = trimmed;
-    searchSuggestionTimerRef.current = setTimeout(() => {
-      if (cancelled) return;
-      setSearchSuggestionsLoading(true);
-      lastSearchSuggestionQueryRef.current = currentQuery;
-      fetch(`/api/suggest-names?q=${encodeURIComponent(currentQuery)}&limit=5`)
-        .then(res => res.json())
-        .then(data => {
-          if (cancelled) return;
-          if (lastSearchSuggestionQueryRef.current !== currentQuery) {
-            return;
-          }
-          const names = Array.isArray(data?.suggestions)
-            ? data.suggestions.filter(item => typeof item === 'string' && item.trim().length > 0)
-            : [];
-          setSearchSuggestions(names);
-        })
-        .catch(err => {
-          console.error('suggest-names (search) failed', err);
-          if (cancelled) return;
-          if (lastSearchSuggestionQueryRef.current === currentQuery) {
-            setSearchSuggestions([]);
-            setSearchSuggestionsLoading(false);
-          }
-        })
-        .finally(() => {
-          if (cancelled) return;
-          if (lastSearchSuggestionQueryRef.current === currentQuery) {
-            setSearchSuggestionsLoading(false);
-          }
-        });
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      clearSearchTimer();
-    };
-  }, [query, isActiveUser, isSearchBoxFocused]);
   const trialInfo = useMemo(() => {
     if (!trialUser) return null;
     if (!trialUser.trial_expires_at) return null;
@@ -1546,24 +1353,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
 
         <div className="toolbar-row toolbar-row--search">
           <label className="lbl" htmlFor="q">Tìm</label>
-          <div
-            className="search-box"
-            ref={searchBoxRef}
-            onFocus={() => {
-              setIsSearchBoxFocused(true);
-              if (isActiveUser && query.trim()) {
-                setShowSearchSuggestions(true);
-              }
-            }}
-            onBlur={event => {
-              const next = event.relatedTarget;
-              if (next && searchBoxRef.current?.contains(next)) {
-                return;
-              }
-              setIsSearchBoxFocused(false);
-              setShowSearchSuggestions(false);
-            }}
-          >
+          <div className="search-box">
             <input
               id="q"
               type="text"
@@ -1572,46 +1362,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               value={query}
               onChange={e => setQuery(e.target.value)}
               disabled={!isActiveUser}
-              aria-autocomplete="list"
-              aria-haspopup="listbox"
-              aria-expanded={Boolean(isActiveUser && showSearchSuggestions)}
-              aria-controls="search-suggestions"
             />
-            {isActiveUser && showSearchSuggestions && (
-              <div
-                id="search-suggestions"
-                className="search-suggestions"
-                role="listbox"
-                aria-label="Gợi ý tìm kiếm"
-              >
-                {searchSuggestionsLoading && (
-                  <div className="search-suggestions-status">Đang tìm gợi ý…</div>
-                )}
-                {!searchSuggestionsLoading && searchSuggestions.length > 0 && (
-                  <div className="search-suggestions-list">
-                    {searchSuggestions.map(name => (
-                      <button
-                        type="button"
-                        key={name}
-                        className="search-suggestion"
-                        role="option"
-                        onClick={() => {
-                          setQuery(name);
-                          setShowSearchSuggestions(false);
-                        }}
-                      >
-                        {name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {!searchSuggestionsLoading && searchSuggestions.length === 0 && (
-                  <div className="search-suggestions-status search-suggestions-status--empty">
-                    Không tìm thấy gợi ý phù hợp.
-                  </div>
-                )}
-              </div>
-            )}
           </div>
           {query && (
             <button className="btn ghost" onClick={() => setQuery('')}>Xóa</button>
@@ -2167,34 +1918,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               </button>
             </form>
             {loginError && <div className="modal-error">{loginError}</div>}
-            {shouldFetchSuggestions && nameSuggestions.length > 0 && (
-              <div className="modal-suggestions">
-                <div className="modal-suggestions-title">Có phải bạn muốn:</div>
-                <div className="modal-suggestions-list">
-                  {nameSuggestions.map(s => (
-                    <button
-                      type="button"
-                      key={s}
-                      className="modal-suggestion"
-                      onClick={() => {
-                        setNameInput(s);
-                        setShouldFetchSuggestions(false);
-                        setNameSuggestions([]);
-                        setLoginError('');
-                      }}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {shouldFetchSuggestions && suggestionsLoading && nameSuggestions.length === 0 && (
-              <div className="modal-suggestions modal-suggestions--loading">Đang tìm gợi ý…</div>
-            )}
-            {shouldFetchSuggestions && !suggestionsLoading && nameSuggestions.length === 0 && nameInput.trim() && (
-              <div className="modal-suggestions modal-suggestions--empty">Không tìm thấy gợi ý phù hợp.</div>
-            )}
             {trialUser && trialUser.status !== 'active' && trialUser.status !== 'blocked' && trialUser.status !== 'expired' && (
               <div className="modal-hint">Trạng thái: {trialUser.status}</div>
             )}
