@@ -42,9 +42,9 @@ export async function GET() {
 
   const supabase = getSupabaseServiceRoleClient();
   const { data, error } = await supabase
-    .from('trial_users')
+    .from('users_trial')
     .select('email')
-    .eq('user_id', userId)
+    .eq('id', userId)
     .maybeSingle();
 
   if (error) {
@@ -80,8 +80,8 @@ export async function POST(req) {
 
   const supabase = getSupabaseServiceRoleClient();
   const { data, error } = await supabase
-    .from('trial_users')
-    .upsert({ user_id: userId, email }, { onConflict: 'user_id' })
+    .from('users_trial')
+    .upsert({ id: userId, email }, { onConflict: 'id' })
     .select('email')
     .single();
 
