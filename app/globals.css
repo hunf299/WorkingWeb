@@ -939,11 +939,29 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   gap: 4px;
 }
 
+.prefill-result-item--email {
+  gap: 8px;
+}
+
 .prefill-result-label {
   font-size: .8rem;
   text-transform: uppercase;
   color: #6b7280;
   letter-spacing: .04em;
+}
+
+.prefill-result-value-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prefill-result-value-row .prefill-result-value {
+  flex: 1;
+}
+
+.prefill-result-value-row .prefill-edit-button {
+  flex-shrink: 0;
 }
 
 .prefill-result-value {

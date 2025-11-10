@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { parseSlot } from '../lib/parse';
 import { buildICS } from '../lib/ics';
 
@@ -352,6 +352,8 @@ export default function Page() {
   const [trialEmail, setTrialEmail] = useState('');
   const [trialEmailStatus, setTrialEmailStatus] = useState('idle');
   const [trialEmailError, setTrialEmailError] = useState('');
+  const isMountedRef = useRef(true);
+  const trialEmailFetchIdRef = useRef(0);
   const [filterBrand, setFilterBrand] = useState('');
   const [filterTime, setFilterTime] = useState('');
   const [filterRoom, setFilterRoom] = useState('');
@@ -560,8 +562,86 @@ export default function Page() {
     return best.entry.link;
   }
 
+  useEffect(() => () => {
+    isMountedRef.current = false;
+  }, []);
+
+  const loadTrialEmail = useCallback(async () => {
+    if (!isMountedRef.current) {
+      return { ok: false, email: '' };
+    }
+
+    if (!isActiveUser || !trialUser?.user_id) {
+      trialEmailFetchIdRef.current += 1;
+      setTrialEmail('');
+      setTrialEmailStatus('idle');
+      setTrialEmailError('');
+      return { ok: false, email: '' };
+    }
+
+    const fetchId = trialEmailFetchIdRef.current + 1;
+    trialEmailFetchIdRef.current = fetchId;
+
+    setTrialEmailStatus(prev => (prev === 'saving' ? prev : 'loading'));
+    setTrialEmailError('');
+
+    try {
+      const res = await fetch('/api/trial-users/email', { method: 'GET' });
+      let payload = null;
+      try {
+        payload = await res.json();
+      } catch (err) {
+        payload = null;
+      }
+
+      if (!isMountedRef.current || trialEmailFetchIdRef.current !== fetchId) {
+        return { ok: false, email: '' };
+      }
+
+      if (res.status === 401 || res.status === 403) {
+        setTrialEmail('');
+        setTrialEmailStatus(prev => (prev === 'saving' ? prev : 'ready'));
+        setTrialEmailError('');
+        return { ok: false, email: '' };
+      }
+
+      if (!res.ok) {
+        const message = typeof payload?.error === 'string'
+          ? payload.error
+          : 'Không lấy được email.';
+        setTrialEmail('');
+        setTrialEmailStatus(prev => (prev === 'saving' ? prev : 'error'));
+        setTrialEmailError(message);
+        return { ok: false, email: '' };
+      }
+
+      const exists = Boolean(payload?.exists);
+      const fetchedEmail = typeof payload?.email === 'string' ? payload.email.trim() : '';
+      if (exists && fetchedEmail) {
+        setTrialEmail(fetchedEmail);
+      } else {
+        setTrialEmail('');
+      }
+      setTrialEmailStatus(prev => (prev === 'saving' ? prev : 'ready'));
+      setTrialEmailError('');
+      return { ok: true, email: exists && fetchedEmail ? fetchedEmail : '' };
+    } catch (err) {
+      if (!isMountedRef.current || trialEmailFetchIdRef.current !== fetchId) {
+        return { ok: false, email: '' };
+      }
+      console.error('Fetch trial email failed', err);
+      setTrialEmail('');
+      setTrialEmailStatus(prev => (prev === 'saving' ? prev : 'error'));
+      setTrialEmailError('Không lấy được email. Vui lòng nhập thủ công.');
+      return { ok: false, email: '' };
+    }
+  }, [isActiveUser, trialUser?.user_id]);
+
   function openPrefillModalForEvent(event) {
     if (!event) return;
+    if (isActiveUser && trialEmailStatus !== 'loading' && trialEmailStatus !== 'saving') {
+      loadTrialEmail();
+    }
     const initialEmail = typeof trialEmail === 'string' ? trialEmail.trim() : '';
     setPrefillModal({
       event,
@@ -834,6 +914,10 @@ export default function Page() {
     });
   }, [trialEmailStatus, trialEmail, prefillModal]);
 
+  useEffect(() => {
+    loadTrialEmail();
+  }, [loadTrialEmail]);
+
   async function handleGeneratePrefilledLink(event) {
     event.preventDefault();
     if (!prefillModal) return;
@@ -961,26 +1045,6 @@ export default function Page() {
     setPrefillModal(prev => (prev ? { ...prev, copyFeedback: 'Không thể sao chép tự động, vui lòng copy thủ công.' } : prev));
   }
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const stored = window.localStorage.getItem('calendarCardExpanded');
-      if (stored === 'true') {
-        setCalendarExpanded(true);
-      }
-    } catch (err) {
-      console.warn('Không đọc được calendarCardExpanded', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem('calendarCardExpanded', calendarExpanded ? 'true' : 'false');
-    } catch (err) {
-      console.warn('Không lưu được calendarCardExpanded', err);
-    }
-  }, [calendarExpanded]);
 
   // fetch sheet
   useEffect(() => {
@@ -1954,10 +2018,24 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               {prefillModal.link ? (
                 <div className="prefill-result" role="group" aria-labelledby="prefill-modal-title">
                   <div className="prefill-result-grid">
-                    <div className="prefill-result-item">
-                      <span className="prefill-result-label">Email</span>
+                  <div className="prefill-result-item prefill-result-item--email">
+                    <span className="prefill-result-label">Email</span>
+                    <div className="prefill-result-value-row">
                       <span className="prefill-result-value">{prefillValues.email || '—'}</span>
+                      {prefillModal.emailLocked && (
+                        <button
+                          type="button"
+                          className="prefill-edit-button"
+                          onClick={() => {
+                            resetPrefillToForm();
+                            unlockPrefillEmail();
+                          }}
+                        >
+                          Sửa
+                        </button>
+                      )}
                     </div>
+                  </div>
                     <div className="prefill-result-item">
                       <span className="prefill-result-label">Key livestream</span>
                       <span className="prefill-result-value">{prefillValues.keyLivestream || '—'}</span>
