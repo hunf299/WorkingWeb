@@ -625,9 +625,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   try {
-    const { imageBase64, imageUrl, platform, options } = req.body as {
+    const { imageBase64, platform, options } = req.body as {
       imageBase64?: string;
-      imageUrl?: string;
       platform?: string;
       options?: ExtractOpts;
     };
