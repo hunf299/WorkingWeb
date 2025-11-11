@@ -282,10 +282,6 @@ async function readImageAsDataURL(source) {
     throw new Error('OCR chỉ khả dụng trên trình duyệt.');
   }
 
-  if (typeof source === 'string') {
-    return source;
-  }
-
   if (source instanceof Blob) {
     return await new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -825,21 +821,6 @@ export default function Page() {
       setTrialEmailError('');
     }
 
-    if (field === 'id1') {
-      const trimmedValue = typeof value === 'string' ? value.trim() : '';
-      if (isLikelyImageUrl(trimmedValue)) {
-        const lastUrl = prefillModal?.ocrLastProcessedUrl || '';
-        setPrefillModal(prev => {
-          if (!prev) return prev;
-          return { ...prev, ocrImageUrlInput: trimmedValue };
-        });
-        if (trimmedValue && (trimmedValue !== lastUrl || prefillModal?.ocrStatus !== 'running')) {
-          handlePrefillOcr(trimmedValue);
-        }
-        setPrefillValues(values => ({ ...values, id1: '' }));
-        return;
-      }
-    }
     const sanitizedGmvValue = field === 'gmv' ? sanitizeNumericString(value) : null;
     setPrefillValues(values => {
       const next = { ...values };
@@ -914,51 +895,25 @@ export default function Page() {
     let fileToRead = null;
     let displayName = '';
 
-    if (isUrlSource) {
-      const rawUrl = input.trim();
-      if (!rawUrl) {
-        setPrefillModal(prev => (prev ? { ...prev, ocrError: 'Link ảnh không hợp lệ.' } : prev));
-        return;
-      }
-      let parsed;
+  const handlePrefillOcr = useCallback(async (input) => {
+    if (!input) return;
+
+    let effectiveFile = input;
+    if (
+      typeof window !== 'undefined' &&
+      typeof File !== 'undefined' &&
+      effectiveFile instanceof Blob &&
+      !(effectiveFile instanceof File)
+    ) {
+      const extension = (effectiveFile.type && effectiveFile.type.split('/')[1]) || 'png';
       try {
-        parsed = new URL(rawUrl);
+        effectiveFile = new File(
+          [effectiveFile],
+          `clipboard-${Date.now()}.${extension}`,
+          { type: effectiveFile.type || 'image/png' }
+        );
       } catch (error) {
-        setPrefillModal(prev => (prev ? { ...prev, ocrError: 'Link ảnh không hợp lệ.' } : prev));
-        return;
-      }
-      if (!/^https?:$/i.test(parsed.protocol)) {
-        setPrefillModal(prev => (prev ? { ...prev, ocrError: 'Link ảnh không hợp lệ.' } : prev));
-        return;
-      }
-      sanitizedUrl = parsed.toString();
-      const segments = parsed.pathname.split('/').filter(Boolean);
-      const lastSegment = segments[segments.length - 1] || '';
-      let decodedName = '';
-      try {
-        decodedName = decodeURIComponent(lastSegment);
-      } catch (error) {
-        decodedName = lastSegment;
-      }
-      displayName = decodedName || parsed.hostname || 'Ảnh từ link';
-    } else {
-      let effectiveFile = input;
-      if (
-        typeof window !== 'undefined' &&
-        typeof File !== 'undefined' &&
-        typeof Blob !== 'undefined' && effectiveFile instanceof Blob &&
-        !(effectiveFile instanceof File)
-      ) {
-        const extension = (effectiveFile.type && effectiveFile.type.split('/')[1]) || 'png';
-        try {
-          effectiveFile = new File(
-            [effectiveFile],
-            `clipboard-${Date.now()}.${extension}`,
-            { type: effectiveFile.type || 'image/png' }
-          );
-        } catch (error) {
-          // keep original blob if File construction fails
-        }
+        // keep original blob if File construction fails
       }
       fileToRead = effectiveFile;
       const rawName = typeof effectiveFile === 'object' && effectiveFile && 'name' in effectiveFile
@@ -987,13 +942,10 @@ export default function Page() {
     const currentPrefill = prefillModal;
 
     try {
-      let dataUrl = '';
-      if (!isUrlSource) {
-        if (!fileToRead) {
-          throw new Error('Không có ảnh để xử lý.');
-        }
-        dataUrl = await readImageAsDataURL(fileToRead);
+      if (!effectiveFile) {
+        throw new Error('Không có ảnh để xử lý.');
       }
+      const dataUrl = await readImageAsDataURL(effectiveFile);
 
       const inputPlatform = currentPrefill?.platformDetected;
       const guessedPlatform = inferPlatformFromEvent(currentPrefill?.event);
@@ -1021,12 +973,7 @@ export default function Page() {
           return { ...prev, ocrProgress: progress };
         });
 
-        const requestBody = { platform };
-        if (isUrlSource) {
-          requestBody.imageUrl = sanitizedUrl;
-        } else {
-          requestBody.imageBase64 = dataUrl;
-        }
+        const requestBody = { platform, imageBase64: dataUrl };
         if (platform === 'shopee') {
           requestBody.options = {
             ambiguityMode: 'returnBoth',
@@ -2590,7 +2537,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       value={prefillValues.id1 || ''}
                       onChange={e => handlePrefillFieldChange('id1', e.target.value)}
                     />
-                    <div className="prefill-hint">Tự động lấy số từ link creator.shopee.vn, room_id hoặc link ảnh (.png, .jpg, .webp…).</div>
+                    <div className="prefill-hint">Tự động lấy số từ link creator.shopee.vn, room_id hoặc nội dung dán vào.</div>
                     {prefillValues.id1 ? (
                       <div className="prefill-hint">
                         {prefillModal.platformDetected === 'shopee'

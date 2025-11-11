@@ -639,32 +639,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       const cleaned = imageBase64.trim();
       const content = cleaned.replace(/^data:image\/\w+;base64,/, '');
       imageBuffer = Buffer.from(content, 'base64');
-    } else if (typeof imageUrl === 'string' && imageUrl.trim()) {
-      const trimmedUrl = imageUrl.trim();
-      let parsed: URL;
-      try {
-        parsed = new URL(trimmedUrl);
-      } catch (error) {
-        return res.status(400).json({ ok: false, error: 'Link ảnh không hợp lệ.' });
-      }
-      if (!/^https?:$/i.test(parsed.protocol)) {
-        return res.status(400).json({ ok: false, error: 'Link ảnh không hợp lệ.' });
-      }
-      try {
-        const response = await fetch(parsed.toString());
-        if (!response.ok) {
-          return res.status(400).json({ ok: false, error: 'Không tải được ảnh từ link.' });
-        }
-        const contentType = response.headers.get('content-type') || '';
-        if (contentType && !contentType.startsWith('image/')) {
-          return res.status(400).json({ ok: false, error: 'Link không phải ảnh.' });
-        }
-        const arrayBuffer = await response.arrayBuffer();
-        imageBuffer = Buffer.from(arrayBuffer);
-      } catch (error) {
-        console.error('Fetch image for OCR failed', error);
-        return res.status(400).json({ ok: false, error: 'Không tải được ảnh từ link.' });
-      }
     } else {
       return res.status(400).json({ ok: false, error: 'Thiếu ảnh để OCR.' });
     }
