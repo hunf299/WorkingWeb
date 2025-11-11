@@ -11,6 +11,7 @@ type OcrSuccessData = {
   platformDetected: Platform;
   gmvCandidates: string[];
   needsReview: boolean;
+  recognizedText: string;
 };
 
 type OcrResponse = {
@@ -393,7 +394,8 @@ const extractTikTokFromVision = (result: any) => {
     needsReview: false,
     orders,
     startTime,
-    startTimeEncoded: encodeStartForForm(startTime)
+    startTimeEncoded: encodeStartForForm(startTime),
+    recognizedText: fullText || ''
   };
 };
 
@@ -611,7 +613,8 @@ const extractShopeeFromVision = (result: any, opts: ExtractOpts = {}) => {
     needsReview,
     orders,
     startTime,
-    startTimeEncoded: encodeStartForForm(startTime)
+    startTimeEncoded: encodeStartForForm(startTime),
+    recognizedText: fullText || ''
   };
 };
 
@@ -627,13 +630,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       platform?: string;
       options?: ExtractOpts;
     };
-    if (!imageBase64) {
-      return res.status(400).json({ ok: false, error: 'Missing imageBase64' });
+    const client = getVisionClient();
+
+    let imageBuffer: Buffer | null = null;
+
+    if (typeof imageBase64 === 'string' && imageBase64.trim()) {
+      const cleaned = imageBase64.trim();
+      const content = cleaned.replace(/^data:image\/\w+;base64,/, '');
+      imageBuffer = Buffer.from(content, 'base64');
+    } else {
+      return res.status(400).json({ ok: false, error: 'Thiếu ảnh để OCR.' });
     }
 
-    const client = getVisionClient();
-    const content = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-    const imageBuffer = Buffer.from(content, 'base64');
+    if (!imageBuffer || !imageBuffer.length) {
+      return res.status(400).json({ ok: false, error: 'Không có dữ liệu ảnh để OCR.' });
+    }
 
     const [result] = await client.textDetection({
       image: { content: imageBuffer }
