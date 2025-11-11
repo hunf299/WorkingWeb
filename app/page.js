@@ -973,9 +973,6 @@ export default function Page() {
       const ordersValue = sanitizeNumericString(data.orders);
       const startTimeValue = typeof data.startTime === 'string' ? data.startTime.trim() : '';
       const startTimeEncoded = typeof data.startTimeEncoded === 'string' ? data.startTimeEncoded : '';
-      const recognizedText = typeof data.recognizedText === 'string' ? data.recognizedText : '';
-      const extractedId = extractLivestreamIdFromText(recognizedText);
-
       const rawCandidateList = Array.isArray(data.gmvCandidates) ? data.gmvCandidates : [];
       const normalizedCandidates = Array.from(new Set(
         rawCandidateList
@@ -991,15 +988,12 @@ export default function Page() {
       const hasGmv = Boolean(gmvValue);
       const hasOrders = Boolean(ordersValue);
       const hasStart = Boolean(startTimeValue);
-      const hasId = Boolean(extractedId);
 
       const platformLabel = detectedPlatform === 'tiktok'
         ? 'TikTok Shop Live'
         : detectedPlatform === 'shopee'
           ? 'Shopee Live'
           : '';
-
-      const existingId1 = sanitizeNumericString(currentPrefill?.values?.id1);
 
       setPrefillModal(prev => {
         if (!prev) return prev;
@@ -1014,14 +1008,10 @@ export default function Page() {
           nextValues.startTimeText = startTimeValue;
         }
         nextValues.startTimeEncoded = startTimeEncoded;
-        if (hasId && (!existingId1 || existingId1 !== extractedId)) {
-          nextValues.id1 = extractedId;
-        }
 
         const clearedErrors = { ...(prev.formErrors || {}) };
         if (hasGmv && clearedErrors.gmv) delete clearedErrors.gmv;
         if (hasStart && clearedErrors.startTimeText) delete clearedErrors.startTimeText;
-        if (hasId && clearedErrors.id1) delete clearedErrors.id1;
 
         let successMessage = '';
         if (hasGmv && hasOrders && hasStart) {
@@ -1045,16 +1035,11 @@ export default function Page() {
           successMessage = successMessage ? `${successMessage} ${reviewMessage}` : reviewMessage;
         }
 
-        if (hasId) {
-          const idMessage = `Đã trích xuất ID phiên: ${extractedId}.`;
-          successMessage = successMessage ? `${successMessage} ${idMessage}` : idMessage;
-        }
-
         if (successMessage && platformLabel) {
           successMessage = `${successMessage} (${platformLabel}).`;
         }
 
-        const hasAny = hasGmv || hasOrders || hasStart || hasId;
+        const hasAny = hasGmv || hasOrders || hasStart;
 
         return {
           ...prev,
