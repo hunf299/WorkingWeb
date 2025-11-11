@@ -1649,15 +1649,42 @@ Nguồn: Google Sheet ${ev.rawDate}`,
           <div className="calendar-card-actions">
             <button
               type="button"
-              className="btn"
+              className="icon-button calendar-card-action"
               onClick={downloadICSForDay}
               disabled={!isActiveUser}
+              aria-label="Tải lịch đang xem (.ics)"
+              title="Tải lịch đang xem (.ics)"
             >
-              Tải lịch đang xem (.ics)
+              <svg
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                className="icon"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M7.5 11.25l4.5 4.5 4.5-4.5"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 4.5v11.25"
+                />
+              </svg>
+              <span className="sr-only">Tải lịch đang xem (.ics)</span>
             </button>
             <button
               type="button"
-              className="calendar-card-toggle"
+              className="calendar-card-toggle calendar-card-action"
               onClick={toggleCalendarExpanded}
               aria-expanded={calendarExpanded}
               aria-controls={calendarCardBodyId}
