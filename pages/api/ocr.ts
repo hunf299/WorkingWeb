@@ -481,27 +481,49 @@ const extractShopeeFromVision = (result: any, opts: ExtractOpts = {}) => {
         candidates.push({ normalized, score, raw, lineTop, lineCx, inGpmCol });
       }
 
-      if (gmvOverride) {
-        const best = candidates.find(c => c.normalized === gmvOverride);
-        if (best) gmv = best.normalized;
-        else if (/^\d+$/.test(gmvOverride)) gmv = gmvOverride;
-      }
-
-      if (!gmv && candidates.length) {
+      if (candidates.length) {
         candidates.sort((a, b) => b.score - a.score);
         const top1 = candidates[0];
-        const top2 = candidates[1];
 
-        gmv = top1.normalized;
+        if (!gmv && top1) {
+          gmv = top1.normalized;
+        }
 
-        if (top2) {
-          const close = top1.score - top2.score <= 0.8;
-          const top2LooksGPM = isLikelyGPMLine(top2.raw) || top2.inGpmCol;
-          if (close && !top2LooksGPM && ambiguityMode === 'returnBoth') {
-            gmvCandidates = Array.from(new Set([top1.normalized, top2.normalized]));
-            needsReview = true;
+        if (gmvOverride) {
+          const best = candidates.find(c => c.normalized === gmvOverride);
+          if (best) gmv = best.normalized;
+          else if (/^\d+$/.test(gmvOverride)) gmv = gmvOverride;
+        }
+
+        if (ambiguityMode === 'returnBoth') {
+          const preferred: string[] = [];
+          const normalizedOverride = gmvOverride && /^\d+$/.test(gmvOverride) ? gmvOverride : '';
+
+          if (gmv) preferred.push(gmv);
+          if (normalizedOverride && normalizedOverride !== gmv) {
+            preferred.push(normalizedOverride);
+          }
+
+          for (const cand of candidates.slice(0, 4)) {
+            if (cand.normalized && cand.normalized !== gmv) {
+              preferred.push(cand.normalized);
+            }
+          }
+
+          for (const cand of candidates) {
+            if (cand.normalized) preferred.push(cand.normalized);
+          }
+
+          const unique = Array.from(new Set(preferred.filter(Boolean)));
+          if (unique.length) {
+            gmvCandidates = unique.slice(0, 4);
+            if (gmvCandidates.length >= 2) {
+              needsReview = true;
+            }
           }
         }
+      } else if (gmvOverride && /^\d+$/.test(gmvOverride)) {
+        gmv = gmvOverride;
       }
     }
 
