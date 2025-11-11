@@ -229,6 +229,38 @@ function extractLivestreamIdFromText(raw) {
   return parseLivestreamInput(raw).id;
 }
 
+const IMAGE_EXTENSION_CANDIDATES = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'heic', 'heif'];
+
+function isLikelyImageUrl(value) {
+  if (!value || typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  let parsed = null;
+  try {
+    parsed = new URL(trimmed);
+  } catch (error) {
+    return false;
+  }
+  if (!/^https?:$/i.test(parsed.protocol)) return false;
+
+  const lowerPath = parsed.pathname ? parsed.pathname.toLowerCase() : '';
+  if (IMAGE_EXTENSION_CANDIDATES.some(ext => lowerPath.endsWith(`.${ext}`))) {
+    return true;
+  }
+
+  const queryKeys = ['format', 'fm', 'ext'];
+  for (const key of queryKeys) {
+    const raw = parsed.searchParams.get(key);
+    if (!raw) continue;
+    const lowered = raw.toLowerCase();
+    if (IMAGE_EXTENSION_CANDIDATES.includes(lowered)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function sanitizeNumericString(value) {
   return (value || '').replace(/[^0-9]/g, '');
 }
@@ -736,6 +768,10 @@ export default function Page() {
       ocrError: '',
       ocrMessage: '',
       ocrFileName: '',
+      ocrSourceType: '',
+      ocrImageUrl: '',
+      ocrImageUrlInput: '',
+      ocrLastProcessedUrl: '',
       gmvCandidates: [],
       gmvNeedsReview: false,
       formErrors: {},
@@ -843,27 +879,21 @@ export default function Page() {
     });
   }
 
-  function toggleOptionalLivestreamId(show) {
+  function handleOcrImageUrlInputChange(value) {
+    const normalized = typeof value === 'string' ? value : '';
     setPrefillModal(prev => {
       if (!prev) return prev;
-      const nextErrors = { ...(prev.formErrors || {}) };
-      if (!show) {
-        delete nextErrors.id2;
-      }
-      return {
-        ...prev,
-        showOptionalId: show,
-        values: show ? prev.values : { ...prev.values, id2: '' },
-        formErrors: show ? prev.formErrors : nextErrors,
-        copyFeedback: ''
-      };
+      return { ...prev, ocrImageUrlInput: normalized };
     });
   }
 
-  function unlockPrefillEmail() {
-    setTrialEmailError('');
-    setPrefillModal(prev => (prev ? { ...prev, emailLocked: false, emailUnlockedManually: true } : prev));
-  }
+  const handlePrefillOcr = useCallback(async (input) => {
+    if (!input) return;
+
+    const isUrlSource = typeof input === 'string';
+    let sanitizedUrl = '';
+    let fileToRead = null;
+    let displayName = '';
 
   const handlePrefillOcr = useCallback(async (input) => {
     if (!input) return;
@@ -885,12 +915,12 @@ export default function Page() {
       } catch (error) {
         // keep original blob if File construction fails
       }
+      fileToRead = effectiveFile;
+      const rawName = typeof effectiveFile === 'object' && effectiveFile && 'name' in effectiveFile
+        ? effectiveFile.name
+        : '';
+      displayName = rawName || 'Ảnh từ clipboard';
     }
-
-    const rawName = typeof effectiveFile === 'object' && effectiveFile && 'name' in effectiveFile
-      ? effectiveFile.name
-      : '';
-    const displayName = rawName || 'Ảnh từ clipboard';
 
     setPrefillModal(prev => {
       if (!prev) return prev;
@@ -901,6 +931,10 @@ export default function Page() {
         ocrError: '',
         ocrMessage: '',
         ocrFileName: displayName,
+        ocrSourceType: isUrlSource ? 'url' : 'file',
+        ocrImageUrl: isUrlSource ? sanitizedUrl : '',
+        ocrImageUrlInput: isUrlSource ? sanitizedUrl : prev.ocrImageUrlInput,
+        ocrLastProcessedUrl: isUrlSource ? sanitizedUrl : '',
         copyFeedback: ''
       };
     });
@@ -1066,7 +1100,9 @@ export default function Page() {
           ocrStatus: hasAny ? 'success' : 'error',
           ocrProgress: 1,
           ocrMessage: successMessage,
-          ocrError: hasAny ? '' : 'Không trích xuất được dữ liệu, vui lòng nhập tay.'
+          ocrError: hasAny ? '' : 'Không trích xuất được dữ liệu, vui lòng nhập tay.',
+          ocrImageUrl: isUrlSource ? sanitizedUrl : '',
+          ocrLastProcessedUrl: isUrlSource ? sanitizedUrl : prev.ocrLastProcessedUrl
         };
       });
     } catch (err) {
@@ -1077,11 +1113,48 @@ export default function Page() {
           ...prev,
           ocrStatus: 'error',
           ocrProgress: 0,
-          ocrError: err?.message ? `${err.message} Vui lòng nhập tay.` : 'Không trích xuất được dữ liệu, vui lòng nhập tay.'
+          ocrError: err?.message ? `${err.message} Vui lòng nhập tay.` : 'Không trích xuất được dữ liệu, vui lòng nhập tay.',
+          ocrImageUrl: isUrlSource ? sanitizedUrl : prev.ocrImageUrl,
+          ocrLastProcessedUrl: isUrlSource ? sanitizedUrl : prev.ocrLastProcessedUrl
         };
       });
     }
   }, [prefillModal]);
+
+  function toggleOptionalLivestreamId(show) {
+    setPrefillModal(prev => {
+      if (!prev) return prev;
+      const nextErrors = { ...(prev.formErrors || {}) };
+      if (!show) {
+        delete nextErrors.id2;
+      }
+      return {
+        ...prev,
+        showOptionalId: show,
+        values: show ? prev.values : { ...prev.values, id2: '' },
+        formErrors: show ? prev.formErrors : nextErrors,
+        copyFeedback: ''
+      };
+    });
+  }
+
+  function unlockPrefillEmail() {
+    setTrialEmailError('');
+    setPrefillModal(prev => (prev ? { ...prev, emailLocked: false, emailUnlockedManually: true } : prev));
+  }
+
+  const handleOcrImageUrlSubmit = useCallback(() => {
+    if (!prefillModal) return;
+    const raw = typeof prefillModal.ocrImageUrlInput === 'string'
+      ? prefillModal.ocrImageUrlInput.trim()
+      : '';
+    if (!raw) return;
+    const lastUrl = prefillModal.ocrLastProcessedUrl || '';
+    if (!raw || (raw === lastUrl && prefillModal.ocrStatus === 'running')) {
+      return;
+    }
+    handlePrefillOcr(raw);
+  }, [prefillModal, handlePrefillOcr]);
 
   useEffect(() => {
     if (!prefillModal) return;
@@ -1089,6 +1162,15 @@ export default function Page() {
     function handlePasteEvent(event) {
       const clipboardData = event.clipboardData;
       if (!clipboardData) return;
+      const textData = clipboardData.getData('text') || clipboardData.getData('text/plain');
+      if (textData) {
+        const trimmed = textData.trim();
+        if (isLikelyImageUrl(trimmed)) {
+          event.preventDefault();
+          handlePrefillOcr(trimmed);
+          return;
+        }
+      }
       const items = clipboardData.items ? Array.from(clipboardData.items) : [];
       const imageItem = items.find(item => item && item.type && item.type.startsWith('image/'));
       if (!imageItem) return;
@@ -2451,7 +2533,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       id="prefill-id1"
                       type="text"
                       className="text-input"
-                      placeholder="Dán link Shopee / TikTok hoặc nhập ID"
+                      placeholder="Dán link Shopee / TikTok, nhập ID hoặc link ảnh"
                       value={prefillValues.id1 || ''}
                       onChange={e => handlePrefillFieldChange('id1', e.target.value)}
                     />
@@ -2513,9 +2595,42 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                         event.target.value = '';
                       }}
                     />
+                    <div className="prefill-field-inline">
+                      <input
+                        id="prefill-ocr-url"
+                        type="url"
+                        className="text-input"
+                        placeholder="https://example.com/bao-cao.png"
+                        value={prefillModal.ocrImageUrlInput || ''}
+                        onChange={event => handleOcrImageUrlInputChange(event.target.value)}
+                        onKeyDown={event => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            handleOcrImageUrlSubmit();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="prefill-mini-button"
+                        onClick={handleOcrImageUrlSubmit}
+                        disabled={prefillModal.ocrStatus === 'running' || !(prefillModal.ocrImageUrlInput || '').trim()}
+                      >
+                        Lấy dữ liệu
+                      </button>
+                    </div>
                     <div className="prefill-hint">Có thể dán ảnh (Ctrl+V hoặc Cmd+V) để tự OCR nhanh.</div>
+                    <div className="prefill-hint">Hoặc dán link ảnh (.png, .jpg, .webp…) và bấm "Lấy dữ liệu" để OCR.</div>
                     {prefillModal.ocrFileName && (
                       <div className="prefill-hint">Đã chọn: {prefillModal.ocrFileName}</div>
+                    )}
+                    {prefillModal.ocrSourceType === 'url' && prefillModal.ocrImageUrl && (
+                      <div className="prefill-hint">
+                        Link ảnh đang dùng:{' '}
+                        <a href={prefillModal.ocrImageUrl} target="_blank" rel="noopener noreferrer">
+                          {prefillModal.ocrImageUrl}
+                        </a>
+                      </div>
                     )}
                     {prefillModal.ocrStatus === 'running' && (
                       <div className="prefill-status-message">Đang trích xuất… {Math.round((prefillModal.ocrProgress || 0) * 100)}%</div>
