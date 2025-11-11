@@ -137,23 +137,75 @@ function parseLivestreamInput(raw) {
   }
 
   const lower = trimmed.toLowerCase();
+  let parsedUrl = null;
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      parsedUrl = new URL(trimmed);
+    } catch (error) {
+      parsedUrl = null;
+    }
+  }
+
+  const urlHost = parsedUrl?.hostname?.toLowerCase() || '';
+  const urlPath = parsedUrl?.pathname?.toLowerCase() || '';
+
   let platform = 'unknown';
-  if (lower.includes('creator.shopee.vn')) {
+  if (
+    urlHost.includes('creator.shopee.vn') ||
+    (urlHost.includes('banhang.shopee.vn') && urlPath.includes('/creator-center/dashboard/live')) ||
+    lower.includes('creator.shopee.vn') ||
+    lower.includes('banhang.shopee.vn/creator-center/dashboard/live/')
+  ) {
     platform = 'shopee';
-  } else if (lower.includes('shop.tiktok.com')) {
+  } else if (urlHost.includes('shop.tiktok.com') || lower.includes('shop.tiktok.com')) {
     platform = 'tiktok';
   }
 
   let id = '';
-  if (platform === 'shopee') {
-    const shopeeMatch = trimmed.match(/live\/(\d+)/i);
-    if (shopeeMatch) {
-      id = shopeeMatch[1];
+  if (parsedUrl) {
+    const searchParams = parsedUrl.searchParams;
+    const paramKeys = ['room_id', 'roomid', 'liveid', 'live_id', 'livestreamid', 'livestream_id', 'id'];
+    for (const key of paramKeys) {
+      const value = searchParams.get(key);
+      if (value && /\d+/.test(value)) {
+        const match = value.match(/\d+/);
+        if (match) {
+          id = match[0];
+          break;
+        }
+      }
     }
-  } else if (platform === 'tiktok') {
-    const tiktokMatch = trimmed.match(/room_id=(\d+)/i);
-    if (tiktokMatch) {
-      id = tiktokMatch[1];
+
+    if (!id) {
+      const segments = parsedUrl.pathname.split('/').filter(Boolean).reverse();
+      for (const segment of segments) {
+        const numeric = segment.match(/\d+/);
+        if (numeric) {
+          id = numeric[0];
+          break;
+        }
+      }
+    }
+
+    if (!id && parsedUrl.hash) {
+      const hashMatch = parsedUrl.hash.match(/\d+/);
+      if (hashMatch) {
+        id = hashMatch[0];
+      }
+    }
+  }
+
+  if (!id) {
+    if (platform === 'shopee') {
+      const shopeeMatch = trimmed.match(/live\/(\d+)/i);
+      if (shopeeMatch) {
+        id = shopeeMatch[1];
+      }
+    } else if (platform === 'tiktok') {
+      const tiktokMatch = trimmed.match(/room_id=(\d+)/i);
+      if (tiktokMatch) {
+        id = tiktokMatch[1];
+      }
     }
   }
 
@@ -674,6 +726,7 @@ export default function Page() {
         keyLivestream: (event.keyLivestream || '').trim(),
         id1: '',
         id2: '',
+        orders: '',
         gmv: '',
         startTimeText: '',
         startTimeEncoded: ''
@@ -737,6 +790,8 @@ export default function Page() {
       const next = { ...values };
       if (field === 'gmv') {
         next.gmv = sanitizeNumericString(value);
+      } else if (field === 'orders') {
+        next.orders = sanitizeNumericString(value);
       } else if (field === 'id1') {
         const parsed = parseLivestreamInput(value);
         next.id1 = parsed.id || sanitizeNumericString(value);
@@ -778,9 +833,33 @@ export default function Page() {
     setPrefillModal(prev => (prev ? { ...prev, emailLocked: false, emailUnlockedManually: true } : prev));
   }
 
-  async function handlePrefillOcr(file) {
+  const handlePrefillOcr = useCallback(async (file) => {
     if (!file) return;
-    const fileName = typeof file === 'object' && file && 'name' in file ? file.name : '';
+
+    let effectiveFile = file;
+    if (
+      typeof window !== 'undefined' &&
+      typeof File !== 'undefined' &&
+      file instanceof Blob &&
+      !(file instanceof File)
+    ) {
+      const extension = (file.type && file.type.split('/')[1]) || 'png';
+      try {
+        effectiveFile = new File(
+          [file],
+          `clipboard-${Date.now()}.${extension}`,
+          { type: file.type || 'image/png' }
+        );
+      } catch (error) {
+        effectiveFile = file;
+      }
+    }
+
+    const rawName = typeof effectiveFile === 'object' && effectiveFile && 'name' in effectiveFile
+      ? effectiveFile.name
+      : '';
+    const displayName = rawName || 'Ảnh từ clipboard';
+
     setPrefillModal(prev => {
       if (!prev) return prev;
       return {
@@ -789,7 +868,7 @@ export default function Page() {
         ocrProgress: 0,
         ocrError: '',
         ocrMessage: '',
-        ocrFileName: fileName,
+        ocrFileName: displayName,
         copyFeedback: ''
       };
     });
@@ -797,42 +876,63 @@ export default function Page() {
     const currentPrefill = prefillModal;
 
     try {
-      const dataUrl = await readImageAsDataURL(file);
+      const dataUrl = await readImageAsDataURL(effectiveFile);
       const inputPlatform = currentPrefill?.platformDetected;
       const guessedPlatform = inferPlatformFromEvent(currentPrefill?.event);
-      const requestPlatform = inputPlatform && inputPlatform !== 'unknown'
-        ? inputPlatform
-        : guessedPlatform;
+      const platformCandidates = [];
 
-      if (!requestPlatform) {
-        throw new Error('Không xác định được sàn, vui lòng nhập link Shopee hoặc TikTok.');
+      if (inputPlatform && inputPlatform !== 'unknown') {
+        platformCandidates.push(inputPlatform);
+      } else if (guessedPlatform) {
+        platformCandidates.push(guessedPlatform);
+        platformCandidates.push(guessedPlatform === 'shopee' ? 'tiktok' : 'shopee');
+      } else {
+        platformCandidates.push('shopee', 'tiktok');
       }
 
-      setPrefillModal(prev => {
-        if (!prev || prev.ocrStatus !== 'running') return prev;
-        return { ...prev, ocrProgress: 0.3 };
-      });
+      const uniquePlatforms = Array.from(new Set(platformCandidates));
+      let data = null;
+      let lastError = '';
 
-      const requestBody = { imageBase64: dataUrl, platform: requestPlatform };
+      for (let idx = 0; idx < uniquePlatforms.length; idx += 1) {
+        const platform = uniquePlatforms[idx];
+        setPrefillModal(prev => {
+          if (!prev || prev.ocrStatus !== 'running') return prev;
+          const progress = Math.min(0.3 + idx * 0.3, 0.9);
+          return { ...prev, ocrProgress: progress };
+        });
 
-      const resp = await fetch('/api/ocr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      });
-      const payload = await resp.json().catch(() => null);
-      if (!resp.ok || !payload || payload.ok !== true) {
-        const message = payload?.error || 'Không trích xuất được dữ liệu.';
-        throw new Error(message);
+        const resp = await fetch('/api/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: dataUrl, platform })
+        });
+        const payload = await resp.json().catch(() => null);
+        if (resp.ok && payload?.ok === true) {
+          data = payload.data || null;
+          if (data?.platformDetected) {
+            break;
+          }
+        } else {
+          const message = payload?.error || 'Không trích xuất được dữ liệu.';
+          lastError = message;
+        }
       }
 
-      const data = payload.data || {};
+      if (!data) {
+        throw new Error(lastError || 'Không trích xuất được dữ liệu.');
+      }
+
       const detectedPlatform = data.platformDetected;
       const gmvValue = sanitizeNumericString(data.gmv);
+      const ordersValue = sanitizeNumericString(data.orders);
       const startTimeValue = typeof data.startTime === 'string' ? data.startTime.trim() : '';
       const startTimeEncoded = typeof data.startTimeEncoded === 'string' ? data.startTimeEncoded : '';
+
       const hasGmv = Boolean(gmvValue);
+      const hasOrders = Boolean(ordersValue);
       const hasStart = Boolean(startTimeValue);
+
       const platformLabel = detectedPlatform === 'tiktok'
         ? 'TikTok Shop Live'
         : detectedPlatform === 'shopee'
@@ -845,31 +945,50 @@ export default function Page() {
         if (hasGmv) {
           nextValues.gmv = gmvValue;
         }
+        if (hasOrders) {
+          nextValues.orders = ordersValue;
+        }
         if (hasStart) {
           nextValues.startTimeText = startTimeValue;
         }
         nextValues.startTimeEncoded = startTimeEncoded;
+
         const clearedErrors = { ...(prev.formErrors || {}) };
         if (hasGmv && clearedErrors.gmv) delete clearedErrors.gmv;
         if (hasStart && clearedErrors.startTimeText) delete clearedErrors.startTimeText;
-        let successMessage = hasGmv && hasStart
-          ? 'Đã trích xuất GMV và giờ bắt đầu.'
-          : hasGmv
-            ? 'Đã trích xuất GMV, vui lòng kiểm tra lại.'
-            : hasStart
-              ? 'Đã trích xuất giờ bắt đầu, vui lòng kiểm tra lại.'
-              : '';
+
+        let successMessage = '';
+        if (hasGmv && hasOrders && hasStart) {
+          successMessage = 'Đã trích xuất GMV, đơn hàng và giờ bắt đầu.';
+        } else if (hasGmv && hasOrders) {
+          successMessage = 'Đã trích xuất GMV và đơn hàng, vui lòng kiểm tra lại.';
+        } else if (hasGmv && hasStart) {
+          successMessage = 'Đã trích xuất GMV và giờ bắt đầu.';
+        } else if (hasGmv) {
+          successMessage = 'Đã trích xuất GMV, vui lòng kiểm tra lại.';
+        } else if (hasOrders && hasStart) {
+          successMessage = 'Đã trích xuất đơn hàng và giờ bắt đầu, vui lòng kiểm tra lại.';
+        } else if (hasOrders) {
+          successMessage = 'Đã trích xuất đơn hàng, vui lòng kiểm tra lại.';
+        } else if (hasStart) {
+          successMessage = 'Đã trích xuất giờ bắt đầu, vui lòng kiểm tra lại.';
+        }
+
         if (successMessage && platformLabel) {
           successMessage = `${successMessage} (${platformLabel}).`;
         }
+
+        const hasAny = hasGmv || hasOrders || hasStart;
+
         return {
           ...prev,
           values: nextValues,
+          platformDetected: detectedPlatform || prev.platformDetected,
           formErrors: clearedErrors,
-          ocrStatus: hasGmv || hasStart ? 'success' : 'error',
+          ocrStatus: hasAny ? 'success' : 'error',
           ocrProgress: 1,
           ocrMessage: successMessage,
-          ocrError: hasGmv || hasStart ? '' : 'Không trích xuất được dữ liệu, vui lòng nhập tay.'
+          ocrError: hasAny ? '' : 'Không trích xuất được dữ liệu, vui lòng nhập tay.'
         };
       });
     } catch (err) {
@@ -884,7 +1003,28 @@ export default function Page() {
         };
       });
     }
-  }
+  }, [prefillModal]);
+
+  useEffect(() => {
+    if (!prefillModal) return;
+
+    function handlePasteEvent(event) {
+      const clipboardData = event.clipboardData;
+      if (!clipboardData) return;
+      const items = clipboardData.items ? Array.from(clipboardData.items) : [];
+      const imageItem = items.find(item => item && item.type && item.type.startsWith('image/'));
+      if (!imageItem) return;
+      const blob = imageItem.getAsFile();
+      if (!blob) return;
+      event.preventDefault();
+      handlePrefillOcr(blob);
+    }
+
+    window.addEventListener('paste', handlePasteEvent);
+    return () => {
+      window.removeEventListener('paste', handlePasteEvent);
+    };
+  }, [prefillModal, handlePrefillOcr]);
 
   async function persistTrialUserEmail(email) {
     if (!isActiveUser) {
@@ -2288,6 +2428,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                         event.target.value = '';
                       }}
                     />
+                    <div className="prefill-hint">Có thể dán ảnh (Ctrl+V hoặc Cmd+V) để tự OCR nhanh.</div>
                     {prefillModal.ocrFileName && (
                       <div className="prefill-hint">Đã chọn: {prefillModal.ocrFileName}</div>
                     )}
