@@ -1,7 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getVisionClient } from '../../lib/visionClient';
-import { analyzePlatformColors } from '../../lib/colorDetection';
-import type { ColorAnalysis } from '../../lib/colorDetection';
 
 type Platform = 'tiktok' | 'shopee';
 
@@ -330,7 +328,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   try {
-    const { imageBase64, platform } = req.body as { imageBase64?: string; platform?: Platform };
+    const { imageBase64, platform } = req.body as { imageBase64?: string; platform?: string };
     if (!imageBase64) {
       return res.status(400).json({ ok: false, error: 'Missing imageBase64' });
     }
@@ -339,114 +337,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const content = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     const imageBuffer = Buffer.from(content, 'base64');
 
-    const colorAnalysis: ColorAnalysis = analyzePlatformColors(imageBuffer, 0);
-    console.log('Color detection metrics', {
-      headerDark: Number(colorAnalysis.metrics.headerDark.toFixed(4)),
-      overallDark: Number(colorAnalysis.metrics.overallDark.toFixed(4)),
-      panelAccent: Number(colorAnalysis.metrics.panelAccent.toFixed(4)),
-      overallAccent: Number(colorAnalysis.metrics.overallAccent.toFixed(4)),
-      headerAccent: Number(colorAnalysis.metrics.headerAccent.toFixed(4)),
-      panelOrange: Number(colorAnalysis.metrics.panelOrange.toFixed(4)),
-      overallOrange: Number(colorAnalysis.metrics.overallOrange.toFixed(4)),
-      panelValid: colorAnalysis.metrics.panelValid,
-      tiktokColorPass: colorAnalysis.tiktokColorPass,
-      shopeeColorPass: colorAnalysis.shopeeColorPass,
-      colorDecision: colorAnalysis.colorDecision
-    });
-
     const [result] = await client.textDetection({
       image: { content: imageBuffer }
     });
 
-    const providedPlatform: Platform | undefined =
-      platform === 'tiktok' || platform === 'shopee' ? platform : undefined;
+    const normalizedPlatform: Platform | null =
+      platform === 'tiktok' || platform === 'shopee' ? platform : null;
 
-    const fullOriginal = result.textAnnotations?.[0]?.description || '';
-
-    const textShopeeStrong = /doanh\s*thu\s*\(đ\)/i.test(fullOriginal);
-    const textTikTokStrong = /gmv\s*trực\s*tiếp\s*\(đ\)/i.test(fullOriginal);
-
-    const shopeeKeywords = [
-      /doanh thu/i,
-      /bắt đầu lúc/i,
-      /bat dau luc/i,
-      /đơn hàng/i,
-      /don hang/i
-    ];
-    const tiktokKeywords = [
-      /gmv/i,
-      /trực tiếp/i,
-      /truc tiep/i,
-      /room[_\s-]?id/i,
-      /utc/i
-    ];
-
-    let shopeeScore = 0;
-    let tiktokScore = 0;
-    if (textShopeeStrong) shopeeScore += 3;
-    if (textTikTokStrong) tiktokScore += 3;
-    shopeeKeywords.forEach(regex => {
-      if (regex.test(fullOriginal)) shopeeScore += 1;
-    });
-    tiktokKeywords.forEach(regex => {
-      if (regex.test(fullOriginal)) tiktokScore += 1;
-    });
-
-    const textDecision: Platform = shopeeScore > tiktokScore
-      ? 'shopee'
-      : tiktokScore > shopeeScore
-        ? 'tiktok'
-        : 'tiktok';
-
-    let platformDetected: Platform | null = null;
-    if (colorAnalysis.colorDecision) {
-      platformDetected = colorAnalysis.colorDecision;
+    if (!normalizedPlatform) {
+      return res.status(400).json({ ok: false, error: 'Không xác định được sàn để OCR.' });
     }
 
-    if (!platformDetected) {
-      platformDetected = textDecision;
-    }
-
-    if (colorAnalysis.colorDecision === 'tiktok' && colorAnalysis.tiktokColorPass) {
-      platformDetected = 'tiktok';
-      if (textShopeeStrong && colorAnalysis.metrics.panelOrange >= 0.12) {
-        platformDetected = 'shopee';
-      }
-    }
-
-    if (colorAnalysis.colorDecision === 'shopee' && colorAnalysis.shopeeColorPass) {
-      platformDetected = 'shopee';
-      if (textTikTokStrong && (colorAnalysis.metrics.headerDark >= 0.35 || colorAnalysis.metrics.overallAccent >= 0.02)) {
-        platformDetected = 'tiktok';
-      }
-    }
-
-    if (!colorAnalysis.tiktokColorPass && !colorAnalysis.shopeeColorPass) {
-      platformDetected = textDecision;
-    }
-
-    if (platformDetected === 'tiktok' && textShopeeStrong) {
-      if (colorAnalysis.metrics.panelOrange >= 0.12) {
-        platformDetected = 'shopee';
-      }
-    }
-
-    if (platformDetected === 'shopee' && textTikTokStrong) {
-      if (colorAnalysis.metrics.headerDark >= 0.35 || colorAnalysis.metrics.overallAccent >= 0.02) {
-        platformDetected = 'tiktok';
-      }
-    }
-
-    if (!platformDetected) {
-      platformDetected = 'tiktok';
-    }
-
-    if (providedPlatform && providedPlatform !== platformDetected) {
-      console.warn(`Platform mismatch: user=${providedPlatform}, detected=${platformDetected}`);
-      platformDetected = providedPlatform;
-    }
-
-    const data = platformDetected === 'tiktok'
+    const data = normalizedPlatform === 'tiktok'
       ? extractTikTokFromVision(result)
       : extractShopeeFromVision(result);
 

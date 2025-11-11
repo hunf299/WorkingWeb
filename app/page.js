@@ -130,27 +130,51 @@ function buildPrefilledFormLink(values) {
   return `${GOOGLE_FORM_BASE_URL}?${query}`;
 }
 
+function parseLivestreamInput(raw) {
+  const trimmed = typeof raw === 'string' ? raw.trim() : '';
+  if (!trimmed) {
+    return { id: '', platform: 'unknown' };
+  }
+
+  const lower = trimmed.toLowerCase();
+  let platform = 'unknown';
+  if (lower.includes('creator.shopee.vn')) {
+    platform = 'shopee';
+  } else if (lower.includes('shop.tiktok.com')) {
+    platform = 'tiktok';
+  }
+
+  let id = '';
+  if (platform === 'shopee') {
+    const shopeeMatch = trimmed.match(/live\/(\d+)/i);
+    if (shopeeMatch) {
+      id = shopeeMatch[1];
+    }
+  } else if (platform === 'tiktok') {
+    const tiktokMatch = trimmed.match(/room_id=(\d+)/i);
+    if (tiktokMatch) {
+      id = tiktokMatch[1];
+    }
+  }
+
+  if (!id) {
+    if (/^\d+$/.test(trimmed)) {
+      id = trimmed;
+    } else {
+      const digitMatches = trimmed.match(/\d{5,}/g);
+      if (digitMatches && digitMatches.length) {
+        id = digitMatches[digitMatches.length - 1];
+      }
+    }
+  }
+
+  id = (id || '').replace(/[^0-9]/g, '');
+
+  return { id, platform };
+}
+
 function extractLivestreamIdFromText(raw) {
-  if (!raw) return '';
-  const trimmed = raw.trim();
-  if (!trimmed) return '';
-
-  const shopeeMatch = trimmed.match(/creator\.shopee\.vn\/dashboard\/live\/(\d+)/i);
-  if (shopeeMatch) return shopeeMatch[1];
-
-  const tiktokMatch = trimmed.match(/[?&]room_id=(\d+)/i);
-  if (tiktokMatch) return tiktokMatch[1];
-
-  if (/^\d+$/.test(trimmed)) {
-    return trimmed;
-  }
-
-  const digitMatches = trimmed.match(/\d{5,}/g);
-  if (digitMatches && digitMatches.length) {
-    return digitMatches[digitMatches.length - 1];
-  }
-
-  return '';
+  return parseLivestreamInput(raw).id;
 }
 
 function sanitizeNumericString(value) {
@@ -654,6 +678,7 @@ export default function Page() {
         startTimeText: '',
         startTimeEncoded: ''
       },
+      platformDetected: 'unknown',
       emailLocked: Boolean(initialEmail),
       emailUnlockedManually: false,
       showOptionalId: false,
@@ -675,18 +700,31 @@ export default function Page() {
   function setPrefillValues(updater) {
     setPrefillModal(prev => {
       if (!prev) return prev;
-      const nextValues = typeof updater === 'function' ? updater(prev.values) : updater;
+      const updateResult = typeof updater === 'function' ? updater(prev.values) : updater;
+      const updates = updateResult && typeof updateResult === 'object' ? { ...updateResult } : {};
+      let nextPlatform = prev.platformDetected || 'unknown';
+      if (Object.prototype.hasOwnProperty.call(updates, 'platformDetected')) {
+        const platformValue = updates.platformDetected;
+        if (platformValue === 'shopee' || platformValue === 'tiktok' || platformValue === 'unknown') {
+          nextPlatform = platformValue;
+        } else {
+          nextPlatform = 'unknown';
+        }
+        delete updates.platformDetected;
+      }
+
       const clearedErrors = { ...(prev.formErrors || {}) };
-      for (const key of Object.keys(nextValues)) {
+      for (const key of Object.keys(updates)) {
         if (clearedErrors[key]) {
           delete clearedErrors[key];
         }
       }
       return {
         ...prev,
-        values: { ...prev.values, ...nextValues },
+        values: { ...prev.values, ...updates },
         formErrors: clearedErrors,
-        copyFeedback: ''
+        copyFeedback: '',
+        platformDetected: nextPlatform
       };
     });
   }
@@ -699,9 +737,13 @@ export default function Page() {
       const next = { ...values };
       if (field === 'gmv') {
         next.gmv = sanitizeNumericString(value);
-      } else if (field === 'id1' || field === 'id2') {
+      } else if (field === 'id1') {
+        const parsed = parseLivestreamInput(value);
+        next.id1 = parsed.id || sanitizeNumericString(value);
+        return { ...next, platformDetected: parsed.platform };
+      } else if (field === 'id2') {
         const extracted = extractLivestreamIdFromText(value);
-        next[field] = extracted || sanitizeNumericString(value);
+        next.id2 = extracted || sanitizeNumericString(value);
       } else if (field === 'email') {
         next.email = value;
       } else if (field === 'keyLivestream') {
@@ -752,17 +794,26 @@ export default function Page() {
       };
     });
 
+    const currentPrefill = prefillModal;
+
     try {
       const dataUrl = await readImageAsDataURL(file);
-      const guessedPlatform = inferPlatformFromEvent(prefillModal?.event);
+      const inputPlatform = currentPrefill?.platformDetected;
+      const guessedPlatform = inferPlatformFromEvent(currentPrefill?.event);
+      const requestPlatform = inputPlatform && inputPlatform !== 'unknown'
+        ? inputPlatform
+        : guessedPlatform;
+
+      if (!requestPlatform) {
+        throw new Error('Không xác định được sàn, vui lòng nhập link Shopee hoặc TikTok.');
+      }
+
       setPrefillModal(prev => {
         if (!prev || prev.ocrStatus !== 'running') return prev;
         return { ...prev, ocrProgress: 0.3 };
       });
 
-      const requestBody = guessedPlatform
-        ? { imageBase64: dataUrl, platform: guessedPlatform }
-        : { imageBase64: dataUrl };
+      const requestBody = { imageBase64: dataUrl, platform: requestPlatform };
 
       const resp = await fetch('/api/ocr', {
         method: 'POST',
@@ -2180,6 +2231,15 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       onChange={e => handlePrefillFieldChange('id1', e.target.value)}
                     />
                     <div className="prefill-hint">Tự động lấy số từ link creator.shopee.vn hoặc room_id.</div>
+                    {prefillValues.id1 ? (
+                      <div className="prefill-hint">
+                        {prefillModal.platformDetected === 'shopee'
+                          ? 'Phát hiện sàn: 🟠 Shopee Live'
+                          : prefillModal.platformDetected === 'tiktok'
+                            ? 'Phát hiện sàn: ⚫ TikTok Shop'
+                            : 'Không xác định sàn'}
+                      </div>
+                    ) : null}
                     {prefillFormErrors.id1 && <div className="prefill-error">{prefillFormErrors.id1}</div>}
                   </div>
 
