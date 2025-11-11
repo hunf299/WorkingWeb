@@ -9,6 +9,8 @@ type OcrSuccessData = {
   startTime: string;
   startTimeEncoded: string;
   platformDetected: Platform;
+  gmvCandidates: string[];
+  needsReview: boolean;
 };
 
 type OcrResponse = {
@@ -21,49 +23,106 @@ type OcrResponse = {
 
 type VWord = {
   text: string;
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
-  cx: number;
-  cy: number;
-  w: number;
-  h: number;
+  x0: number; y0: number; x1: number; y1: number;
+  cx: number; cy: number; w: number; h: number;
+};
+
+type ExtractOpts = {
+  ambiguityMode?: 'auto' | 'returnBoth';
+  gmvOverride?: string | null;
 };
 
 const toWords = (anns: any[]): VWord[] => {
-  return (anns || [])
-    .slice(1)
-    .filter(a => a.description)
-    .map(a => {
+  const items = (anns || []).slice(1);
+  return items
+    .map((a: any) => {
       const vs = a.boundingPoly?.vertices || a.boundingPoly?.normalizedVertices || [];
       const xs = vs.map((v: any) => v.x || 0);
       const ys = vs.map((v: any) => v.y || 0);
-      const x0 = xs.length ? Math.min(...xs) : 0;
-      const y0 = ys.length ? Math.min(...ys) : 0;
-      const x1 = xs.length ? Math.max(...xs) : 0;
-      const y1 = ys.length ? Math.max(...ys) : 0;
+      const x0 = Math.min(...xs);
+      const x1 = Math.max(...xs);
+      const y0 = Math.min(...ys);
+      const y1 = Math.max(...ys);
+      const w = x1 - x0;
+      const h = y1 - y0;
+      const cx = (x0 + x1) / 2;
+      const cy = (y0 + y1) / 2;
       return {
-        text: a.description as string,
+        text: String(a.description || '').trim(),
         x0,
         y0,
         x1,
         y1,
-        cx: (x0 + x1) / 2,
-        cy: (y0 + y1) / 2,
-        w: x1 - x0,
-        h: y1 - y0
-      };
-    });
+        cx,
+        cy,
+        w,
+        h
+      } as VWord;
+    })
+    .filter((w: VWord) => !!w.text);
 };
+
+const sameRow = (a: VWord, b: VWord, tolerance = 0.6) => {
+  const hAvg = (a.h + b.h) / 2 || 1;
+  return Math.abs(a.cy - b.cy) <= hAvg * tolerance;
+};
+
+const rightOf = (a: VWord, b: VWord) => a.cx > b.cx;
+
+const below = (a: VWord, b: VWord, mul = 1.5) =>
+  a.cy > b.y1 + Math.max(a.h, b.h) / mul;
+
+const groupWordsByLine = (words: VWord[], yTol = 0.65) => {
+  const arr = [...words].sort((p, q) => p.cy - q.cy || p.cx - q.cx);
+  const lines: VWord[][] = [];
+  for (const w of arr) {
+    const last = lines[lines.length - 1];
+    if (!last) {
+      lines.push([w]);
+    } else {
+      const ref = last[0];
+      if (sameRow(w, ref, yTol)) {
+        last.push(w);
+      } else {
+        lines.push([w]);
+      }
+    }
+  }
+  for (const line of lines) {
+    line.sort((p, q) => p.cx - q.cx);
+  }
+  return lines;
+};
+
+const joinLine = (line: VWord[]) =>
+  line.map(w => w.text).join(' ').replace(/\s{2,}/g, ' ').trim();
 
 const digitsOnly = (s: string) => (s || '').replace(/\D+/g, '');
 
-const normalizeShopeeGMV = (s: string) => {
-  if (!s) return '';
-  const cleaned = s.replace(/[\s.]/g, '');
-  const [beforeComma] = cleaned.split(',');
-  return digitsOnly(beforeComma);
+const normalizeShopeeGMV = (s: string) =>
+  (s || '')
+    .replace(/[.,:\s₫đvndVND₫₫]/g, '')
+    .replace(/[^0-9]/g, '');
+
+const selectLineCandidate = (lines: VWord[][]): VWord[] | null => {
+  let best: { line: VWord[]; score: number } | null = null;
+  for (const line of lines) {
+    const raw = joinLine(line);
+    const norm = normalizeShopeeGMV(raw);
+    if (!/^\d+$/.test(norm)) continue;
+    const score = norm.length;
+    if (!best || score > best.score) {
+      best = { line, score };
+    }
+  }
+  return best ? best.line : null;
+};
+
+const encodeStartForForm = (s: string) => encodeURIComponent(s || '');
+
+const logMissingFields = (platform: Platform, obj: any) => {
+  // stub: bạn có hệ thống log riêng có thể thay ở đây
+  // console.debug(`[${platform}]`, obj);
 };
 
 const isTimeLike = (s: string) =>
@@ -71,56 +130,78 @@ const isTimeLike = (s: string) =>
   /\d{2}:\d{2}:\d{2}\s+\d{2}[-\/]\d{2}[-\/]\d{4}/.test(s) ||
   /\bUTC\b/.test(s);
 
-const joinLine = (ws: VWord[]) =>
-  ws.sort((a, b) => a.cx - b.cx).map(w => w.text).join(' ').replace(/\s+/g, ' ').trim();
-
-const groupWordsByLine = (words: VWord[]) => {
-  const map = new Map<number, VWord[]>();
-  for (const w of words) {
-    const key = Math.round(w.cy / 12);
-    const arr = map.get(key) || [];
-    arr.push(w);
-    map.set(key, arr);
-  }
-  return Array.from(map.values())
-    .map(line => line.slice().sort((a, b) => a.cx - b.cx))
-    .sort((a, b) => (a[0]?.cy || 0) - (b[0]?.cy || 0));
+const rectOf = (arr: VWord[]) => {
+  const x0 = Math.min(...arr.map(w => w.x0));
+  const x1 = Math.max(...arr.map(w => w.x1));
+  const y0 = Math.min(...arr.map(w => w.y0));
+  const y1 = Math.max(...arr.map(w => w.y1));
+  return { x0, x1, y0, y1, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 };
 };
 
-const selectLineCandidate = (lines: VWord[][], options: { excludeGpm?: boolean } = {}) => {
-  const scored = lines
-    .filter(line => line.length > 0)
-    .map(line => ({ line, avgH: line.reduce((sum, w) => sum + w.h, 0) / line.length }));
-  scored.sort((a, b) => b.avgH - a.avgH);
-  if (options.excludeGpm) {
-    const withoutGpm = scored.find(entry => !entry.line.some(w => /GPM/i.test(w.text)));
-    if (withoutGpm) return withoutGpm.line;
-  }
-  return scored[0]?.line || null;
+const estimateCharW = (all: VWord[]) => {
+  const widths = all.map(w => w.w).filter(n => n > 0).sort((a, b) => a - b);
+  if (!widths.length) return 10;
+  const mid = widths[Math.floor(widths.length / 2)];
+  return Math.max(6, Math.min(24, mid));
 };
 
-const filterOutGpmWords = (line: VWord[]) => line.filter(w => !/GM[PM]/i.test(w.text));
-
-const logMissingFields = (platform: Platform, fields: Record<string, string>) => {
-  const missing = Object.entries(fields).filter(([, value]) => !value);
-  if (!missing.length) return;
-  console.warn(`[OCR] Missing fields for ${platform}`, {
-    missing: missing.map(([key]) => key),
-    extracted: fields
-  });
+const makeBand = (cx: number, charW: number, scale = 6) => {
+  const half = Math.max(140, charW * scale);
+  return { left: cx - half, right: cx + half };
 };
 
-const sameRow = (a: VWord, b: VWord, tol = 14) =>
-  Math.abs(a.cy - b.cy) < tol;
+const inBand = (w: VWord, band: { left: number; right: number }) =>
+  w.cx >= band.left && w.cx <= band.right;
 
-const below = (a: VWord, b: VWord, tol = 6) =>
-  a.cy > b.cy + Math.max(a.h, b.h) * 0.4 - tol;
+const getLabelRect = (all: VWord[], re: RegExp) => {
+  const idx = all.findIndex(w => re.test(w.text));
+  if (idx < 0) return null;
+  const row = all.filter(w => sameRow(w, all[idx]));
+  return rectOf(row);
+};
 
-const rightOf = (a: VWord, b: VWord, tol = 6) =>
-  a.cx > b.x1 - tol;
+const STAT_LABELS: RegExp[] = [
+  /L[uư][oơ]t\s*xem.*1\s*ph[uú]t/i,
+  /B[iì]nh\s*l[uư][aă]n/i,
+  /Th[êe]m\s*v[àa]o\s*gi[ỏo]\s*h[àa]ng/i
+];
 
-const encodeStartForForm = (s: string) =>
-  (s || '').trim().replace(/:/g, '%3A').replace(/\s+/g, '+');
+const getStatsBelt = (all: VWord[]) => {
+  const rects = STAT_LABELS.map(re => getLabelRect(all, re)).filter(Boolean) as ReturnType<typeof rectOf>[];
+  if (!rects.length) return null;
+  const y0 = Math.min(...rects.map(r => r.y0));
+  const y1 = Math.max(...rects.map(r => r.y1));
+  const x0 = Math.min(...rects.map(r => r.x0));
+  const x1 = Math.max(...rects.map(r => r.x1));
+  return { x0, x1, y0, y1 };
+};
+
+const GPM_LABELS: RegExp[] = [
+  /GPM\s*\(\s*[đd]\s*\)/i,
+  /\bGPM\b/i,
+  /L[ơo]i\s*nh[uư][aâ]n/i,
+  /Bi[êe]n\s*l[ơo]i\s*nh[uư][aâ]n/i,
+  /Gross\s*Profit/i,
+  /Margin/i
+];
+
+const getGpmRects = (all: VWord[]) => {
+  const rects = GPM_LABELS.map(re => getLabelRect(all, re)).filter(Boolean) as ReturnType<typeof rectOf>[];
+  if (!rects.length) return null;
+  const x0 = Math.min(...rects.map(r => r.x0));
+  const x1 = Math.max(...rects.map(r => r.x1));
+  const y0 = Math.min(...rects.map(r => r.y0));
+  const y1 = Math.max(...rects.map(r => r.y1));
+  return { x0, x1, y0, y1, cx: (x0 + x1) / 2 };
+};
+
+const isLikelyGPMLine = (s: string) => {
+  const norm = normalizeShopeeGMV(s);
+  if (/(\bGPM\b|\bGross\b|\bMargin\b|L[ơo]i\s*nh[uư][aâ]n|Bi[êe]n\s*l[ơo]i\s*nh[uư][aâ]n)/i.test(s)) return true;
+  if (/^\d+$/.test(norm) && norm.length <= 4) return true;
+  if (/[–-]\s*\d/.test(s)) return true;
+  return false;
+};
 
 const extractTikTokFromVision = (result: any) => {
   const anns = result.textAnnotations || [];
@@ -300,93 +381,67 @@ const extractTikTokFromVision = (result: any) => {
   return {
     platformDetected: 'tiktok' as const,
     gmv,
+    gmvCandidates: [],
+    needsReview: false,
     orders,
     startTime,
     startTimeEncoded: encodeStartForForm(startTime)
   };
 };
 
-const extractShopeeFromVision = (result: any) => {
-  const anns = result.textAnnotations || [];
+const extractShopeeFromVision = (result: any, opts: ExtractOpts = {}) => {
+  const anns = result?.textAnnotations || [];
   const words = toWords(anns);
   const fullText = anns[0]?.description || '';
 
-  // ========= Helpers cục bộ (chỉ dùng trong hàm) =========
-  const rectOf = (arr: VWord[]) => {
-    const x0 = Math.min(...arr.map(w => w.x0));
-    const x1 = Math.max(...arr.map(w => w.x1));
-    const y0 = Math.min(...arr.map(w => w.y0));
-    const y1 = Math.max(...arr.map(w => w.y1));
-    return { x0, x1, y0, y1, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 };
-  };
+  const ambiguityMode = opts.ambiguityMode || 'auto';
+  const gmvOverride = (opts.gmvOverride || '').replace(/\D+/g, '') || '';
 
-  const getLabelRect = (all: VWord[], re: RegExp) => {
-    const idx = all.findIndex(w => re.test(w.text));
-    if (idx < 0) return null;
-    const row = all.filter(w => sameRow(w, all[idx]));
-    return rectOf(row);
-  };
-
-  const estimateCharW = (all: VWord[]) => {
-    const widths = all.map(w => w.w).filter(n => n > 0).sort((a, b) => a - b);
-    if (!widths.length) return 10;
-    const mid = widths[Math.floor(widths.length / 2)];
-    return Math.max(6, Math.min(24, mid));
-  };
-
-  const makeBand = (cx: number, charW: number, scale = 6) => {
-    const half = Math.max(140, charW * scale);
-    return { left: cx - half, right: cx + half };
-  };
-
-  const inBand = (w: VWord, band: { left: number; right: number }) =>
-    (w.cx >= band.left && w.cx <= band.right);
-
-  const STAT_LABELS: RegExp[] = [
-    /L[uư][oơ]t\s*xem.*1\s*ph[uú]t/i,           // "Lượt xem live >1 phút" (nới dấu)
-    /B[iì]nh\s*l[uư][aă]n/i,                   // "Bình luận"
-    /Th[êe]m\s*v[àa]o\s*gi[ỏo]\s*h[àa]ng/i     // "Thêm vào giỏ hàng"
-  ];
-
-  const getStatsBelt = (all: VWord[]) => {
-    const rects = STAT_LABELS
-      .map(re => getLabelRect(all, re))
-      .filter((r): r is ReturnType<typeof rectOf> => !!r);
-
-    if (!rects.length) return null;
-    const y0 = Math.min(...rects.map(r => r.y0));
-    const y1 = Math.max(...rects.map(r => r.y1));
-    const x0 = Math.min(...rects.map(r => r.x0));
-    const x1 = Math.max(...rects.map(r => r.x1));
-    return { x0, x1, y0, y1 };
-  };
-  // =======================================================
-
-  // -------- GMV (Doanh thu) --------
   let gmv = '';
+  let gmvCandidates: string[] = [];
+  let needsReview = false;
+
   {
     const dtRect = getLabelRect(words, /Doanh\s*thu/i);
-    const gpmRect = getLabelRect(words, /GM[PM]/i);
+    const gpmRectMerged = getGpmRects(words);
     const statsBelt = getStatsBelt(words);
 
     if (dtRect) {
       const charW = estimateCharW(words);
-      const dtBand = makeBand(dtRect.cx, charW, 6);
-      const gpmBand = gpmRect ? makeBand(gpmRect.cx, charW, 6) : null;
+      const dtBand = makeBand(dtRect.cx, charW, 5.5);
 
-      // Chỉ lấy những từ ngay dưới nhãn "Doanh thu" và trong băng cột của nó
-      const belowWords = words.filter(w =>
-        w.cy > dtRect.y1 + Math.max(w.h, 8) && inBand(w, dtBand)
-      );
+      const belowWords = words.filter(w => {
+        const under = w.cy > dtRect.y1 + Math.max(w.h, 8);
+        const inCol = inBand(w, dtBand);
+        const aboveBelt = !statsBelt || w.y1 < statsBelt.y0 - 6;
+        return under && inCol && aboveBelt;
+      });
 
-      const lineGroups = groupWordsByLine(belowWords);
-      type Cand = { normalized: string; score: number };
+      const grouped = groupWordsByLine(belowWords)
+        .map(line => {
+          const top = Math.min(...line.map(w => w.y0));
+          return { line, top, deltaY: top - dtRect.y1 };
+        })
+        .filter(x => x.deltaY >= 0)
+        .sort((a, b) => a.deltaY - b.deltaY)
+        .slice(0, 2)
+        .map(x => x.line);
+
+      type Cand = {
+        normalized: string;
+        score: number;
+        raw: string;
+        lineTop: number;
+        lineCx: number;
+        inGpmCol: boolean;
+      };
       const candidates: Cand[] = [];
 
-      for (const line of lineGroups) {
+      for (const line of grouped) {
         const raw = joinLine(line);
-        if (!raw || /:/.test(raw)) continue;   // tránh dòng thời gian / nhãn có :
-        if (!/\d/.test(raw)) continue;         // phải có số
+        if (!raw || /:/.test(raw)) continue;
+        if (isLikelyGPMLine(raw)) continue;
+        if (!/\d/.test(raw)) continue;
 
         const normalized = normalizeShopeeGMV(raw);
         if (!/^\d+$/.test(normalized)) continue;
@@ -395,50 +450,68 @@ const extractShopeeFromVision = (result: any) => {
         const lineCx = centers.reduce((s, v) => s + v, 0) / centers.length;
         const lineTop = Math.min(...line.map(w => w.y0));
 
-        // Điểm hoá:
-        // + len: số dài (GMV) tốt
-        // + verticalBonus: càng gần ngay dưới nhãn càng tốt
-        // - distToDT: lệch cột Doanh thu bị trừ
-        // - gpmPenalty: nếu rơi trong băng cột của GPM bị trừ
-        // - beltPenalty: nếu chạm/ở dưới "vành đai chỉ số" → trừ mạnh (vì thường là vùng GPM)
-        const len = normalized.length;
-
-        const distToDT = Math.abs(lineCx - dtRect.cx) / 100; // penalty nhẹ
-        const deltaY = lineTop - dtRect.y1;
-        const verticalBonus = Math.max(0, 220 - Math.min(420, deltaY)) / 220 * 0.8; // 0..0.8
-
+        let inGpmCol = false;
         let gpmPenalty = 0;
-        if (gpmBand && lineCx >= gpmBand.left && lineCx <= gpmBand.right) gpmPenalty += 1;
-
-        let beltPenalty = 0;
-        if (statsBelt && lineTop >= statsBelt.y0 - 8) {
-          beltPenalty = 2.5; // có thể tăng 3–4 nếu còn “ăn nhầm” GPM
+        if (gpmRectMerged) {
+          inGpmCol = lineCx >= gpmRectMerged.x0 && lineCx <= gpmRectMerged.x1;
+          if (inGpmCol) {
+            gpmPenalty += 2.2;
+          }
         }
 
+        const len = normalized.length;
+        const distToDT = Math.abs(lineCx - dtRect.cx) / 100;
+        const deltaY = lineTop - dtRect.y1;
+        const verticalBonus = (Math.max(0, 180 - Math.min(360, deltaY)) / 180) * 0.9;
+
+        let beltPenalty = 0;
+        if (statsBelt && lineTop >= statsBelt.y0 - 8) beltPenalty = 3.0;
+
         const score = len + verticalBonus - distToDT - gpmPenalty - beltPenalty;
-        candidates.push({ normalized, score });
+        candidates.push({ normalized, score, raw, lineTop, lineCx, inGpmCol });
       }
 
-      if (candidates.length) {
+      if (gmvOverride) {
+        const best = candidates.find(c => c.normalized === gmvOverride);
+        if (best) gmv = best.normalized;
+        else if (/^\d+$/.test(gmvOverride)) gmv = gmvOverride;
+      }
+
+      if (!gmv && candidates.length) {
         candidates.sort((a, b) => b.score - a.score);
-        gmv = candidates[0].normalized;
+        const top1 = candidates[0];
+        const top2 = candidates[1];
+
+        gmv = top1.normalized;
+
+        if (top2) {
+          const close = top1.score - top2.score <= 0.8;
+          const top2LooksGPM = isLikelyGPMLine(top2.raw) || top2.inGpmCol;
+          if (close && !top2LooksGPM && ambiguityMode === 'returnBoth') {
+            gmvCandidates = Array.from(new Set([top1.normalized, top2.normalized]));
+            needsReview = true;
+          }
+        }
       }
     }
 
-    // Fallback toàn văn: ưu tiên số dài gần dòng "Doanh thu"
     if (!gmv) {
-      const lines = fullText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-      const scored = lines.map((s, i, arr) => {
-        if (!/\d/.test(s) || /:/.test(s)) return null;
-        const norm = normalizeShopeeGMV(s);
-        if (!/^\d+$/.test(norm)) return null;
+      const lines = (fullText || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      const scored = lines
+        .map((s, i, arr) => {
+          if (!/\d/.test(s) || /:/.test(s)) return null;
+          if (isLikelyGPMLine(s)) return null;
 
-        const nearDT =
-          /Doanh\s*thu/i.test(arr[i - 1] || '') ||
-          /Doanh\s*thu/i.test(arr[i + 1] || '');
-        const score = norm.length + (nearDT ? 0.7 : 0);
-        return { norm, score };
-      }).filter(Boolean) as { norm: string; score: number }[];
+          const norm = normalizeShopeeGMV(s);
+          if (!/^\d+$/.test(norm)) return null;
+
+          const nearDT =
+            /Doanh\s*thu/i.test(arr[i - 1] || '') ||
+            /Doanh\s*thu/i.test(arr[i + 1] || '');
+          const score = norm.length + (nearDT ? 0.7 : 0);
+          return { norm, score };
+        })
+        .filter(Boolean) as { norm: string; score: number }[];
 
       if (scored.length) {
         scored.sort((a, b) => b.score - a.score);
@@ -447,83 +520,87 @@ const extractShopeeFromVision = (result: any) => {
     }
   }
 
-  // -------- Orders (Đơn hàng) – giữ nguyên logic cũ, thêm chút nới vùng --------
   let orders = '';
-  const orderIdx = words.findIndex(w => /Đơn\s*hàng/i.test(w.text));
-  if (orderIdx >= 0) {
-    const label = words[orderIdx];
-    const labelRow = words.filter(w => sameRow(w, label));
-    const labelLeft = Math.min(...labelRow.map(w => w.x0));
-    const labelRight = Math.max(...labelRow.map(w => w.x1));
+  {
+    const orderIdx = words.findIndex(w => /Đơn\s*hàng/i.test(w.text));
+    if (orderIdx >= 0) {
+      const label = words[orderIdx];
+      const labelRow = words.filter(w => sameRow(w, label));
+      const labelLeft = Math.min(...labelRow.map(w => w.x0));
+      const labelRight = Math.max(...labelRow.map(w => w.x1));
 
-    const sameRowRight = labelRow
-      .filter(w => rightOf(w, label))
-      .sort((a, b) => a.cx - b.cx);
-    const rightDigits = digitsOnly(joinLine(sameRowRight));
-    if (rightDigits) orders = rightDigits;
+      const sameRowRight = labelRow
+        .filter(w => rightOf(w, label))
+        .sort((a, b) => a.cx - b.cx);
+      const rightDigits = digitsOnly(joinLine(sameRowRight));
+      if (rightDigits) orders = rightDigits;
+
+      if (!orders) {
+        const belowWords = words.filter(w =>
+          below(w, label, 2) &&
+          w.x0 >= labelLeft - 40 &&
+          w.x1 <= labelRight + 220
+        );
+        const candidateLine = selectLineCandidate(groupWordsByLine(belowWords));
+        if (candidateLine) {
+          const digits = digitsOnly(joinLine(candidateLine));
+          if (digits) orders = digits;
+        }
+      }
+    }
 
     if (!orders) {
-      const belowWords = words.filter(w =>
-        below(w, label, 2) &&
-        w.x0 >= labelLeft - 40 &&
-        w.x1 <= labelRight + 220
-      );
-      const candidateLine = selectLineCandidate(groupWordsByLine(belowWords));
-      if (candidateLine) {
-        const digits = digitsOnly(joinLine(candidateLine));
+      const orderLine = (fullText || '')
+        .split(/\r?\n/)
+        .map(s => s.trim())
+        .map(s => s.replace(/\s*:\s*/g, ':'))
+        .find(s => (/Đơn\s*hàng/i.test(s) || /Orders?/i.test(s)) && !/:/.test(s));
+      if (orderLine) {
+        const digits = digitsOnly(orderLine);
         if (digits) orders = digits;
       }
     }
   }
 
-  if (!orders) {
-    const orderLine = fullText
-      .split(/\r?\n/)
-      .map(s => s.trim())
-      .map(s => s.replace(/\s*:\s*/g, ':'))
-      .find(s => (/Đơn\s*hàng/i.test(s) || /Orders?/i.test(s)) && !/:/.test(s));
-    if (orderLine) {
-      const digits = digitsOnly(orderLine);
-      if (digits) orders = digits;
-    }
-  }
-
-  // -------- Start time (giữ nguyên ý tưởng cũ, nới regex) --------
   let startTime = '';
-  const labelStart =
-    words.find(w => /Bắt\s*đầu\s*lúc/i.test(w.text)) ||
-    words.find(w => /Bat\s*dau\s*luc/i.test(w.text));
-  if (labelStart) {
-    const sameRowWords = words.filter(w => sameRow(w, labelStart));
-    const rightWords = sameRowWords
-      .filter(w => rightOf(w, labelStart))
-      .sort((a, b) => a.cx - b.cx);
-    let line = joinLine(rightWords);
-    const parts = line.split(':');
-    if (parts.length > 1) line = parts.slice(1).join(':').trim();
+  {
+    const labelStart =
+      words.find(w => /Bắt\s*đầu\s*lúc/i.test(w.text)) ||
+      words.find(w => /Bat\s*dau\s*luc/i.test(w.text));
+    if (labelStart) {
+      const sameRowWords = words.filter(w => sameRow(w, labelStart));
+      const rightWords = sameRowWords
+        .filter(w => rightOf(w, labelStart))
+        .sort((a, b) => a.cx - b.cx);
+      let line = joinLine(rightWords);
+      const parts = line.split(':');
+      if (parts.length > 1) line = parts.slice(1).join(':').trim();
 
-    if (!/\d{4}$/.test(line)) {
-      const nextRow = words.filter(
-        w => below(w, labelStart, 2) && w.x0 > labelStart.x0 + labelStart.w / 2
-      );
-      const nextLine = joinLine(nextRow);
-      if (/\d{2}[-\/]\d{2}[-\/]\d{4}/.test(nextLine)) {
-        line = `${line} ${nextLine}`.trim();
+      if (!/\d{4}$/.test(line)) {
+        const nextRow = words.filter(
+          w => below(w, labelStart, 2) && w.x0 > labelStart.x0 + labelStart.w / 2
+        );
+        const nextLine = joinLine(nextRow);
+        if (/\d{2}[-\/]\d{2}[-\/]\d{4}/.test(nextLine)) {
+          line = `${line} ${nextLine}`.trim();
+        }
       }
+      startTime = line;
+    } else {
+      const m =
+        fullText.match(/Bắt\s*đầu\s*lúc[:：]?\s*([0-9:]{8}\s+\d{2}[-\/]\d{2}[-\/]\d{4})/i) ||
+        fullText.match(/Bat\s*dau\s*luc[:：]?\s*([0-9:]{8}\s+\d{2}[-\/]\d{2}[-\/]\d{4})/i);
+      if (m) startTime = m[1];
     }
-    startTime = line;
-  } else {
-    const m =
-      fullText.match(/Bắt\s*đầu\s*lúc[:：]?\s*([0-9:]{8}\s+\d{2}[-\/]\d{2}[-\/]\d{4})/i) ||
-      fullText.match(/Bat\s*dau\s*luc[:：]?\s*([0-9:]{8}\s+\d{2}[-\/]\d{2}[-\/]\d{4})/i);
-    if (m) startTime = m[1];
   }
 
-  logMissingFields('shopee', { gmv, orders, startTime });
+  logMissingFields('shopee', { gmv, gmvCandidates, needsReview, orders, startTime });
 
   return {
     platformDetected: 'shopee' as const,
     gmv,
+    gmvCandidates,
+    needsReview,
     orders,
     startTime,
     startTimeEncoded: encodeStartForForm(startTime)
@@ -537,7 +614,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   try {
-    const { imageBase64, platform } = req.body as { imageBase64?: string; platform?: string };
+    const { imageBase64, platform, options } = req.body as {
+      imageBase64?: string;
+      platform?: string;
+      options?: ExtractOpts;
+    };
     if (!imageBase64) {
       return res.status(400).json({ ok: false, error: 'Missing imageBase64' });
     }
@@ -557,9 +638,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return res.status(400).json({ ok: false, error: 'Không xác định được sàn để OCR.' });
     }
 
+    const rawOptions = options && typeof options === 'object' ? options : undefined;
+    const extractOptions: ExtractOpts | undefined = rawOptions
+      ? {
+          ambiguityMode:
+            rawOptions.ambiguityMode === 'returnBoth'
+              ? 'returnBoth'
+              : rawOptions.ambiguityMode === 'auto'
+                ? 'auto'
+                : undefined,
+          gmvOverride:
+            typeof rawOptions.gmvOverride === 'string'
+              ? rawOptions.gmvOverride
+              : rawOptions.gmvOverride === null
+                ? null
+                : undefined
+        }
+      : undefined;
+
     const data = normalizedPlatform === 'tiktok'
       ? extractTikTokFromVision(result)
-      : extractShopeeFromVision(result);
+      : extractShopeeFromVision(result, extractOptions);
 
     return res.status(200).json({
       ok: true,

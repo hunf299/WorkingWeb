@@ -934,6 +934,43 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   color: #b91c1c;
 }
 
+.prefill-gmv-choice {
+  margin-top: 8px;
+}
+
+.prefill-gmv-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.prefill-gmv-option-button {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #1f2937;
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: .9rem;
+  cursor: pointer;
+  transition: background-color .2s ease, border-color .2s ease, color .2s ease, box-shadow .2s ease;
+  outline: none;
+}
+
+.prefill-gmv-option-button:hover,
+.prefill-gmv-option-button:focus-visible {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+  color: #0f172a;
+}
+
+.prefill-gmv-option-button--active {
+  background: #38bdf8;
+  border-color: #0ea5e9;
+  color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+}
+
 .prefill-form-actions {
   display: flex;
   gap: 12px;
@@ -1079,5 +1116,22 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   .modal-hint {
     background: rgba(59, 130, 246, 0.15);
     color: #bfdbfe;
+  }
+  .prefill-gmv-option-button {
+    background: #111827;
+    border-color: #374151;
+    color: #e5e7eb;
+  }
+  .prefill-gmv-option-button:hover,
+  .prefill-gmv-option-button:focus-visible {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: #38bdf8;
+    color: #e0f2fe;
+  }
+  .prefill-gmv-option-button--active {
+    background: #0ea5e9;
+    border-color: #38bdf8;
+    color: #0f172a;
+    box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.4);
   }
 }
