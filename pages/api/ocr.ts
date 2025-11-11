@@ -311,55 +311,143 @@ const extractShopeeFromVision = (result: any) => {
   const words = toWords(anns);
   const fullText = anns[0]?.description || '';
 
-  const labelIdx = words.findIndex(w => /Doanh\s*thu/i.test(w.text));
+  // ========= Helpers cục bộ (chỉ dùng trong hàm) =========
+  const rectOf = (arr: VWord[]) => {
+    const x0 = Math.min(...arr.map(w => w.x0));
+    const x1 = Math.max(...arr.map(w => w.x1));
+    const y0 = Math.min(...arr.map(w => w.y0));
+    const y1 = Math.max(...arr.map(w => w.y1));
+    return { x0, x1, y0, y1, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 };
+  };
+
+  const getLabelRect = (all: VWord[], re: RegExp) => {
+    const idx = all.findIndex(w => re.test(w.text));
+    if (idx < 0) return null;
+    const row = all.filter(w => sameRow(w, all[idx]));
+    return rectOf(row);
+  };
+
+  const estimateCharW = (all: VWord[]) => {
+    const widths = all.map(w => w.w).filter(n => n > 0).sort((a, b) => a - b);
+    if (!widths.length) return 10;
+    const mid = widths[Math.floor(widths.length / 2)];
+    return Math.max(6, Math.min(24, mid));
+  };
+
+  const makeBand = (cx: number, charW: number, scale = 6) => {
+    const half = Math.max(140, charW * scale);
+    return { left: cx - half, right: cx + half };
+  };
+
+  const inBand = (w: VWord, band: { left: number; right: number }) =>
+    (w.cx >= band.left && w.cx <= band.right);
+
+  const STAT_LABELS: RegExp[] = [
+    /L[uư][oơ]t\s*xem.*1\s*ph[uú]t/i,           // "Lượt xem live >1 phút" (nới dấu)
+    /B[iì]nh\s*l[uư][aă]n/i,                   // "Bình luận"
+    /Th[êe]m\s*v[àa]o\s*gi[ỏo]\s*h[àa]ng/i     // "Thêm vào giỏ hàng"
+  ];
+
+  const getStatsBelt = (all: VWord[]) => {
+    const rects = STAT_LABELS
+      .map(re => getLabelRect(all, re))
+      .filter((r): r is ReturnType<typeof rectOf> => !!r);
+
+    if (!rects.length) return null;
+    const y0 = Math.min(...rects.map(r => r.y0));
+    const y1 = Math.max(...rects.map(r => r.y1));
+    const x0 = Math.min(...rects.map(r => r.x0));
+    const x1 = Math.max(...rects.map(r => r.x1));
+    return { x0, x1, y0, y1 };
+  };
+  // =======================================================
+
+  // -------- GMV (Doanh thu) --------
   let gmv = '';
-  if (labelIdx >= 0) {
-    const label = words[labelIdx];
-    const labelRow = words.filter(w => sameRow(w, label));
-    const labelLeft = Math.min(...labelRow.map(w => w.x0));
-    const labelRight = Math.max(...labelRow.map(w => w.x1));
-    const labelCenter = (labelLeft + labelRight) / 2;
+  {
+    const dtRect = getLabelRect(words, /Doanh\s*thu/i);
+    const gpmRect = getLabelRect(words, /GM[PM]/i);
+    const statsBelt = getStatsBelt(words);
 
-    const belowWords = words.filter(w =>
-      below(w, label, 2) &&
-      w.x0 >= labelLeft - 40 &&
-      w.x1 <= labelRight + 300
-    );
+    if (dtRect) {
+      const charW = estimateCharW(words);
+      const dtBand = makeBand(dtRect.cx, charW, 6);
+      const gpmBand = gpmRect ? makeBand(gpmRect.cx, charW, 6) : null;
 
-    const candidates = groupWordsByLine(belowWords)
-      .map(line => filterOutGpmWords(line))
-      .map(line => line.filter(w => /\d/.test(w.text)))
-      .filter(line => line.length > 0)
-      .map(line => {
-        const text = joinLine(line);
-        if (!text || /:/.test(text)) return null;
-        const normalized = normalizeShopeeGMV(text);
-        if (!normalized) return null;
+      // Chỉ lấy những từ ngay dưới nhãn "Doanh thu" và trong băng cột của nó
+      const belowWords = words.filter(w =>
+        w.cy > dtRect.y1 + Math.max(w.h, 8) && inBand(w, dtBand)
+      );
+
+      const lineGroups = groupWordsByLine(belowWords);
+      type Cand = { normalized: string; score: number };
+      const candidates: Cand[] = [];
+
+      for (const line of lineGroups) {
+        const raw = joinLine(line);
+        if (!raw || /:/.test(raw)) continue;   // tránh dòng thời gian / nhãn có :
+        if (!/\d/.test(raw)) continue;         // phải có số
+
+        const normalized = normalizeShopeeGMV(raw);
+        if (!/^\d+$/.test(normalized)) continue;
+
         const centers = line.map(w => w.cx);
-        const lineCenter = centers.reduce((sum, cx) => sum + cx, 0) / centers.length;
-        const distance = Math.abs(lineCenter - labelCenter);
-        return { normalized, distance };
-      })
-      .filter((entry): entry is { normalized: string; distance: number } => Boolean(entry));
+        const lineCx = centers.reduce((s, v) => s + v, 0) / centers.length;
+        const lineTop = Math.min(...line.map(w => w.y0));
 
-    if (candidates.length) {
-      candidates.sort((a, b) => {
-        if (a.distance !== b.distance) return a.distance - b.distance;
-        return b.normalized.length - a.normalized.length;
-      });
-      gmv = candidates[0].normalized;
+        // Điểm hoá:
+        // + len: số dài (GMV) tốt
+        // + verticalBonus: càng gần ngay dưới nhãn càng tốt
+        // - distToDT: lệch cột Doanh thu bị trừ
+        // - gpmPenalty: nếu rơi trong băng cột của GPM bị trừ
+        // - beltPenalty: nếu chạm/ở dưới "vành đai chỉ số" → trừ mạnh (vì thường là vùng GPM)
+        const len = normalized.length;
+
+        const distToDT = Math.abs(lineCx - dtRect.cx) / 100; // penalty nhẹ
+        const deltaY = lineTop - dtRect.y1;
+        const verticalBonus = Math.max(0, 220 - Math.min(420, deltaY)) / 220 * 0.8; // 0..0.8
+
+        let gpmPenalty = 0;
+        if (gpmBand && lineCx >= gpmBand.left && lineCx <= gpmBand.right) gpmPenalty += 1;
+
+        let beltPenalty = 0;
+        if (statsBelt && lineTop >= statsBelt.y0 - 8) {
+          beltPenalty = 2.5; // có thể tăng 3–4 nếu còn “ăn nhầm” GPM
+        }
+
+        const score = len + verticalBonus - distToDT - gpmPenalty - beltPenalty;
+        candidates.push({ normalized, score });
+      }
+
+      if (candidates.length) {
+        candidates.sort((a, b) => b.score - a.score);
+        gmv = candidates[0].normalized;
+      }
+    }
+
+    // Fallback toàn văn: ưu tiên số dài gần dòng "Doanh thu"
+    if (!gmv) {
+      const lines = fullText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      const scored = lines.map((s, i, arr) => {
+        if (!/\d/.test(s) || /:/.test(s)) return null;
+        const norm = normalizeShopeeGMV(s);
+        if (!/^\d+$/.test(norm)) return null;
+
+        const nearDT =
+          /Doanh\s*thu/i.test(arr[i - 1] || '') ||
+          /Doanh\s*thu/i.test(arr[i + 1] || '');
+        const score = norm.length + (nearDT ? 0.7 : 0);
+        return { norm, score };
+      }).filter(Boolean) as { norm: string; score: number }[];
+
+      if (scored.length) {
+        scored.sort((a, b) => b.score - a.score);
+        gmv = scored[0].norm;
+      }
     }
   }
 
-  if (!gmv) {
-    const lines = fullText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-    const nums = lines
-      .filter(s => !/:/.test(s) && !/UTC/i.test(s) && !/GM[PM]/i.test(s))
-      .map(s => normalizeShopeeGMV(s))
-      .filter(n => /^\d+$/.test(n));
-    gmv = nums.sort((a, b) => b.length - a.length)[0] || '';
-  }
-
+  // -------- Orders (Đơn hàng) – giữ nguyên logic cũ, thêm chút nới vùng --------
   let orders = '';
   const orderIdx = words.findIndex(w => /Đơn\s*hàng/i.test(w.text));
   if (orderIdx >= 0) {
@@ -368,7 +456,9 @@ const extractShopeeFromVision = (result: any) => {
     const labelLeft = Math.min(...labelRow.map(w => w.x0));
     const labelRight = Math.max(...labelRow.map(w => w.x1));
 
-    const sameRowRight = labelRow.filter(w => rightOf(w, label)).sort((a, b) => a.cx - b.cx);
+    const sameRowRight = labelRow
+      .filter(w => rightOf(w, label))
+      .sort((a, b) => a.cx - b.cx);
     const rightDigits = digitsOnly(joinLine(sameRowRight));
     if (rightDigits) orders = rightDigits;
 
@@ -376,7 +466,7 @@ const extractShopeeFromVision = (result: any) => {
       const belowWords = words.filter(w =>
         below(w, label, 2) &&
         w.x0 >= labelLeft - 40 &&
-        w.x1 <= labelRight + 200
+        w.x1 <= labelRight + 220
       );
       const candidateLine = selectLineCandidate(groupWordsByLine(belowWords));
       if (candidateLine) {
@@ -398,23 +488,33 @@ const extractShopeeFromVision = (result: any) => {
     }
   }
 
+  // -------- Start time (giữ nguyên ý tưởng cũ, nới regex) --------
   let startTime = '';
-  const labelStart = words.find(w => /Bắt\s*đầu\s*lúc/i.test(w.text)) ||
+  const labelStart =
+    words.find(w => /Bắt\s*đầu\s*lúc/i.test(w.text)) ||
     words.find(w => /Bat\s*dau\s*luc/i.test(w.text));
   if (labelStart) {
     const sameRowWords = words.filter(w => sameRow(w, labelStart));
-    const rightWords = sameRowWords.filter(w => rightOf(w, labelStart)).sort((a, b) => a.cx - b.cx);
+    const rightWords = sameRowWords
+      .filter(w => rightOf(w, labelStart))
+      .sort((a, b) => a.cx - b.cx);
     let line = joinLine(rightWords);
     const parts = line.split(':');
     if (parts.length > 1) line = parts.slice(1).join(':').trim();
+
     if (!/\d{4}$/.test(line)) {
-      const nextRow = words.filter(w => below(w, labelStart, 2) && w.x0 > labelStart.x0 + labelStart.w / 2);
+      const nextRow = words.filter(
+        w => below(w, labelStart, 2) && w.x0 > labelStart.x0 + labelStart.w / 2
+      );
       const nextLine = joinLine(nextRow);
-      if (/\d{2}[-\/]\d{2}[-\/]\d{4}/.test(nextLine)) line = `${line} ${nextLine}`.trim();
+      if (/\d{2}[-\/]\d{2}[-\/]\d{4}/.test(nextLine)) {
+        line = `${line} ${nextLine}`.trim();
+      }
     }
     startTime = line;
   } else {
-    const m = fullText.match(/Bắt\s*đầu\s*lúc[:：]?\s*([0-9:]{8}\s+\d{2}[-\/]\d{2}[-\/]\d{4})/i) ||
+    const m =
+      fullText.match(/Bắt\s*đầu\s*lúc[:：]?\s*([0-9:]{8}\s+\d{2}[-\/]\d{2}[-\/]\d{4})/i) ||
       fullText.match(/Bat\s*dau\s*luc[:：]?\s*([0-9:]{8}\s+\d{2}[-\/]\d{2}[-\/]\d{4})/i);
     if (m) startTime = m[1];
   }
