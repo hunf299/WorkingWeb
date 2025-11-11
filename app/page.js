@@ -740,6 +740,8 @@ export default function Page() {
       ocrError: '',
       ocrMessage: '',
       ocrFileName: '',
+      gmvCandidates: [],
+      gmvNeedsReview: false,
       formErrors: {},
       link: '',
       copyFeedback: ''
@@ -786,10 +788,11 @@ export default function Page() {
     if (field === 'email') {
       setTrialEmailError('');
     }
+    const sanitizedGmvValue = field === 'gmv' ? sanitizeNumericString(value) : null;
     setPrefillValues(values => {
       const next = { ...values };
       if (field === 'gmv') {
-        next.gmv = sanitizeNumericString(value);
+        next.gmv = sanitizedGmvValue || '';
       } else if (field === 'orders') {
         next.orders = sanitizeNumericString(value);
       } else if (field === 'id1') {
@@ -808,6 +811,38 @@ export default function Page() {
         next.startTimeEncoded = '';
       }
       return next;
+    });
+
+    if (field === 'gmv') {
+      const sanitized = sanitizedGmvValue || '';
+      setPrefillModal(prev => {
+        if (!prev || !prev.gmvNeedsReview) return prev;
+        const candidates = Array.isArray(prev.gmvCandidates) ? prev.gmvCandidates : [];
+        if (!sanitized || candidates.includes(sanitized)) {
+          return { ...prev, gmvNeedsReview: false };
+        }
+        return prev;
+      });
+    }
+  }
+
+  function handleSelectGmvCandidate(candidate) {
+    const sanitized = sanitizeNumericString(candidate);
+    if (!sanitized) return;
+    setPrefillModal(prev => {
+      if (!prev) return prev;
+      const currentValues = prev.values || {};
+      const nextValues = { ...currentValues, gmv: sanitized };
+      const nextErrors = { ...(prev.formErrors || {}) };
+      if (nextErrors.gmv) {
+        delete nextErrors.gmv;
+      }
+      return {
+        ...prev,
+        values: nextValues,
+        formErrors: nextErrors,
+        gmvNeedsReview: false
+      };
     });
   }
 
@@ -880,6 +915,7 @@ export default function Page() {
       const inputPlatform = currentPrefill?.platformDetected;
       const guessedPlatform = inferPlatformFromEvent(currentPrefill?.event);
       const platformCandidates = [];
+      const existingGmv = sanitizeNumericString(currentPrefill?.values?.gmv);
 
       if (inputPlatform && inputPlatform !== 'unknown') {
         platformCandidates.push(inputPlatform);
@@ -902,10 +938,18 @@ export default function Page() {
           return { ...prev, ocrProgress: progress };
         });
 
+        const requestBody = { imageBase64: dataUrl, platform };
+        if (platform === 'shopee') {
+          requestBody.options = {
+            ambiguityMode: 'returnBoth',
+            gmvOverride: existingGmv || null
+          };
+        }
+
         const resp = await fetch('/api/ocr', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: dataUrl, platform })
+          body: JSON.stringify(requestBody)
         });
         const payload = await resp.json().catch(() => null);
         if (resp.ok && payload?.ok === true) {
@@ -928,6 +972,18 @@ export default function Page() {
       const ordersValue = sanitizeNumericString(data.orders);
       const startTimeValue = typeof data.startTime === 'string' ? data.startTime.trim() : '';
       const startTimeEncoded = typeof data.startTimeEncoded === 'string' ? data.startTimeEncoded : '';
+
+      const rawCandidateList = Array.isArray(data.gmvCandidates) ? data.gmvCandidates : [];
+      const normalizedCandidates = Array.from(new Set(
+        rawCandidateList
+          .map(item => sanitizeNumericString(item))
+          .filter(Boolean)
+      ));
+      const reviewNeeded = Boolean(
+        data.needsReview &&
+        detectedPlatform === 'shopee' &&
+        normalizedCandidates.length >= 2
+      );
 
       const hasGmv = Boolean(gmvValue);
       const hasOrders = Boolean(ordersValue);
@@ -974,6 +1030,11 @@ export default function Page() {
           successMessage = 'Đã trích xuất giờ bắt đầu, vui lòng kiểm tra lại.';
         }
 
+        if (reviewNeeded) {
+          const reviewMessage = 'Có 2 số GMV, vui lòng chọn đúng.';
+          successMessage = successMessage ? `${successMessage} ${reviewMessage}` : reviewMessage;
+        }
+
         if (successMessage && platformLabel) {
           successMessage = `${successMessage} (${platformLabel}).`;
         }
@@ -985,6 +1046,8 @@ export default function Page() {
           values: nextValues,
           platformDetected: detectedPlatform || prev.platformDetected,
           formErrors: clearedErrors,
+          gmvCandidates: normalizedCandidates,
+          gmvNeedsReview: reviewNeeded,
           ocrStatus: hasAny ? 'success' : 'error',
           ocrProgress: 1,
           ocrMessage: successMessage,
@@ -1718,6 +1781,13 @@ export default function Page() {
   const prefillValues = prefillModal?.values || {};
   const prefillFormErrors = prefillModal?.formErrors || {};
   const showPrefillOptionalId = prefillModal ? (prefillModal.showOptionalId || Boolean(prefillValues.id2)) : false;
+  const gmvCandidateOptions = Array.isArray(prefillModal?.gmvCandidates) ? prefillModal.gmvCandidates : [];
+  const showGmvCandidatePrompt = Boolean(
+    prefillModal?.gmvNeedsReview &&
+    prefillModal?.platformDetected === 'shopee' &&
+    gmvCandidateOptions.length >= 2
+  );
+  const sanitizedPrefillGmv = sanitizeNumericString(prefillValues.gmv);
 
   // Tải ICS cho các ca đang hiển thị (áp dụng filter hiện tại)
   function downloadICSForDay() {
@@ -2455,6 +2525,27 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       onChange={e => handlePrefillFieldChange('gmv', e.target.value)}
                     />
                     {prefillFormErrors.gmv && <div className="prefill-error">{prefillFormErrors.gmv}</div>}
+                    {showGmvCandidatePrompt && (
+                      <div className="prefill-gmv-choice">
+                        <div className="prefill-hint">Có 2 số GMV. Hãy chọn số đúng:</div>
+                        <div className="prefill-gmv-options">
+                          {gmvCandidateOptions.map(candidate => {
+                            const isActive = sanitizedPrefillGmv === candidate;
+                            const optionClass = `prefill-gmv-option-button${isActive ? ' prefill-gmv-option-button--active' : ''}`;
+                            return (
+                              <button
+                                key={candidate}
+                                type="button"
+                                className={optionClass}
+                                onClick={() => handleSelectGmvCandidate(candidate)}
+                              >
+                                {candidate}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="prefill-field">
