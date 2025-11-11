@@ -1686,7 +1686,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
           id={calendarCardBodyId}
           className="calendar-card-body"
           aria-hidden={!calendarExpanded}
-          hidden={!calendarExpanded}
+          style={{ display: calendarExpanded ? undefined : 'none' }}
         >
           <div className="calendar-card-controls">
             <div className="calendar-card-field">
