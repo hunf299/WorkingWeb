@@ -99,7 +99,7 @@ const selectLineCandidate = (lines: VWord[][], options: { excludeGpm?: boolean }
   return scored[0]?.line || null;
 };
 
-const filterOutGpmWords = (line: VWord[]) => line.filter(w => !/GPM/i.test(w.text));
+const filterOutGpmWords = (line: VWord[]) => line.filter(w => !/GM[PM]/i.test(w.text));
 
 const logMissingFields = (platform: Platform, fields: Record<string, string>) => {
   const missing = Object.entries(fields).filter(([, value]) => !value);
@@ -318,6 +318,7 @@ const extractShopeeFromVision = (result: any) => {
     const labelRow = words.filter(w => sameRow(w, label));
     const labelLeft = Math.min(...labelRow.map(w => w.x0));
     const labelRight = Math.max(...labelRow.map(w => w.x1));
+    const labelCenter = (labelLeft + labelRight) / 2;
 
     const belowWords = words.filter(w =>
       below(w, label, 2) &&
@@ -325,19 +326,35 @@ const extractShopeeFromVision = (result: any) => {
       w.x1 <= labelRight + 300
     );
 
-    const candidateLine = selectLineCandidate(groupWordsByLine(belowWords), { excludeGpm: true });
+    const candidates = groupWordsByLine(belowWords)
+      .map(line => filterOutGpmWords(line))
+      .map(line => line.filter(w => /\d/.test(w.text)))
+      .filter(line => line.length > 0)
+      .map(line => {
+        const text = joinLine(line);
+        if (!text || /:/.test(text)) return null;
+        const normalized = normalizeShopeeGMV(text);
+        if (!normalized) return null;
+        const centers = line.map(w => w.cx);
+        const lineCenter = centers.reduce((sum, cx) => sum + cx, 0) / centers.length;
+        const distance = Math.abs(lineCenter - labelCenter);
+        return { normalized, distance };
+      })
+      .filter((entry): entry is { normalized: string; distance: number } => Boolean(entry));
 
-    if (candidateLine) {
-      const cleanedLine = filterOutGpmWords(candidateLine);
-      const text = joinLine(cleanedLine);
-      if (!/:/.test(text)) gmv = normalizeShopeeGMV(text);
+    if (candidates.length) {
+      candidates.sort((a, b) => {
+        if (a.distance !== b.distance) return a.distance - b.distance;
+        return b.normalized.length - a.normalized.length;
+      });
+      gmv = candidates[0].normalized;
     }
   }
 
   if (!gmv) {
     const lines = fullText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     const nums = lines
-      .filter(s => !/:/.test(s) && !/UTC/i.test(s) && !/GPM/i.test(s))
+      .filter(s => !/:/.test(s) && !/UTC/i.test(s) && !/GM[PM]/i.test(s))
       .map(s => normalizeShopeeGMV(s))
       .filter(n => /^\d+$/.test(n));
     gmv = nums.sort((a, b) => b.length - a.length)[0] || '';
