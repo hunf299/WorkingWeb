@@ -99,10 +99,18 @@ const joinLine = (line: VWord[]) =>
 
 const digitsOnly = (s: string) => (s || '').replace(/\D+/g, '');
 
-const normalizeShopeeGMV = (s: string) =>
-  (s || '')
+const normalizeShopeeGMV = (s: string) => {
+  let cleaned = (s || '');
+
+  const decimalCommaMatch = cleaned.match(/,\s*(\d{1,2})(?=[^0-9]|$)/);
+  if (decimalCommaMatch?.index !== undefined) {
+    cleaned = cleaned.slice(0, decimalCommaMatch.index);
+  }
+
+  return cleaned
     .replace(/[.,:\s₫đvndVND₫₫]/g, '')
     .replace(/[^0-9]/g, '');
+};
 
 const selectLineCandidate = (lines: VWord[][]): VWord[] | null => {
   let best: { line: VWord[]; score: number } | null = null;
