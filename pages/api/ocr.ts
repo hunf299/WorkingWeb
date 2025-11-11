@@ -3,14 +3,17 @@ import { getVisionClient } from '../../lib/visionClient';
 
 type Platform = 'tiktok' | 'shopee';
 
+type OcrSuccessData = {
+  gmv: string;
+  orders: string;
+  startTime: string;
+  startTimeEncoded: string;
+  platformDetected: Platform;
+};
+
 type OcrResponse = {
   ok: true;
-  data: {
-    gmv: string;
-    startTime: string;
-    startTimeEncoded: string;
-    platformDetected: Platform;
-  };
+  data: OcrSuccessData;
 } | {
   ok: false;
   error: string;
@@ -58,8 +61,8 @@ const digitsOnly = (s: string) => (s || '').replace(/\D+/g, '');
 
 const normalizeShopeeGMV = (s: string) => {
   if (!s) return '';
-  const noDots = s.replace(/\./g, '');
-  const [beforeComma] = noDots.split(',');
+  const cleaned = s.replace(/[\s.]/g, '');
+  const [beforeComma] = cleaned.split(',');
   return digitsOnly(beforeComma);
 };
 
@@ -70,6 +73,42 @@ const isTimeLike = (s: string) =>
 
 const joinLine = (ws: VWord[]) =>
   ws.sort((a, b) => a.cx - b.cx).map(w => w.text).join(' ').replace(/\s+/g, ' ').trim();
+
+const groupWordsByLine = (words: VWord[]) => {
+  const map = new Map<number, VWord[]>();
+  for (const w of words) {
+    const key = Math.round(w.cy / 12);
+    const arr = map.get(key) || [];
+    arr.push(w);
+    map.set(key, arr);
+  }
+  return Array.from(map.values())
+    .map(line => line.slice().sort((a, b) => a.cx - b.cx))
+    .sort((a, b) => (a[0]?.cy || 0) - (b[0]?.cy || 0));
+};
+
+const selectLineCandidate = (lines: VWord[][], options: { excludeGpm?: boolean } = {}) => {
+  const scored = lines
+    .filter(line => line.length > 0)
+    .map(line => ({ line, avgH: line.reduce((sum, w) => sum + w.h, 0) / line.length }));
+  scored.sort((a, b) => b.avgH - a.avgH);
+  if (options.excludeGpm) {
+    const withoutGpm = scored.find(entry => !entry.line.some(w => /GPM/i.test(w.text)));
+    if (withoutGpm) return withoutGpm.line;
+  }
+  return scored[0]?.line || null;
+};
+
+const filterOutGpmWords = (line: VWord[]) => line.filter(w => !/GPM/i.test(w.text));
+
+const logMissingFields = (platform: Platform, fields: Record<string, string>) => {
+  const missing = Object.entries(fields).filter(([, value]) => !value);
+  if (!missing.length) return;
+  console.warn(`[OCR] Missing fields for ${platform}`, {
+    missing: missing.map(([key]) => key),
+    extracted: fields
+  });
+};
 
 const sameRow = (a: VWord, b: VWord, tol = 14) =>
   Math.abs(a.cy - b.cy) < tol;
@@ -91,13 +130,7 @@ const extractTikTokFromVision = (result: any) => {
   const width = imageW > 0 ? imageW : 1;
   const leftThreshold = width * 0.55;
 
-  const lineMap = new Map<number, VWord[]>();
-  for (const w of words) {
-    const key = Math.round(w.cy / 12);
-    const arr = lineMap.get(key) || [];
-    arr.push(w);
-    lineMap.set(key, arr);
-  }
+  const lineGroups = groupWordsByLine(words);
 
   const monthMap = new Map([
     ['jan', 'Jan'],
@@ -138,11 +171,6 @@ const extractTikTokFromVision = (result: any) => {
     }
     return null;
   };
-
-  const lineGroups = Array.from(lineMap.values()).map(line =>
-    line.slice().sort((a, b) => a.cx - b.cx)
-  );
-  lineGroups.sort((a, b) => (a[0]?.cy || 0) - (b[0]?.cy || 0));
 
   type StartCandidate = { text: string; x: number; priority: number };
   const startCandidates: StartCandidate[] = [];
@@ -212,18 +240,9 @@ const extractTikTokFromVision = (result: any) => {
     const labelRightEdge = Math.max(...labelRow.map(w => w.x1));
     const belowRow = words
       .filter(w => below(w, words[labelIdx], 2) && w.x0 >= labelRightEdge - 60);
-    const linesMap = new Map<number, VWord[]>();
-    for (const w of belowRow) {
-      const key = Math.round(w.cy / 12);
-      const arr = linesMap.get(key) || [];
-      arr.push(w);
-      linesMap.set(key, arr);
-    }
-    const candidates = Array.from(linesMap.values())
-      .map(line => ({ line, avgH: line.reduce((sum, w) => sum + w.h, 0) / line.length }));
-    candidates.sort((a, b) => b.avgH - a.avgH);
-    if (candidates.length) {
-      const text = joinLine(candidates[0].line);
+    const candidateLine = selectLineCandidate(groupWordsByLine(belowRow));
+    if (candidateLine) {
+      const text = joinLine(candidateLine);
       const normalized = text.replace(/\s*:\s*/g, ':');
       if (!isTimeLike(normalized) && !/:/.test(normalized)) gmv = digitsOnly(normalized);
     }
@@ -239,9 +258,49 @@ const extractTikTokFromVision = (result: any) => {
     gmv = nums.sort((a, b) => b.length - a.length)[0] || '';
   }
 
+  let orders = '';
+  const ordersIdx = words.findIndex(w => /Orders?/i.test(w.text) || /Đơn/i.test(w.text));
+  if (ordersIdx >= 0) {
+    const label = words[ordersIdx];
+    const labelRow = words.filter(w => sameRow(w, label));
+    const labelRight = Math.max(...labelRow.map(w => w.x1));
+    const sameRowRight = labelRow.filter(w => rightOf(w, label)).sort((a, b) => a.cx - b.cx);
+    const rightDigits = digitsOnly(joinLine(sameRowRight));
+    if (rightDigits) {
+      orders = rightDigits;
+    }
+    if (!orders) {
+      const belowWords = words.filter(w =>
+        below(w, label, 2) &&
+        w.x0 >= label.x0 - 40 &&
+        w.x1 <= labelRight + 200
+      );
+      const candidateLine = selectLineCandidate(groupWordsByLine(belowWords));
+      if (candidateLine) {
+        const digits = digitsOnly(joinLine(candidateLine));
+        if (digits) orders = digits;
+      }
+    }
+  }
+
+  if (!orders) {
+    const orderLine = fullText
+      .split(/\r?\n/)
+      .map(s => s.trim())
+      .map(s => s.replace(/\s*:\s*/g, ':'))
+      .find(s => (/Orders?/i.test(s) || /Đơn/i.test(s)) && !/:/.test(s));
+    if (orderLine) {
+      const digits = digitsOnly(orderLine);
+      if (digits) orders = digits;
+    }
+  }
+
+  logMissingFields('tiktok', { gmv, orders, startTime });
+
   return {
     platformDetected: 'tiktok' as const,
     gmv,
+    orders,
     startTime,
     startTimeEncoded: encodeStartForForm(startTime)
   };
@@ -266,19 +325,11 @@ const extractShopeeFromVision = (result: any) => {
       w.x1 <= labelRight + 300
     );
 
-    const linesMap = new Map<number, VWord[]>();
-    for (const w of belowWords) {
-      const key = Math.round(w.cy / 12);
-      const arr = linesMap.get(key) || [];
-      arr.push(w);
-      linesMap.set(key, arr);
-    }
-    const candidates = Array.from(linesMap.values())
-      .map(line => ({ line, avgH: line.reduce((sum, w) => sum + w.h, 0) / line.length }));
-    candidates.sort((a, b) => b.avgH - a.avgH);
+    const candidateLine = selectLineCandidate(groupWordsByLine(belowWords), { excludeGpm: true });
 
-    if (candidates.length) {
-      const text = joinLine(candidates[0].line);
+    if (candidateLine) {
+      const cleanedLine = filterOutGpmWords(candidateLine);
+      const text = joinLine(cleanedLine);
       if (!/:/.test(text)) gmv = normalizeShopeeGMV(text);
     }
   }
@@ -286,10 +337,48 @@ const extractShopeeFromVision = (result: any) => {
   if (!gmv) {
     const lines = fullText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     const nums = lines
-      .filter(s => !/:/.test(s) && !/UTC/i.test(s))
+      .filter(s => !/:/.test(s) && !/UTC/i.test(s) && !/GPM/i.test(s))
       .map(s => normalizeShopeeGMV(s))
       .filter(n => /^\d+$/.test(n));
     gmv = nums.sort((a, b) => b.length - a.length)[0] || '';
+  }
+
+  let orders = '';
+  const orderIdx = words.findIndex(w => /Đơn\s*hàng/i.test(w.text));
+  if (orderIdx >= 0) {
+    const label = words[orderIdx];
+    const labelRow = words.filter(w => sameRow(w, label));
+    const labelLeft = Math.min(...labelRow.map(w => w.x0));
+    const labelRight = Math.max(...labelRow.map(w => w.x1));
+
+    const sameRowRight = labelRow.filter(w => rightOf(w, label)).sort((a, b) => a.cx - b.cx);
+    const rightDigits = digitsOnly(joinLine(sameRowRight));
+    if (rightDigits) orders = rightDigits;
+
+    if (!orders) {
+      const belowWords = words.filter(w =>
+        below(w, label, 2) &&
+        w.x0 >= labelLeft - 40 &&
+        w.x1 <= labelRight + 200
+      );
+      const candidateLine = selectLineCandidate(groupWordsByLine(belowWords));
+      if (candidateLine) {
+        const digits = digitsOnly(joinLine(candidateLine));
+        if (digits) orders = digits;
+      }
+    }
+  }
+
+  if (!orders) {
+    const orderLine = fullText
+      .split(/\r?\n/)
+      .map(s => s.trim())
+      .map(s => s.replace(/\s*:\s*/g, ':'))
+      .find(s => (/Đơn\s*hàng/i.test(s) || /Orders?/i.test(s)) && !/:/.test(s));
+    if (orderLine) {
+      const digits = digitsOnly(orderLine);
+      if (digits) orders = digits;
+    }
   }
 
   let startTime = '';
@@ -313,9 +402,12 @@ const extractShopeeFromVision = (result: any) => {
     if (m) startTime = m[1];
   }
 
+  logMissingFields('shopee', { gmv, orders, startTime });
+
   return {
     platformDetected: 'shopee' as const,
     gmv,
+    orders,
     startTime,
     startTimeEncoded: encodeStartForForm(startTime)
   };
