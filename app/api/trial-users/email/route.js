@@ -86,13 +86,17 @@ export async function POST(req) {
     .single();
 
   if (error) {
-    console.error('trial-users/email POST error', {
-  code: error?.code,
-  message: error?.message,
-  details: error?.details,
-  hint: error?.hint,
-});
-    return NextResponse.json({ error: 'Database error' }, { status: 500 });
+  console.error("🧩 trial-users/email POST error", {
+    code: error.code,
+    message: error.message,
+    details: error.details,
+    hint: error.hint,
+  });
+
+  return NextResponse.json(
+    { error: "Database error", details: error.details, message: error.message },
+    { status: 500 }
+  );
   }
 
   const savedEmail = typeof data?.email === 'string' ? data.email.trim() : email;
