@@ -86,7 +86,12 @@ export async function POST(req) {
     .single();
 
   if (error) {
-    console.error('trial-users/email POST error', error);
+    console.error('trial-users/email POST error', {
+  code: error?.code,
+  message: error?.message,
+  details: error?.details,
+  hint: error?.hint,
+});
     return NextResponse.json({ error: 'Database error' }, { status: 500 });
   }
 
