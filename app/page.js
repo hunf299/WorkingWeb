@@ -2548,15 +2548,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                         ))}
                       </ul>
                     )}
-                    {prefillModal.ocrStatus === 'running' && (
-                      <div className="prefill-status-message">Đang trích xuất… {Math.round((prefillModal.ocrProgress || 0) * 100)}%</div>
-                    )}
-                    {prefillModal.ocrMessage && (
-                      <div className="prefill-status-message prefill-status-message--success">{prefillModal.ocrMessage}</div>
-                    )}
-                    {prefillModal.ocrError && (
-                      <div className="prefill-status-message prefill-status-message--error">{prefillModal.ocrError}</div>
-                    )}
                   </div>
 
                   <div className="prefill-field">
@@ -2565,18 +2556,17 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       id="prefill-id1"
                       type="text"
                       className="text-input"
-                      placeholder="Dán link Shopee / TikTok, nhập ID"
+                      placeholder="Nhập ID hoặc dán ảnh để lấy ID tự động"
                       value={prefillValues.id1 || ''}
                       onChange={e => handlePrefillFieldChange('id1', e.target.value)}
                     />
-                    <div className="prefill-hint">Tự động lấy số từ link creator.shopee.vn, room_id hoặc nội dung dán vào.</div>
-                    <div className="prefill-hint">
-                      {prefillModal.platformDetected === 'shopee'
-                        ? 'Phát hiện sàn: 🟠 Shopee Live'
-                        : prefillModal.platformDetected === 'tiktok'
-                          ? 'Phát hiện sàn: ⚫ TikTok Shop'
-                          : 'Không xác định sàn'}
-                    </div>
+                    // <div className="prefill-hint">
+                    //   {prefillModal.platformDetected === 'shopee'
+                    //     ? 'Phát hiện sàn: 🟠 Shopee Live'
+                    //     : prefillModal.platformDetected === 'tiktok'
+                    //       ? 'Phát hiện sàn: ⚫ TikTok Shop'
+                    //       : 'Không xác định sàn'}
+                    // </div>
                     {prefillFormErrors.id1 && <div className="prefill-error">{prefillFormErrors.id1}</div>}
                   </div>
 
@@ -2607,38 +2597,9 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       className="prefill-add-button"
                       onClick={() => toggleOptionalLivestreamId(true)}
                     >
-                      + Thêm ID phiên 2 (tuỳ chọn)
+                      + Thêm ID phiên 2
                     </button>
                   )}
-
-                  <div className="prefill-field">
-                    <label htmlFor="prefill-ocr">Ảnh báo cáo (tự OCR)</label>
-                    <input
-                      id="prefill-ocr"
-                      type="file"
-                      accept="image/*"
-                      onChange={event => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          handlePrefillOcr(file);
-                        }
-                        event.target.value = '';
-                      }}
-                    />
-                    <div className="prefill-hint">Có thể dán ảnh (Ctrl+V hoặc Cmd+V) để tự OCR nhanh.</div>
-                    {prefillModal.ocrFileName && (
-                      <div className="prefill-hint">Đã chọn: {prefillModal.ocrFileName}</div>
-                    )}
-                    {prefillModal.ocrStatus === 'running' && (
-                      <div className="prefill-status-message">Đang trích xuất… {Math.round((prefillModal.ocrProgress || 0) * 100)}%</div>
-                    )}
-                    {prefillModal.ocrMessage && (
-                      <div className="prefill-status-message prefill-status-message--success">{prefillModal.ocrMessage}</div>
-                    )}
-                    {prefillModal.ocrError && (
-                      <div className="prefill-status-message prefill-status-message--error">{prefillModal.ocrError}</div>
-                    )}
-                  </div>
 
                   <div className="prefill-field">
                     <label htmlFor="prefill-gmv">GMV</label>
