@@ -210,6 +210,37 @@ const normalizeShopeeGMV = (s: string) => {
     .replace(/[^0-9]/g, '');
 };
 
+const collectShopeeNumberScores = (text: string) => {
+  const lines = (text || '')
+    .split(/\r?\n/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const scored = lines
+    .map((s, i, arr) => {
+      const normalizedLine = s.replace(/\s*:\s*/g, ':');
+      if (!/\d/.test(normalizedLine) || /:/.test(normalizedLine)) return null;
+      if (isLikelyGPMLine(normalizedLine)) return null;
+
+      const norm = normalizeShopeeGMV(normalizedLine);
+      if (!/^\d+$/.test(norm)) return null;
+
+      const nearDT =
+        /Doanh\s*thu/i.test(arr[i - 1] || '') ||
+        /Doanh\s*thu/i.test(arr[i + 1] || '');
+      const score = norm.length + (nearDT ? 0.7 : 0);
+      return { norm, score };
+    })
+    .filter(Boolean) as { norm: string; score: number }[];
+
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return b.norm.length - a.norm.length;
+  });
+
+  return scored;
+};
+
 const selectLineCandidate = (lines: VWord[][]): VWord[] | null => {
   let best: { line: VWord[]; score: number } | null = null;
   for (const line of lines) {
@@ -508,6 +539,9 @@ const extractShopeeFromVision = (result: any, opts: ExtractOpts = {}) => {
   let gmv = '';
   let gmvCandidates: string[] = [];
   let needsReview = false;
+  let dtCandidates: string[] = [];
+
+  const fallbackScored = collectShopeeNumberScores(fullText);
 
   {
     const dtRect = getLabelRect(words, /Doanh\s*thu/i);
@@ -581,6 +615,7 @@ const extractShopeeFromVision = (result: any, opts: ExtractOpts = {}) => {
 
       if (candidates.length) {
         candidates.sort((a, b) => b.score - a.score);
+        dtCandidates = candidates.map(c => c.normalized).filter(Boolean);
         const top1 = candidates[0];
 
         if (!gmv && top1) {
@@ -626,28 +661,37 @@ const extractShopeeFromVision = (result: any, opts: ExtractOpts = {}) => {
     }
 
     if (!gmv) {
-      const lines = (fullText || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-      const scored = lines
-        .map((s, i, arr) => {
-          if (!/\d/.test(s) || /:/.test(s)) return null;
-          if (isLikelyGPMLine(s)) return null;
-
-          const norm = normalizeShopeeGMV(s);
-          if (!/^\d+$/.test(norm)) return null;
-
-          const nearDT =
-            /Doanh\s*thu/i.test(arr[i - 1] || '') ||
-            /Doanh\s*thu/i.test(arr[i + 1] || '');
-          const score = norm.length + (nearDT ? 0.7 : 0);
-          return { norm, score };
-        })
-        .filter(Boolean) as { norm: string; score: number }[];
-
-      if (scored.length) {
-        scored.sort((a, b) => b.score - a.score);
-        gmv = scored[0].norm;
+      if (fallbackScored.length) {
+        gmv = fallbackScored[0].norm;
       }
     }
+  }
+
+  const sessionIdGuess = digitsOnly(extractSessionIdFromTexts([fullText], 'shopee'));
+
+  if (sessionIdGuess && gmv === sessionIdGuess) {
+    const altFromDt = dtCandidates.find(value => value && value !== sessionIdGuess);
+    const altFromFallback = fallbackScored.find(item => item.norm !== sessionIdGuess)?.norm;
+    const replacement = altFromDt || altFromFallback || '';
+
+    if (replacement) {
+      gmv = replacement;
+    } else {
+      needsReview = true;
+    }
+  }
+
+  if (sessionIdGuess && gmvCandidates.length) {
+    const deduped = [gmv, ...gmvCandidates]
+      .filter(Boolean)
+      .filter((value, index, arr) => arr.indexOf(value) === index)
+      .filter(value => value !== sessionIdGuess);
+
+    gmvCandidates = deduped.slice(0, 4);
+  }
+
+  if (sessionIdGuess && gmv === sessionIdGuess) {
+    needsReview = true;
   }
 
   let orders = '';
