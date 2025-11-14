@@ -2349,43 +2349,58 @@ Nguồn: Google Sheet ${ev.rawDate}`,
       )}
 
       {prefillModal && (
+  <div
+    className="modal-backdrop prefill-modal-backdrop"
+    onClick={closePrefillModal}
+  >
+    <div
+      className="modal-card prefill-modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="prefill-modal-title"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="prefill-modal-title-block">
+
+        <h2 id="prefill-modal-title">Điền Google Form</h2>
+
+        <p className="prefill-modal-subtitle">
+          {prefillModal.event?.title || 'Phiên livestream'}
+        </p>
+
         <div
-          className="modal-backdrop prefill-modal-backdrop"
-          onClick={closePrefillModal}
+          className="prefill-modal-summary"
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: "12px",
+            whiteSpace: "nowrap",
+          }}
         >
-          <div
-            className="modal-card prefill-modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="prefill-modal-title"
-            onClick={event => event.stopPropagation()}
-          >
-            <div className="prefill-modal-title-block">
-              <h2 id="prefill-modal-title">Điền Google Form</h2>
+          <span>📅 {prefillModal.event?.dateLabel || "—"}</span>
 
-              <p className="prefill-modal-subtitle">
-                {prefillModal.event?.title || 'Phiên livestream'}
-              </p>
+          <span>
+            ⏰
+            {prefillModal.event?.start && prefillModal.event?.end
+              ? ` ${fmtHM(prefillModal.event.start)}–${fmtHM(
+                  prefillModal.event.end
+                )}`
+              : " —"}
+          </span>
+        </div>
 
-              <div className="prefill-modal-summary" style={{display: 'flex',flexDirection: 'row',alignItems: 'center',gap: '12px',whiteSpace: 'nowrap'}}>
-                <span>📅 {prefillModal.event?.dateLabel || '—'}</span>
-                <span>
-                  ⏰
-                  {prefillModal.event?.start && prefillModal.event?.end
-                    ? ` ${fmtHM(prefillModal.event.start)}–${fmtHM(prefillModal.event.end)}`
-                    : ' —'}
-                </span>
-              </div>
-            </div>
-              <button
-                type="button"
-                className="modal-close-button"
-                onClick={closePrefillModal}
-                aria-label="Đóng điền form"
-              >
-                ×
-              </button>
-            </div>
+        {/* NÚT ĐÓNG ĐÚNG VỊ TRÍ */}
+        <button
+          type="button"
+          className="modal-close-button"
+          onClick={closePrefillModal}
+          aria-label="Đóng điền form"
+        >
+          ×
+        </button>
+      </div>
+
 
             <div className="prefill-modal-body">
               {prefillModal.link ? (
@@ -2655,6 +2670,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 </form>
               )}
             </div>
+          </div>
         </div>
       )}
 
