@@ -2360,37 +2360,33 @@ Nguồn: Google Sheet ${ev.rawDate}`,
       aria-labelledby="prefill-modal-title"
       onClick={(event) => event.stopPropagation()}
     >
-      <div className="prefill-modal-title-block">
+      <div className="prefill-modal-header">
+        <div className="prefill-modal-title-block">
+          <h2 id="prefill-modal-title">Điền Google Form</h2>
 
-        <h2 id="prefill-modal-title">Điền Google Form</h2>
+          <p className="prefill-modal-subtitle">
+            {prefillModal.event?.title || 'Phiên livestream'}
+          </p>
 
-        <p className="prefill-modal-subtitle">
-          {prefillModal.event?.title || 'Phiên livestream'}
-        </p>
+          <div className="prefill-modal-summary">
+            <span className="prefill-modal-summary-item">
+              <span aria-hidden="true">📅</span>
+              <span>{prefillModal.event?.dateLabel || '—'}</span>
+            </span>
 
-        <div
-          className="prefill-modal-summary"
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-            gap: "12px",
-            whiteSpace: "nowrap",
-          }}
-        >
-          <span>📅 {prefillModal.event?.dateLabel || "—"}</span>
-
-          <span>
-            ⏰
-            {prefillModal.event?.start && prefillModal.event?.end
-              ? ` ${fmtHM(prefillModal.event.start)}–${fmtHM(
-                  prefillModal.event.end
-                )}`
-              : " —"}
-          </span>
+            <span className="prefill-modal-summary-item">
+              <span aria-hidden="true">⏰</span>
+              <span>
+                {prefillModal.event?.start && prefillModal.event?.end
+                  ? `${fmtHM(prefillModal.event.start)}–${fmtHM(
+                      prefillModal.event.end
+                    )}`
+                  : '—'}
+              </span>
+            </span>
+          </div>
         </div>
 
-        {/* NÚT ĐÓNG ĐÚNG VỊ TRÍ */}
         <button
           type="button"
           className="modal-close-button"
@@ -2655,7 +2651,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       value={prefillValues.startTimeText || ''}
                       onChange={e => handlePrefillFieldChange('startTimeText', e.target.value)}
                     />
-                    <div className="prefill-hint">Có thể chỉnh sửa thủ công sau khi OCR.</div>
                     {prefillFormErrors.startTimeText && (
                       <div className="prefill-error">{prefillFormErrors.startTimeText}</div>
                     )}
