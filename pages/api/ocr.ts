@@ -3,6 +3,18 @@ import { getVisionClient } from '../../lib/visionClient';
 
 type Platform = 'tiktok' | 'shopee';
 
+type OcrImageData = {
+  gmv: string;
+  orders: string;
+  startTime: string;
+  startTimeEncoded: string;
+  platformDetected: Platform;
+  gmvCandidates: string[];
+  needsReview: boolean;
+  recognizedText: string;
+  sessionId: string;
+};
+
 type OcrSuccessData = {
   gmv: string;
   orders: string;
@@ -13,6 +25,8 @@ type OcrSuccessData = {
   needsReview: boolean;
   recognizedText: string;
   sessionId: string;
+  recognizedTextByImage: string[];
+  perImage: OcrImageData[];
 };
 
 type OcrResponse = {
@@ -813,18 +827,58 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return typeof full === 'string' ? full : '';
     });
 
-    const baseData = normalizedPlatform === 'tiktok'
-      ? extractTikTokFromVision(primaryResult)
-      : extractShopeeFromVision(primaryResult, extractOptions);
+    const perImageData: OcrImageData[] = visionResults.map((result, index) => {
+      const base = normalizedPlatform === 'tiktok'
+        ? extractTikTokFromVision(result)
+        : extractShopeeFromVision(result, extractOptions);
+      const recognizedText = recognizedTexts[index] || '';
+      const sessionIdRaw = extractSessionIdFromTexts([recognizedText], normalizedPlatform);
+      const sessionId = digitsOnly(sessionIdRaw);
+      return {
+        ...base,
+        recognizedText: recognizedText || base.recognizedText || '',
+        sessionId
+      };
+    });
 
-    const aggregatedText = recognizedTexts.filter(Boolean).join('\n\n');
-    const sessionIdRaw = extractSessionIdFromTexts(recognizedTexts, normalizedPlatform);
-    const sessionId = digitsOnly(sessionIdRaw);
+    const firstData: OcrImageData = perImageData[0] || (normalizedPlatform === 'tiktok'
+      ? extractTikTokFromVision(primaryResult)
+      : extractShopeeFromVision(primaryResult, extractOptions)) as OcrImageData;
+
+    if (!perImageData.length && firstData) {
+      const recognizedText = recognizedTexts[0] || firstData.recognizedText || '';
+      const sessionIdRaw = extractSessionIdFromTexts([recognizedText], normalizedPlatform);
+      perImageData.push({
+        ...firstData,
+        recognizedText,
+        sessionId: digitsOnly(sessionIdRaw)
+      });
+    }
+
+    const aggregatedText = recognizedTexts.filter(Boolean).join('\n\n')
+      || firstData.recognizedText
+      || '';
+
+    const aggregateStartTime = normalizedPlatform === 'shopee'
+      ? (perImageData[1]?.startTime || firstData.startTime || '')
+      : (firstData.startTime || perImageData[1]?.startTime || '');
+
+    const aggregateSessionId = normalizedPlatform === 'shopee'
+      ? (perImageData[0]?.sessionId || perImageData[1]?.sessionId || '')
+      : (perImageData[1]?.sessionId || perImageData[0]?.sessionId || '');
 
     const data: OcrSuccessData = {
-      ...baseData,
-      recognizedText: aggregatedText || baseData.recognizedText || '',
-      sessionId
+      gmv: firstData.gmv,
+      orders: firstData.orders,
+      startTime: aggregateStartTime,
+      startTimeEncoded: encodeStartForForm(aggregateStartTime),
+      platformDetected: firstData.platformDetected,
+      gmvCandidates: firstData.gmvCandidates,
+      needsReview: firstData.needsReview,
+      recognizedText: aggregatedText,
+      sessionId: aggregateSessionId,
+      recognizedTextByImage: recognizedTexts,
+      perImage: perImageData
     };
 
     return res.status(200).json({
