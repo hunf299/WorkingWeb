@@ -12,6 +12,7 @@ type OcrSuccessData = {
   gmvCandidates: string[];
   needsReview: boolean;
   recognizedText: string;
+  sessionId: string;
 };
 
 type OcrResponse = {
@@ -99,6 +100,88 @@ const joinLine = (line: VWord[]) =>
   line.map(w => w.text).join(' ').replace(/\s{2,}/g, ' ').trim();
 
 const digitsOnly = (s: string) => (s || '').replace(/\D+/g, '');
+
+const LIVESTREAM_PARAM_KEYS = [
+  'room_id',
+  'roomid',
+  'liveid',
+  'live_id',
+  'livestreamid',
+  'livestream_id',
+  'id'
+];
+
+const URL_CANDIDATE_REGEX = /(https?:\/\/[^\s]+|(?:shop\.tiktok\.com|tiktok|creator\.shopee\.vn|banhang\.shopee\.vn)[^\s]*)/gi;
+
+const normalizeUrlCandidate = (raw: string) => {
+  const trimmed = (raw || '').trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('//')) return `https:${trimmed}`;
+  const withoutSlashes = trimmed.replace(/^\/+/, '');
+  return `https://${withoutSlashes}`;
+};
+
+const extractIdFromUrlCandidate = (raw: string) => {
+  const collapsed = (raw || '').replace(/\s+/g, '');
+  if (!collapsed) return '';
+  const normalized = normalizeUrlCandidate(collapsed);
+  try {
+    const url = new URL(normalized);
+    for (const key of LIVESTREAM_PARAM_KEYS) {
+      const value = url.searchParams.get(key);
+      if (value && /\d/.test(value)) {
+        const match = value.match(/\d{5,}/);
+        if (match) return match[0];
+      }
+    }
+    const segments = url.pathname.split('/').filter(Boolean).reverse();
+    for (const segment of segments) {
+      const match = segment.match(/\d{5,}/);
+      if (match) return match[0];
+    }
+    if (url.hash) {
+      const hashMatch = url.hash.match(/\d{5,}/);
+      if (hashMatch) return hashMatch[0];
+    }
+  } catch (err) {
+    // ignore invalid URL formats and fall back below
+  }
+  const fallback = collapsed.match(/\d{5,}/g);
+  return fallback && fallback.length ? fallback[fallback.length - 1] : '';
+};
+
+const shouldConsiderLineForPlatform = (collapsed: string, platform: Platform) => {
+  const lower = collapsed.toLowerCase();
+  if (platform === 'tiktok') {
+    return /tiktok|room|live|shop/.test(lower);
+  }
+  return /shopee|live|dashboard|banhang|creator/.test(lower);
+};
+
+const extractSessionIdFromTexts = (texts: string[], platform: Platform): string => {
+  const reversed = [...texts].reverse();
+  for (const text of reversed) {
+    if (!text) continue;
+    const lines = text.split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean);
+    for (const line of lines) {
+      const urlMatches = Array.from(line.matchAll(URL_CANDIDATE_REGEX)).map(match => match[0]);
+      for (const candidate of urlMatches) {
+        const id = extractIdFromUrlCandidate(candidate);
+        if (id) return id;
+      }
+      const collapsed = line.replace(/\s+/g, '');
+      if (!shouldConsiderLineForPlatform(collapsed, platform)) continue;
+      const id = extractIdFromUrlCandidate(collapsed);
+      if (id) return id;
+      const digits = collapsed.match(/\d{5,}/g);
+      if (digits && digits.length) {
+        return digits[digits.length - 1];
+      }
+    }
+  }
+  return '';
+};
 
 const normalizeShopeeGMV = (s: string) => {
   let cleaned = (s || '');
@@ -395,7 +478,8 @@ const extractTikTokFromVision = (result: any) => {
     orders,
     startTime,
     startTimeEncoded: encodeStartForForm(startTime),
-    recognizedText: fullText || ''
+    recognizedText: fullText || '',
+    sessionId: ''
   };
 };
 
@@ -636,7 +720,8 @@ const extractShopeeFromVision = (result: any, opts: ExtractOpts = {}) => {
     orders,
     startTime,
     startTimeEncoded: encodeStartForForm(startTime),
-    recognizedText: fullText || ''
+    recognizedText: fullText || '',
+    sessionId: ''
   };
 };
 
@@ -647,30 +732,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   try {
-    const { imageBase64, platform, options } = req.body as {
-      imageBase64?: string;
+    const { imagesBase64, platform, options } = req.body as {
+      imagesBase64?: string[];
       platform?: string;
       options?: ExtractOpts;
     };
     const client = getVisionClient();
 
-    let imageBuffer: Buffer | null = null;
+    const base64List = Array.isArray(imagesBase64)
+      ? imagesBase64.filter(item => typeof item === 'string' && item.trim())
+      : [];
 
-    if (typeof imageBase64 === 'string' && imageBase64.trim()) {
-      const cleaned = imageBase64.trim();
-      const content = cleaned.replace(/^data:image\/\w+;base64,/, '');
-      imageBuffer = Buffer.from(content, 'base64');
-    } else {
+    if (!base64List.length) {
       return res.status(400).json({ ok: false, error: 'Thiếu ảnh để OCR.' });
     }
 
-    if (!imageBuffer || !imageBuffer.length) {
-      return res.status(400).json({ ok: false, error: 'Không có dữ liệu ảnh để OCR.' });
+    const buffers: Buffer[] = [];
+    for (const item of base64List) {
+      const cleaned = item.trim();
+      if (!cleaned) continue;
+      const content = cleaned.replace(/^data:image\/\w+;base64,/, '');
+      try {
+        const buffer = Buffer.from(content, 'base64');
+        if (buffer.length) {
+          buffers.push(buffer);
+        }
+      } catch (err) {
+        // bỏ qua chunk không hợp lệ
+      }
     }
 
-    const [result] = await client.textDetection({
-      image: { content: imageBuffer }
-    });
+    if (!buffers.length) {
+      return res.status(400).json({ ok: false, error: 'Không có dữ liệu ảnh để OCR.' });
+    }
 
     const normalizedPlatform: Platform | null =
       platform === 'tiktok' || platform === 'shopee' ? platform : null;
@@ -697,9 +791,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         }
       : undefined;
 
-    const data = normalizedPlatform === 'tiktok'
-      ? extractTikTokFromVision(result)
-      : extractShopeeFromVision(result, extractOptions);
+    const detections = await Promise.all(
+      buffers.map(buffer =>
+        client.textDetection({
+          image: { content: buffer }
+        })
+      )
+    );
+
+    const visionResults = detections
+      .map(resultArray => (Array.isArray(resultArray) ? resultArray[0] : null))
+      .filter(Boolean) as any[];
+
+    if (!visionResults.length) {
+      return res.status(400).json({ ok: false, error: 'Không trích xuất được dữ liệu.' });
+    }
+
+    const primaryResult = visionResults[0];
+    const recognizedTexts = visionResults.map(result => {
+      const full = result?.textAnnotations?.[0]?.description || '';
+      return typeof full === 'string' ? full : '';
+    });
+
+    const baseData = normalizedPlatform === 'tiktok'
+      ? extractTikTokFromVision(primaryResult)
+      : extractShopeeFromVision(primaryResult, extractOptions);
+
+    const aggregatedText = recognizedTexts.filter(Boolean).join('\n\n');
+    const sessionIdRaw = extractSessionIdFromTexts(recognizedTexts, normalizedPlatform);
+    const sessionId = digitsOnly(sessionIdRaw);
+
+    const data: OcrSuccessData = {
+      ...baseData,
+      recognizedText: aggregatedText || baseData.recognizedText || '',
+      sessionId
+    };
 
     return res.status(200).json({
       ok: true,

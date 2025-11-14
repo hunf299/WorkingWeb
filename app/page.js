@@ -290,6 +290,18 @@ function inferPlatformFromEvent(event) {
   return '';
 }
 
+function normalizePlatformFromSheet(value) {
+  const raw = (value || '').toString().trim().toLowerCase();
+  if (!raw) return 'unknown';
+  if (raw.includes('tiktok') || raw.includes('tik tok') || raw.includes('tts')) {
+    return 'tiktok';
+  }
+  if (raw.includes('shopee') || raw.includes('shp')) {
+    return 'shopee';
+  }
+  return 'unknown';
+}
+
 function normalizeBrandLabel(label) {
   if (!label) return '';
   let upper = label.toUpperCase();
@@ -715,6 +727,11 @@ export default function Page() {
       loadTrialEmail();
     }
     const initialEmail = typeof trialEmail === 'string' ? trialEmail.trim() : '';
+    const platformFromSheet = normalizePlatformFromSheet(event.platform || event.platformLabel || '');
+    const fallbackPlatform = inferPlatformFromEvent(event);
+    const initialPlatform = platformFromSheet !== 'unknown'
+      ? platformFromSheet
+      : fallbackPlatform || 'unknown';
     setPrefillModal({
       event,
       values: {
@@ -727,7 +744,7 @@ export default function Page() {
         startTimeText: '',
         startTimeEncoded: ''
       },
-      platformDetected: 'unknown',
+      platformDetected: initialPlatform,
       emailLocked: Boolean(initialEmail),
       emailUnlockedManually: false,
       showOptionalId: false,
@@ -736,6 +753,7 @@ export default function Page() {
       ocrError: '',
       ocrMessage: '',
       ocrFileName: '',
+      ocrImages: [],
       gmvCandidates: [],
       gmvNeedsReview: false,
       formErrors: {},
@@ -795,7 +813,10 @@ export default function Page() {
       } else if (field === 'id1') {
         const parsed = parseLivestreamInput(value);
         next.id1 = parsed.id || sanitizeNumericString(value);
-        return { ...next, platformDetected: parsed.platform };
+        if (parsed.platform && parsed.platform !== 'unknown') {
+          return { ...next, platformDetected: parsed.platform };
+        }
+        return next;
       } else if (field === 'id2') {
         const extracted = extractLivestreamIdFromText(value);
         next.id2 = extracted || sanitizeNumericString(value);
@@ -866,31 +887,91 @@ export default function Page() {
   }
 
   const handlePrefillOcr = useCallback(async (input) => {
-    if (!input) return;
+    if (!prefillModal) return;
 
-    let effectiveFile = input;
-    if (
-      typeof window !== 'undefined' &&
-      typeof File !== 'undefined' &&
-      effectiveFile instanceof Blob &&
-      !(effectiveFile instanceof File)
-    ) {
-      const extension = (effectiveFile.type && effectiveFile.type.split('/')[1]) || 'png';
-      try {
-        effectiveFile = new File(
-          [effectiveFile],
-          `clipboard-${Date.now()}.${extension}`,
-          { type: effectiveFile.type || 'image/png' }
-        );
-      } catch (error) {
-        // keep original blob if File construction fails
-      }
+    const sources = Array.isArray(input) ? input : [input];
+    const validSources = sources.filter(Boolean);
+    if (!validSources.length) return;
+
+    const currentPrefill = prefillModal;
+    const platformFromSheet = normalizePlatformFromSheet(
+      currentPrefill?.event?.platform || currentPrefill?.event?.platformLabel || ''
+    );
+    const preferredPlatform = currentPrefill?.platformDetected && currentPrefill.platformDetected !== 'unknown'
+      ? currentPrefill.platformDetected
+      : platformFromSheet !== 'unknown'
+        ? platformFromSheet
+        : inferPlatformFromEvent(currentPrefill?.event) || 'unknown';
+
+    if (preferredPlatform === 'unknown') {
+      setPrefillModal(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          ocrStatus: 'error',
+          ocrProgress: 0,
+          ocrError: 'Không xác định được sàn để OCR. Vui lòng kiểm tra dữ liệu sheet.'
+        };
+      });
+      return;
     }
 
-    const rawName = typeof effectiveFile === 'object' && effectiveFile && 'name' in effectiveFile
-      ? effectiveFile.name
-      : '';
-    const displayName = rawName || 'Ảnh từ clipboard';
+    const preparedImages = [];
+    for (let idx = 0; idx < validSources.length; idx += 1) {
+      let source = validSources[idx];
+      if (!source) continue;
+      if (
+        typeof window !== 'undefined' &&
+        typeof File !== 'undefined' &&
+        source instanceof Blob &&
+        !(source instanceof File)
+      ) {
+        const extension = (source.type && source.type.split('/')[1]) || 'png';
+        try {
+          source = new File(
+            [source],
+            `clipboard-${Date.now()}-${idx + 1}.${extension}`,
+            { type: source.type || 'image/png' }
+          );
+        } catch (error) {
+          // ignore and use the original blob
+        }
+      }
+
+      const name = typeof source === 'object' && source && 'name' in source && source.name
+        ? source.name
+        : `Ảnh ${idx + 1}`;
+      const dataUrl = await readImageAsDataURL(source);
+      preparedImages.push({
+        dataUrl,
+        name: name || `Ảnh ${idx + 1}`
+      });
+    }
+
+    const existingImages = Array.isArray(currentPrefill?.ocrImages) ? currentPrefill.ocrImages : [];
+    let combinedImages = [...existingImages, ...preparedImages];
+    let truncatedMessage = '';
+    if (combinedImages.length > 2) {
+      combinedImages = combinedImages.slice(combinedImages.length - 2);
+      truncatedMessage = 'Chỉ hỗ trợ tối đa 2 ảnh, đã giữ lại 2 ảnh mới nhất.';
+    }
+
+    if (!combinedImages.length) {
+      setPrefillModal(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          ocrStatus: 'error',
+          ocrProgress: 0,
+          ocrError: 'Không có ảnh để xử lý.'
+        };
+      });
+      return;
+    }
+
+    const fileNameDisplay = combinedImages
+      .map((img, index) => img.name || `Ảnh ${index + 1}`)
+      .join(', ');
 
     setPrefillModal(prev => {
       if (!prev) return prev;
@@ -899,80 +980,44 @@ export default function Page() {
         ocrStatus: 'running',
         ocrProgress: 0,
         ocrError: '',
-        ocrMessage: '',
-        ocrFileName: displayName,
+        ocrMessage: truncatedMessage,
+        ocrFileName: fileNameDisplay,
+        ocrImages: combinedImages,
         copyFeedback: ''
       };
     });
 
-    const currentPrefill = prefillModal;
-
     try {
-      if (!effectiveFile) {
-        throw new Error('Không có ảnh để xử lý.');
-      }
-      const dataUrl = await readImageAsDataURL(effectiveFile);
-
-      const inputPlatform = currentPrefill?.platformDetected;
-      const guessedPlatform = inferPlatformFromEvent(currentPrefill?.event);
-      const platformCandidates = [];
       const existingGmv = sanitizeNumericString(currentPrefill?.values?.gmv);
-
-      if (inputPlatform && inputPlatform !== 'unknown') {
-        platformCandidates.push(inputPlatform);
-      } else if (guessedPlatform) {
-        platformCandidates.push(guessedPlatform);
-        platformCandidates.push(guessedPlatform === 'shopee' ? 'tiktok' : 'shopee');
-      } else {
-        platformCandidates.push('shopee', 'tiktok');
+      const requestBody = {
+        platform: preferredPlatform,
+        imagesBase64: combinedImages.map(img => img.dataUrl)
+      };
+      if (preferredPlatform === 'shopee') {
+        requestBody.options = {
+          ambiguityMode: 'returnBoth',
+          gmvOverride: existingGmv || null
+        };
       }
 
-      const uniquePlatforms = Array.from(new Set(platformCandidates));
-      let data = null;
-      let lastError = '';
-
-      for (let idx = 0; idx < uniquePlatforms.length; idx += 1) {
-        const platform = uniquePlatforms[idx];
-        setPrefillModal(prev => {
-          if (!prev || prev.ocrStatus !== 'running') return prev;
-          const progress = Math.min(0.3 + idx * 0.3, 0.9);
-          return { ...prev, ocrProgress: progress };
-        });
-
-        const requestBody = { platform, imageBase64: dataUrl };
-        if (platform === 'shopee') {
-          requestBody.options = {
-            ambiguityMode: 'returnBoth',
-            gmvOverride: existingGmv || null
-          };
-        }
-
-        const resp = await fetch('/api/ocr', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
-        });
-        const payload = await resp.json().catch(() => null);
-        if (resp.ok && payload?.ok === true) {
-          data = payload.data || null;
-          if (data?.platformDetected) {
-            break;
-          }
-        } else {
-          const message = payload?.error || 'Không trích xuất được dữ liệu.';
-          lastError = message;
-        }
+      const resp = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+      const payload = await resp.json().catch(() => null);
+      if (!resp.ok || payload?.ok !== true) {
+        const message = payload?.error || 'Không trích xuất được dữ liệu.';
+        throw new Error(message);
       }
 
-      if (!data) {
-        throw new Error(lastError || 'Không trích xuất được dữ liệu.');
-      }
-
+      const data = payload.data || {};
       const detectedPlatform = data.platformDetected;
       const gmvValue = sanitizeNumericString(data.gmv);
       const ordersValue = sanitizeNumericString(data.orders);
       const startTimeValue = typeof data.startTime === 'string' ? data.startTime.trim() : '';
       const startTimeEncoded = typeof data.startTimeEncoded === 'string' ? data.startTimeEncoded : '';
+      const rawSessionId = sanitizeNumericString(data.sessionId);
       const rawCandidateList = Array.isArray(data.gmvCandidates) ? data.gmvCandidates : [];
       const normalizedCandidates = Array.from(new Set(
         rawCandidateList
@@ -985,6 +1030,7 @@ export default function Page() {
         normalizedCandidates.length >= 2
       );
 
+      const hasId = Boolean(rawSessionId);
       const hasGmv = Boolean(gmvValue);
       const hasOrders = Boolean(ordersValue);
       const hasStart = Boolean(startTimeValue);
@@ -993,11 +1039,50 @@ export default function Page() {
         ? 'TikTok Shop Live'
         : detectedPlatform === 'shopee'
           ? 'Shopee Live'
-          : '';
+          : preferredPlatform === 'tiktok'
+            ? 'TikTok Shop Live'
+            : preferredPlatform === 'shopee'
+              ? 'Shopee Live'
+              : '';
+
+      const extractedFields = [];
+      if (hasId) extractedFields.push('ID phiên');
+      if (hasGmv) extractedFields.push('GMV');
+      if (hasOrders) extractedFields.push('đơn hàng');
+      if (hasStart) extractedFields.push('giờ bắt đầu');
+
+      let successMessage = '';
+      if (extractedFields.length === 1) {
+        successMessage = `Đã trích xuất ${extractedFields[0]}.`;
+      } else if (extractedFields.length > 1) {
+        const last = extractedFields[extractedFields.length - 1];
+        const head = extractedFields.slice(0, -1).join(', ');
+        successMessage = `Đã trích xuất ${head} và ${last}.`;
+      }
+
+      if (reviewNeeded) {
+        const reviewMessage = 'Có 2 số GMV, vui lòng chọn số đúng.';
+        successMessage = successMessage ? `${successMessage} ${reviewMessage}` : reviewMessage;
+      }
+
+      if (successMessage && platformLabel) {
+        successMessage = `${successMessage} (${platformLabel}).`;
+      } else if (!successMessage && platformLabel) {
+        successMessage = `(${platformLabel})`;
+      }
+
+      if (truncatedMessage) {
+        successMessage = successMessage ? `${successMessage} ${truncatedMessage}` : truncatedMessage;
+      }
+
+      const hasAny = hasId || hasGmv || hasOrders || hasStart;
 
       setPrefillModal(prev => {
         if (!prev) return prev;
         const nextValues = { ...prev.values };
+        if (hasId) {
+          nextValues.id1 = rawSessionId;
+        }
         if (hasGmv) {
           nextValues.gmv = gmvValue;
         }
@@ -1010,47 +1095,20 @@ export default function Page() {
         nextValues.startTimeEncoded = startTimeEncoded;
 
         const clearedErrors = { ...(prev.formErrors || {}) };
+        if (hasId && clearedErrors.id1) delete clearedErrors.id1;
         if (hasGmv && clearedErrors.gmv) delete clearedErrors.gmv;
         if (hasStart && clearedErrors.startTimeText) delete clearedErrors.startTimeText;
-
-        let successMessage = '';
-        if (hasGmv && hasOrders && hasStart) {
-          successMessage = 'Đã trích xuất GMV, đơn hàng và giờ bắt đầu.';
-        } else if (hasGmv && hasOrders) {
-          successMessage = 'Đã trích xuất GMV và đơn hàng, vui lòng kiểm tra lại.';
-        } else if (hasGmv && hasStart) {
-          successMessage = 'Đã trích xuất GMV và giờ bắt đầu.';
-        } else if (hasGmv) {
-          successMessage = 'Đã trích xuất GMV, vui lòng kiểm tra lại.';
-        } else if (hasOrders && hasStart) {
-          successMessage = 'Đã trích xuất đơn hàng và giờ bắt đầu, vui lòng kiểm tra lại.';
-        } else if (hasOrders) {
-          successMessage = 'Đã trích xuất đơn hàng, vui lòng kiểm tra lại.';
-        } else if (hasStart) {
-          successMessage = 'Đã trích xuất giờ bắt đầu, vui lòng kiểm tra lại.';
-        }
-
-        if (reviewNeeded) {
-          const reviewMessage = 'Có 2 số GMV, vui lòng chọn đúng.';
-          successMessage = successMessage ? `${successMessage} ${reviewMessage}` : reviewMessage;
-        }
-
-        if (successMessage && platformLabel) {
-          successMessage = `${successMessage} (${platformLabel}).`;
-        }
-
-        const hasAny = hasGmv || hasOrders || hasStart;
 
         return {
           ...prev,
           values: nextValues,
-          platformDetected: detectedPlatform || prev.platformDetected,
+          platformDetected: detectedPlatform || prev.platformDetected || preferredPlatform,
           formErrors: clearedErrors,
           gmvCandidates: normalizedCandidates,
           gmvNeedsReview: reviewNeeded,
           ocrStatus: hasAny ? 'success' : 'error',
           ocrProgress: 1,
-          ocrMessage: successMessage,
+          ocrMessage: hasAny ? successMessage : (truncatedMessage || 'Không trích xuất được dữ liệu, vui lòng nhập tay.'),
           ocrError: hasAny ? '' : 'Không trích xuất được dữ liệu, vui lòng nhập tay.'
         };
       });
@@ -1067,6 +1125,29 @@ export default function Page() {
       });
     }
   }, [prefillModal]);
+
+  const handleRemoveOcrImage = useCallback((index) => {
+    setPrefillModal(prev => {
+      if (!prev) return prev;
+      const images = Array.isArray(prev.ocrImages) ? prev.ocrImages : [];
+      if (index < 0 || index >= images.length) return prev;
+      const nextImages = images.filter((_, idx) => idx !== index);
+      const fileNameDisplay = nextImages
+        .map((img, idx) => (img && img.name ? img.name : `Ảnh ${idx + 1}`))
+        .join(', ');
+      return {
+        ...prev,
+        ocrImages: nextImages,
+        ocrFileName: fileNameDisplay,
+        ocrStatus: nextImages.length ? prev.ocrStatus : 'idle',
+        ocrMessage: nextImages.length ? prev.ocrMessage : '',
+        ocrError: nextImages.length ? prev.ocrError : '',
+        copyFeedback: ''
+      };
+    });
+  }, []);
+
+
   
   useEffect(() => {
     if (!prefillModal) return;
@@ -1075,12 +1156,13 @@ export default function Page() {
       const clipboardData = event.clipboardData;
       if (!clipboardData) return;
       const items = clipboardData.items ? Array.from(clipboardData.items) : [];
-      const imageItem = items.find(item => item && item.type && item.type.startsWith('image/'));
-      if (!imageItem) return;
-      const blob = imageItem.getAsFile();
-      if (!blob) return;
+      const imageFiles = items
+        .filter(item => item && item.type && item.type.startsWith('image/'))
+        .map(item => item.getAsFile())
+        .filter(Boolean);
+      if (!imageFiles.length) return;
       event.preventDefault();
-      handlePrefillOcr(blob);
+      handlePrefillOcr(imageFiles);
     }
 
     window.addEventListener('paste', handlePasteEvent);
@@ -1650,6 +1732,8 @@ export default function Page() {
         room: it.room,
         coor: it.coor,
         keyLivestream: it.keyLivestream,
+        platformLabel: it.platform,
+        platform: normalizePlatformFromSheet(it.platform),
         rawDate: it.rawDate,
         timeSlot: it.timeSlot,
         date: matchedDay,
@@ -2431,6 +2515,51 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                   </div>
 
                   <div className="prefill-field">
+                    <label htmlFor="prefill-ocr">Ảnh báo cáo (tự OCR)</label>
+                    <input
+                      id="prefill-ocr"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={event => {
+                        const files = event.target.files
+                          ? Array.from(event.target.files).filter(Boolean)
+                          : [];
+                        if (files.length) {
+                          handlePrefillOcr(files);
+                        }
+                        event.target.value = '';
+                      }}
+                    />
+                    <div className="prefill-hint">Dán ảnh (Ctrl+V hoặc Cmd+V) hoặc tải lên tối đa 2 ảnh (ảnh GMV và ảnh link dashboard).</div>
+                    {prefillModal.ocrImages?.length > 0 && (
+                      <ul className="prefill-ocr-list">
+                        {prefillModal.ocrImages.map((img, idx) => (
+                          <li key={`${img?.name || 'image'}-${idx}`} className="prefill-ocr-item">
+                            <span className="prefill-ocr-name">{img?.name || `Ảnh ${idx + 1}`}</span>
+                            <button
+                              type="button"
+                              className="prefill-ocr-remove"
+                              onClick={() => handleRemoveOcrImage(idx)}
+                            >
+                              Xóa
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {prefillModal.ocrStatus === 'running' && (
+                      <div className="prefill-status-message">Đang trích xuất… {Math.round((prefillModal.ocrProgress || 0) * 100)}%</div>
+                    )}
+                    {prefillModal.ocrMessage && (
+                      <div className="prefill-status-message prefill-status-message--success">{prefillModal.ocrMessage}</div>
+                    )}
+                    {prefillModal.ocrError && (
+                      <div className="prefill-status-message prefill-status-message--error">{prefillModal.ocrError}</div>
+                    )}
+                  </div>
+
+                  <div className="prefill-field">
                     <label htmlFor="prefill-id1">ID phiên livestream 1</label>
                     <input
                       id="prefill-id1"
@@ -2441,15 +2570,13 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       onChange={e => handlePrefillFieldChange('id1', e.target.value)}
                     />
                     <div className="prefill-hint">Tự động lấy số từ link creator.shopee.vn, room_id hoặc nội dung dán vào.</div>
-                    {prefillValues.id1 ? (
-                      <div className="prefill-hint">
-                        {prefillModal.platformDetected === 'shopee'
-                          ? 'Phát hiện sàn: 🟠 Shopee Live'
-                          : prefillModal.platformDetected === 'tiktok'
-                            ? 'Phát hiện sàn: ⚫ TikTok Shop'
-                            : 'Không xác định sàn'}
-                      </div>
-                    ) : null}
+                    <div className="prefill-hint">
+                      {prefillModal.platformDetected === 'shopee'
+                        ? 'Phát hiện sàn: 🟠 Shopee Live'
+                        : prefillModal.platformDetected === 'tiktok'
+                          ? 'Phát hiện sàn: ⚫ TikTok Shop'
+                          : 'Không xác định sàn'}
+                    </div>
                     {prefillFormErrors.id1 && <div className="prefill-error">{prefillFormErrors.id1}</div>}
                   </div>
 
