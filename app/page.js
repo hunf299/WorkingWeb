@@ -2367,15 +2367,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 {prefillModal.event?.title || 'Phiên livestream'}
               </p>
 
-              <div
-                className="prefill-modal-summary"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: '12px',
-                  whiteSpace: 'nowrap'
-                }}>
+              <div className="prefill-modal-summary" style={{display: 'flex',flexDirection: 'row',alignItems: 'center',gap: '12px',whiteSpace: 'nowrap'}}>
                 <span>📅 {prefillModal.event?.dateLabel || '—'}</span>
                 <span>
                   ⏰
