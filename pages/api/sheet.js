@@ -42,7 +42,8 @@ export default async function handler(req, res) {
         talent2: r[5] || '',
         coor: `${r[6] || ''} - ${r[7] || ''}`,
         room: `${r[8] || ''} / ${r[9] || ''} / ${r[10] || ''}`,
-        keyLivestream: r[11] || ''
+        keyLivestream: r[11] || '',
+        platform: (r[12] || '').toString().trim()
     }));
 
     const hostLinks = hostRows.slice(1).map(r => ({
