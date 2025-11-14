@@ -2375,8 +2375,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                   alignItems: 'center',
                   gap: '12px',
                   whiteSpace: 'nowrap'
-                }}
-              >
+                }}>
                 <span>📅 {prefillModal.event?.dateLabel || '—'}</span>
                 <span>
                   ⏰
