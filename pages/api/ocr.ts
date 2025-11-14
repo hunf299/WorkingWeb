@@ -885,40 +885,62 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       };
     });
 
-    const firstData: OcrImageData = perImageData[0] || (normalizedPlatform === 'tiktok'
+    const getOrExtractData = (index: number): OcrImageData | null => {
+      if (index < 0) return null;
+      if (perImageData[index]) return perImageData[index];
+      const result = visionResults[index];
+      if (!result) return null;
+      const recognizedText = recognizedTexts[index] || '';
+      const base = normalizedPlatform === 'tiktok'
+        ? extractTikTokFromVision(result)
+        : extractShopeeFromVision(result, extractOptions);
+      const sessionIdRaw = extractSessionIdFromTexts([recognizedText], normalizedPlatform);
+      return {
+        ...base,
+        recognizedText: recognizedText || base.recognizedText || '',
+        sessionId: digitsOnly(sessionIdRaw)
+      };
+    };
+
+    const fallbackFromPrimary = (normalizedPlatform === 'tiktok'
       ? extractTikTokFromVision(primaryResult)
       : extractShopeeFromVision(primaryResult, extractOptions)) as OcrImageData;
 
-    if (!perImageData.length && firstData) {
-      const recognizedText = recognizedTexts[0] || firstData.recognizedText || '';
-      const sessionIdRaw = extractSessionIdFromTexts([recognizedText], normalizedPlatform);
-      perImageData.push({
-        ...firstData,
-        recognizedText,
-        sessionId: digitsOnly(sessionIdRaw)
-      });
-    }
+    const metricsIndex = normalizedPlatform === 'tiktok' ? 1 : 0;
+    const sessionIndex = normalizedPlatform === 'tiktok' ? 0 : 0;
+
+    const metricsData = (getOrExtractData(metricsIndex)
+      ?? getOrExtractData(metricsIndex === 0 ? 1 : 0)
+      ?? fallbackFromPrimary) as OcrImageData;
+
+    const sessionData = (getOrExtractData(sessionIndex)
+      ?? getOrExtractData(sessionIndex === 0 ? 1 : 0)
+      ?? metricsData) as OcrImageData;
 
     const aggregatedText = recognizedTexts.filter(Boolean).join('\n\n')
-      || firstData.recognizedText
+      || metricsData.recognizedText
+      || sessionData.recognizedText
       || '';
 
-    const aggregateStartTime = normalizedPlatform === 'shopee'
-      ? (perImageData[1]?.startTime || firstData.startTime || '')
-      : (firstData.startTime || perImageData[1]?.startTime || '');
+    const aggregateStartTime = metricsData.startTime
+      || sessionData.startTime
+      || '';
 
-    const aggregateSessionId = normalizedPlatform === 'shopee'
-      ? (perImageData[0]?.sessionId || perImageData[1]?.sessionId || '')
-      : (perImageData[1]?.sessionId || perImageData[0]?.sessionId || '');
+    const aggregateStartTimeEncoded = metricsData.startTimeEncoded
+      || encodeStartForForm(aggregateStartTime);
+
+    const aggregateSessionId = sessionData.sessionId
+      || metricsData.sessionId
+      || '';
 
     const data: OcrSuccessData = {
-      gmv: firstData.gmv,
-      orders: firstData.orders,
+      gmv: metricsData.gmv,
+      orders: metricsData.orders,
       startTime: aggregateStartTime,
-      startTimeEncoded: encodeStartForForm(aggregateStartTime),
-      platformDetected: firstData.platformDetected,
-      gmvCandidates: firstData.gmvCandidates,
-      needsReview: firstData.needsReview,
+      startTimeEncoded: aggregateStartTimeEncoded,
+      platformDetected: metricsData.platformDetected,
+      gmvCandidates: metricsData.gmvCandidates,
+      needsReview: metricsData.needsReview,
       recognizedText: aggregatedText,
       sessionId: aggregateSessionId,
       recognizedTextByImage: recognizedTexts,
