@@ -871,6 +871,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return typeof full === 'string' ? full : '';
     });
 
+    const applyImageRoleAdjustments = (
+      data: OcrImageData,
+      platformForImage: Platform,
+      index: number
+    ): OcrImageData => {
+      if (platformForImage === 'tiktok' && index === 0) {
+        return {
+          ...data,
+          gmv: '',
+          gmvCandidates: [],
+          startTime: '',
+          startTimeEncoded: encodeStartForForm('')
+        };
+      }
+      return data;
+    };
+
     const perImageData: OcrImageData[] = visionResults.map((result, index) => {
       const base = normalizedPlatform === 'tiktok'
         ? extractTikTokFromVision(result)
@@ -878,9 +895,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       const recognizedText = recognizedTexts[index] || '';
       const sessionIdRaw = extractSessionIdFromTexts([recognizedText], normalizedPlatform);
       const sessionId = digitsOnly(sessionIdRaw);
+      const adjusted = applyImageRoleAdjustments(base, normalizedPlatform, index);
       return {
-        ...base,
-        recognizedText: recognizedText || base.recognizedText || '',
+        ...adjusted,
+        recognizedText: recognizedText || adjusted.recognizedText || '',
         sessionId
       };
     });
@@ -895,9 +913,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         ? extractTikTokFromVision(result)
         : extractShopeeFromVision(result, extractOptions);
       const sessionIdRaw = extractSessionIdFromTexts([recognizedText], normalizedPlatform);
+      const adjusted = applyImageRoleAdjustments(base, normalizedPlatform, index);
       return {
-        ...base,
-        recognizedText: recognizedText || base.recognizedText || '',
+        ...adjusted,
+        recognizedText: recognizedText || adjusted.recognizedText || '',
         sessionId: digitsOnly(sessionIdRaw)
       };
     };
@@ -906,12 +925,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       ? extractTikTokFromVision(primaryResult)
       : extractShopeeFromVision(primaryResult, extractOptions)) as OcrImageData;
 
+    const adjustedFallback = applyImageRoleAdjustments(
+      fallbackFromPrimary,
+      normalizedPlatform,
+      0
+    );
+
     const metricsIndex = normalizedPlatform === 'tiktok' ? 1 : 0;
     const sessionIndex = normalizedPlatform === 'tiktok' ? 0 : 0;
 
     const metricsData = (getOrExtractData(metricsIndex)
       ?? getOrExtractData(metricsIndex === 0 ? 1 : 0)
-      ?? fallbackFromPrimary) as OcrImageData;
+      ?? adjustedFallback) as OcrImageData;
 
     const sessionData = (getOrExtractData(sessionIndex)
       ?? getOrExtractData(sessionIndex === 0 ? 1 : 0)
@@ -922,9 +947,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       || sessionData.recognizedText
       || '';
 
-    const aggregateStartTime = metricsData.startTime
-      || sessionData.startTime
-      || '';
+    const startTimePriority = normalizedPlatform === 'shopee'
+      ? [1, metricsIndex, sessionIndex]
+      : [metricsIndex, sessionIndex];
+
+    let aggregateStartTime = '';
+    const seenStartIdx = new Set<number>();
+    for (const idx of startTimePriority) {
+      if (idx < 0) continue;
+      if (seenStartIdx.has(idx)) continue;
+      seenStartIdx.add(idx);
+      const dataAtIdx = getOrExtractData(idx);
+      if (dataAtIdx?.startTime) {
+        aggregateStartTime = dataAtIdx.startTime;
+        break;
+      }
+    }
+
+    if (!aggregateStartTime) {
+      aggregateStartTime = metricsData.startTime
+        || sessionData.startTime
+        || adjustedFallback.startTime
+        || '';
+    }
 
     const aggregateStartTimeEncoded = metricsData.startTimeEncoded
       || encodeStartForForm(aggregateStartTime);
