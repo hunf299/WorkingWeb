@@ -2655,7 +2655,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 </form>
               )}
             </div>
-          </div>
         </div>
       )}
 
