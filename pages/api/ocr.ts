@@ -871,6 +871,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return typeof full === 'string' ? full : '';
     });
 
+    const applyImageRoleAdjustments = (
+      data: OcrImageData,
+      platformForImage: Platform,
+      index: number
+    ): OcrImageData => {
+      if (platformForImage === 'tiktok' && index === 0) {
+        return {
+          ...data,
+          gmv: '',
+          gmvCandidates: [],
+          startTime: '',
+          startTimeEncoded: encodeStartForForm('')
+        };
+      }
+      return data;
+    };
+
     const perImageData: OcrImageData[] = visionResults.map((result, index) => {
       const base = normalizedPlatform === 'tiktok'
         ? extractTikTokFromVision(result)
@@ -878,47 +895,97 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       const recognizedText = recognizedTexts[index] || '';
       const sessionIdRaw = extractSessionIdFromTexts([recognizedText], normalizedPlatform);
       const sessionId = digitsOnly(sessionIdRaw);
+      const adjusted = applyImageRoleAdjustments(base, normalizedPlatform, index);
       return {
-        ...base,
-        recognizedText: recognizedText || base.recognizedText || '',
+        ...adjusted,
+        recognizedText: recognizedText || adjusted.recognizedText || '',
         sessionId
       };
     });
 
-    const firstData: OcrImageData = perImageData[0] || (normalizedPlatform === 'tiktok'
+    const getOrExtractData = (index: number): OcrImageData | null => {
+      if (index < 0) return null;
+      if (perImageData[index]) return perImageData[index];
+      const result = visionResults[index];
+      if (!result) return null;
+      const recognizedText = recognizedTexts[index] || '';
+      const base = normalizedPlatform === 'tiktok'
+        ? extractTikTokFromVision(result)
+        : extractShopeeFromVision(result, extractOptions);
+      const sessionIdRaw = extractSessionIdFromTexts([recognizedText], normalizedPlatform);
+      const adjusted = applyImageRoleAdjustments(base, normalizedPlatform, index);
+      return {
+        ...adjusted,
+        recognizedText: recognizedText || adjusted.recognizedText || '',
+        sessionId: digitsOnly(sessionIdRaw)
+      };
+    };
+
+    const fallbackFromPrimary = (normalizedPlatform === 'tiktok'
       ? extractTikTokFromVision(primaryResult)
       : extractShopeeFromVision(primaryResult, extractOptions)) as OcrImageData;
 
-    if (!perImageData.length && firstData) {
-      const recognizedText = recognizedTexts[0] || firstData.recognizedText || '';
-      const sessionIdRaw = extractSessionIdFromTexts([recognizedText], normalizedPlatform);
-      perImageData.push({
-        ...firstData,
-        recognizedText,
-        sessionId: digitsOnly(sessionIdRaw)
-      });
-    }
+    const adjustedFallback = applyImageRoleAdjustments(
+      fallbackFromPrimary,
+      normalizedPlatform,
+      0
+    );
+
+    const metricsIndex = normalizedPlatform === 'tiktok' ? 1 : 0;
+    const sessionIndex = normalizedPlatform === 'tiktok' ? 0 : 0;
+
+    const metricsData = (getOrExtractData(metricsIndex)
+      ?? getOrExtractData(metricsIndex === 0 ? 1 : 0)
+      ?? adjustedFallback) as OcrImageData;
+
+    const sessionData = (getOrExtractData(sessionIndex)
+      ?? getOrExtractData(sessionIndex === 0 ? 1 : 0)
+      ?? metricsData) as OcrImageData;
 
     const aggregatedText = recognizedTexts.filter(Boolean).join('\n\n')
-      || firstData.recognizedText
+      || metricsData.recognizedText
+      || sessionData.recognizedText
       || '';
 
-    const aggregateStartTime = normalizedPlatform === 'shopee'
-      ? (perImageData[1]?.startTime || firstData.startTime || '')
-      : (firstData.startTime || perImageData[1]?.startTime || '');
+    const startTimePriority = normalizedPlatform === 'shopee'
+      ? [1, metricsIndex, sessionIndex]
+      : [metricsIndex, sessionIndex];
 
-    const aggregateSessionId = normalizedPlatform === 'shopee'
-      ? (perImageData[0]?.sessionId || perImageData[1]?.sessionId || '')
-      : (perImageData[1]?.sessionId || perImageData[0]?.sessionId || '');
+    let aggregateStartTime = '';
+    const seenStartIdx = new Set<number>();
+    for (const idx of startTimePriority) {
+      if (idx < 0) continue;
+      if (seenStartIdx.has(idx)) continue;
+      seenStartIdx.add(idx);
+      const dataAtIdx = getOrExtractData(idx);
+      if (dataAtIdx?.startTime) {
+        aggregateStartTime = dataAtIdx.startTime;
+        break;
+      }
+    }
+
+    if (!aggregateStartTime) {
+      aggregateStartTime = metricsData.startTime
+        || sessionData.startTime
+        || adjustedFallback.startTime
+        || '';
+    }
+
+    const aggregateStartTimeEncoded = metricsData.startTimeEncoded
+      || encodeStartForForm(aggregateStartTime);
+
+    const aggregateSessionId = sessionData.sessionId
+      || metricsData.sessionId
+      || '';
 
     const data: OcrSuccessData = {
-      gmv: firstData.gmv,
-      orders: firstData.orders,
+      gmv: metricsData.gmv,
+      orders: metricsData.orders,
       startTime: aggregateStartTime,
-      startTimeEncoded: encodeStartForForm(aggregateStartTime),
-      platformDetected: firstData.platformDetected,
-      gmvCandidates: firstData.gmvCandidates,
-      needsReview: firstData.needsReview,
+      startTimeEncoded: aggregateStartTimeEncoded,
+      platformDetected: metricsData.platformDetected,
+      gmvCandidates: metricsData.gmvCandidates,
+      needsReview: metricsData.needsReview,
       recognizedText: aggregatedText,
       sessionId: aggregateSessionId,
       recognizedTextByImage: recognizedTexts,
