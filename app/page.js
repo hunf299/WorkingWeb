@@ -2560,13 +2560,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       value={prefillValues.id1 || ''}
                       onChange={e => handlePrefillFieldChange('id1', e.target.value)}
                     />
-                    // <div className="prefill-hint">
-                    //   {prefillModal.platformDetected === 'shopee'
-                    //     ? 'Phát hiện sàn: 🟠 Shopee Live'
-                    //     : prefillModal.platformDetected === 'tiktok'
-                    //       ? 'Phát hiện sàn: ⚫ TikTok Shop'
-                    //       : 'Không xác định sàn'}
-                    // </div>
                     {prefillFormErrors.id1 && <div className="prefill-error">{prefillFormErrors.id1}</div>}
                   </div>
 
