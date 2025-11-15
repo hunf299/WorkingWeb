@@ -893,7 +893,7 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   display: flex;
   align-items: center;
   flex-wrap: nowrap;
-  gap: 12px;
+  gap: 4px;
 }
 
 .prefill-row > label {
