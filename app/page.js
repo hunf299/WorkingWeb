@@ -2537,7 +2537,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                   </div>
 
                     <div className="prefill-result-item">
-                      <span className="prefill-result-label">Key livestream</span>
+                      <span className="prefill-result-label">Key live</span>
                       <span className="prefill-result-value">{prefillValues.keyLivestream || '—'}</span>
                     </div>
                     <div className="prefill-result-item">
