@@ -1165,6 +1165,20 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   }
   .modal-card h2 { color: #f9fafb; }
   .modal-desc { color: #d1d5db; }
+  .prefill-modal-header {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.35), rgba(59, 130, 246, 0.12));
+    border-bottom-color: rgba(148, 163, 184, 0.35);
+  }
+  .prefill-modal-subtitle {
+    color: #f9fafb;
+  }
+  .prefill-modal-summary-item {
+    background: rgba(59, 130, 246, 0.25);
+    color: #dbeafe;
+  }
+  .prefill-modal-summary-item span:last-child {
+    color: #f9fafb;
+  }
   .modal-close-button {
     color: #e5e7eb;
   }
