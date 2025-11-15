@@ -40,6 +40,7 @@ export default async function handler(req, res) {
         const roomParts = [r[8], r[9], r[10]]
             .map(value => (value ?? '').toString().trim())
             .filter(Boolean);
+        const primaryRoom = (r[9] ?? '').toString().trim();
 
         return {
             rawDate: r[0] || '',
@@ -51,6 +52,7 @@ export default async function handler(req, res) {
             coor: coorParts.join(' - '),
             room: roomParts.join(' / '),
             roomParts,
+            primaryRoom,
             keyLivestream: r[11] || '',
             platform: (r[12] || '').toString().trim()
         };
