@@ -2537,8 +2537,8 @@ Nguồn: Google Sheet ${ev.rawDate}`,
 
                   </div>
 
-                    <div className="prefill-result-item">
-                      <span className="prefill-result-label">Key livestream</span>
+                    <div className="prefill-row">
+                      <span className="prefill-result-label">Key live</span>
                       <span className="prefill-result-value">{prefillValues.keyLivestream || '—'}</span>
                     </div>
                     <div className="prefill-result-item">
@@ -2645,7 +2645,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
 
                   <div className="prefill-field">
                     <div className="prefill-row">
-                      <label htmlFor="prefill-ocr">Ảnh báo cáo </label>
+                      <label htmlFor="prefill-ocr">Ảnh báo cáo  </label>
                       <input
                         id="prefill-ocr"
                         type="file"
