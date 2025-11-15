@@ -2594,21 +2594,8 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               ) : (
                 <form className="prefill-form" onSubmit={handleGeneratePrefilledLink}>
                   <div className="prefill-field">
-                    <label htmlFor="prefill-email">Email</label>
-                    <div className="prefill-field-control">
-                      <div className="prefill-email-wrapper" aria-busy={isEmailBusy}>
-                        <input
-                          id="prefill-email"
-                          type="email"
-                          className="text-input prefill-email-input"
-                          placeholder="example@gmail.com"
-                          value={prefillValues.email || ''}
-                          onChange={e => handlePrefillFieldChange('email', e.target.value)}
-                          disabled={prefillModal.emailLocked || isEmailBusy}
-                          autoComplete="email"
-                        />
-                        {isEmailBusy && <span className="input-spinner" aria-hidden="true" />}
-                      </div>
+                    <div className="prefill-field-header">
+                      <label htmlFor="prefill-email">Email</label>
                       {prefillModal.emailLocked && (
                         <button
                           type="button"
@@ -2619,6 +2606,19 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                           Sửa
                         </button>
                       )}
+                    </div>
+                    <div className="prefill-email-wrapper" aria-busy={isEmailBusy}>
+                      <input
+                        id="prefill-email"
+                        type="email"
+                        className="text-input prefill-email-input"
+                        placeholder="example@gmail.com"
+                        value={prefillValues.email || ''}
+                        onChange={e => handlePrefillFieldChange('email', e.target.value)}
+                        disabled={prefillModal.emailLocked || isEmailBusy}
+                        autoComplete="email"
+                      />
+                      {isEmailBusy && <span className="input-spinner" aria-hidden="true" />}
                     </div>
                     {prefillFormErrors.email ? (
                       <div className="prefill-error">{prefillFormErrors.email}</div>
@@ -2693,8 +2693,8 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                         value={prefillValues.id1 || ''}
                         onChange={e => handlePrefillFieldChange('id1', e.target.value)}
                       />
-                      {prefillFormErrors.id1 && <div className="prefill-error">{prefillFormErrors.id1}</div>}
                     </div>
+                    {prefillFormErrors.id1 && <div className="prefill-error">{prefillFormErrors.id1}</div>}
                   </div>
 
                   {showPrefillOptionalId ? (
@@ -2776,10 +2776,10 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                         value={prefillValues.startTimeText || ''}
                         onChange={e => handlePrefillFieldChange('startTimeText', e.target.value)}
                       />
-                      {prefillFormErrors.startTimeText && (
-                        <div className="prefill-error">{prefillFormErrors.startTimeText}</div>
-                      )}
                     </div>
+                    {prefillFormErrors.startTimeText && (
+                      <div className="prefill-error">{prefillFormErrors.startTimeText}</div>
+                    )}
                   </div>
 
                   <div className="prefill-form-actions">
