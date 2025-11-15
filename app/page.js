@@ -83,7 +83,7 @@ function buildHostZaloMessage(event) {
   const fallbackRoom = typeof event.room === 'string' ? event.room.trim() : '';
   const combinedRoom = parts.length ? parts.join(' / ') : (fallbackRoom || '-');
   const roomLabel = primaryRoomRaw || combinedRoom;
-  return `Mình có live lúc '${timeLabel}' ở '${roomLabel}' nha ạ`;
+  return `Mình có live lúc ${timeLabel} ở ${roomLabel} nha ạ`;
 }
 
 /** lấy nhãn bucket 2 giờ cho 1 Date (ví dụ 08:xx -> "08:00–10:00") */
@@ -2221,7 +2221,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
 
       {/* Danh sách nhóm theo 2h */}
       {!isActiveUser ? (
-        <p>Vui lòng đăng nhập để xem lịch làm việc.</p>
+        <p>Vui lòng nhập tên để xem lịch làm việc.</p>
       ) : loading ? (
         <div className="event-card"><i>Đang tải dữ liệu…</i></div>
       ) : daysToShow > 1 ? (
@@ -2778,8 +2778,8 @@ Nguồn: Google Sheet ${ev.rawDate}`,
       {showLoginModal && (
         <div className="modal-backdrop">
           <div className="modal-card">
-            <h2>Đăng nhập bằng tên</h2>
-            <p className="modal-desc">Nhập tên của bạn để đăng nhập và tìm kiếm lịch làm việc.</p>
+            <h2>Tìm ca làm bằng tên</h2>
+            <p className="modal-desc">Nhập tên của bạn để tìm kiếm lịch làm việc.</p>
             <form className="modal-form" onSubmit={handleLoginSubmit}>
               <input
                 type="text"
