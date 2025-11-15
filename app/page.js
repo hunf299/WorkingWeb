@@ -2507,34 +2507,14 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             <div className="prefill-modal-body">
               {prefillModal.link ? (
                 <div className="prefill-result" role="group" aria-labelledby="prefill-modal-title">
+                  <div className="prefill-result-grid">
                   <div className="prefill-result-item prefill-result-item--email">
-                    <div className="prefill-result-grid">
-                    {/* HÀNG 1: Label + nút Sửa */}
-                    <div className="prefill-email-header">
-                      <span className="prefill-result-label">Email</span>
-
-                      {prefillModal.emailLocked && (
-                        <button
-                          type="button"
-                          className="prefill-edit-button"
-                          onClick={() => {
-                            resetPrefillToForm();
-                            unlockPrefillEmail();
-                          }}
-                        >
-                          Sửa
-                        </button>
-                      )}
-                    </div>
-
-                    {/* HÀNG 2: Giá trị email */}
-                      <div className="prefill-email-value">
-                        <span className="prefill-result-value">
-                          {prefillValues.email || '—'}
-                        </span>
-                      </div>
-
+                    <span className="prefill-result-label">Email</span>
+                    <span className="prefill-result-value">
+                      {prefillValues.email || '—'}
+                    </span>
                   </div>
+
 
                     <div className="prefill-result-item">
                       <span className="prefill-result-label">Key live</span>
