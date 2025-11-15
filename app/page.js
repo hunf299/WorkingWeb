@@ -1332,7 +1332,7 @@ export default function Page() {
       errors.email = 'Email không hợp lệ.';
     }
     if (!keyLivestream) {
-      errors.keyLivestream = 'Vui lòng nhập Key livestream.';
+      errors.keyLivestream = 'Vui lòng nhập Key live.';
     }
     if (!id1) {
       errors.id1 = 'Cần ID phiên livestream 1.';
@@ -2609,7 +2609,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
 
                   <div className="prefill-field">
                     <div className="prefill-row">
-                      <label htmlFor="prefill-key">Key livestream</label>
+                      <label htmlFor="prefill-key">Key live</label>
                       <input
                         id="prefill-key"
                         type="text"
