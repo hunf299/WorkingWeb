@@ -45,6 +45,41 @@ function fmtHM(dt) {
   return dt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 }
 
+async function copyTextToClipboard(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (error) {
+    // ignore and fallback below
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'absolute';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+
+  let success = false;
+  try {
+    textarea.select();
+    success = document.execCommand('copy');
+  } catch (error) {
+    success = false;
+  }
+
+  document.body.removeChild(textarea);
+  return success;
+}
+
+function buildHostZaloMessage(event) {
+  const timeLabel = fmtHM(event.start);
+  const roomLabel = event.room || '-';
+  return `Mình có live lúc '${timeLabel}' ở '${roomLabel}' nha ạ`;
+}
+
 /** lấy nhãn bucket 2 giờ cho 1 Date (ví dụ 08:xx -> "08:00–10:00") */
 function twoHourBucket(dt) {
   const h = dt.getHours();
@@ -2133,6 +2168,10 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       }
                       return entries;
                     })();
+                    const hostZaloMessage = buildHostZaloMessage(e);
+                    const handleHostZaloClick = () => {
+                      void copyTextToClipboard(hostZaloMessage);
+                    };
                     return (
                       <div key={i} className="event-card">
                         <button
@@ -2204,6 +2243,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                                         className="zalo-link-button zalo-link-button--inline"
                                         target="_blank"
                                         rel="noopener noreferrer"
+                                        onClick={handleHostZaloClick}
                                       >
                                         💬 Zalo
                                       </a>
@@ -2251,6 +2291,10 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 }
                 return entries;
               })();
+              const hostZaloMessage = buildHostZaloMessage(e);
+              const handleHostZaloClick = () => {
+                void copyTextToClipboard(hostZaloMessage);
+              };
               return (
                 <div key={i} className="event-card">
                   <button
@@ -2321,6 +2365,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                                   className="zalo-link-button zalo-link-button--inline"
                                   target="_blank"
                                   rel="noopener noreferrer"
+                                  onClick={handleHostZaloClick}
                                 >
                                   💬 Zalo
                                 </a>
