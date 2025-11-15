@@ -1984,6 +1984,9 @@ export default function Page() {
     gmvCandidateOptions.length >= 2
   );
   const sanitizedPrefillGmv = sanitizeNumericString(prefillValues.gmv);
+  const ocrStatus = prefillModal?.ocrStatus || 'idle';
+  const successMessage = ocrStatus === 'success' ? (prefillModal?.ocrMessage || '') : '';
+  const ocrErrorMessage = ocrStatus === 'error' ? (prefillModal?.ocrError || '') : '';
 
   // Tải ICS cho các ca đang hiển thị (áp dụng filter hiện tại)
   function downloadICSForDay() {
@@ -2646,6 +2649,11 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                     {successMessage && (
                       <div className="prefill-status-message prefill-status-message--success">
                         {successMessage}
+                      </div>
+                    )}
+                    {ocrErrorMessage && (
+                      <div className="prefill-status-message prefill-status-message--error">
+                        {ocrErrorMessage}
                       </div>
                     )}
                   </div>
