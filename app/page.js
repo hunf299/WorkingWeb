@@ -2507,7 +2507,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             <div className="prefill-modal-body">
               {prefillModal.link ? (
                 <div className="prefill-result" role="group" aria-labelledby="prefill-modal-title">
-                  <div className="prefill-result-grid">
                   <div className="prefill-result-item prefill-result-item--email">
   
                     {/* HÀNG 1: Label + nút Sửa */}
@@ -2537,8 +2536,8 @@ Nguồn: Google Sheet ${ev.rawDate}`,
 
                   </div>
 
-                    <div className="prefill-row">
-                      <span className="prefill-result-label">Key live</span>
+                    <div className="prefill-result-item">
+                      <span className="prefill-result-label">Key livestream</span>
                       <span className="prefill-result-value">{prefillValues.keyLivestream || '—'}</span>
                     </div>
                     <div className="prefill-result-item">
@@ -2629,18 +2628,20 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                   </div>
 
                   <div className="prefill-field">
-                    <label htmlFor="prefill-key">Key livestream</label>
-                    <input
-                      id="prefill-key"
-                      type="text"
-                      className="text-input"
-                      placeholder="112025NSN14211H2 - G02"
-                      value={prefillValues.keyLivestream || ''}
-                      onChange={e => handlePrefillFieldChange('keyLivestream', e.target.value)}
-                    />
-                    {prefillFormErrors.keyLivestream && (
-                      <div className="prefill-error">{prefillFormErrors.keyLivestream}</div>
-                    )}
+                    <div className="prefill-row">
+                      <label htmlFor="prefill-key">Key livestream</label>
+                      <input
+                        id="prefill-key"
+                        type="text"
+                        className="text-input"
+                        placeholder="112025NSN14211H2 - G02"
+                        value={prefillValues.keyLivestream || ''}
+                        onChange={e => handlePrefillFieldChange('keyLivestream', e.target.value)}
+                      />
+                      {prefillFormErrors.keyLivestream && (
+                        <div className="prefill-error">{prefillFormErrors.keyLivestream}</div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="prefill-field">
@@ -2682,16 +2683,18 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                   </div>
 
                   <div className="prefill-field">
-                    <label htmlFor="prefill-id1">ID phiên livestream 1</label>
-                    <input
-                      id="prefill-id1"
-                      type="text"
-                      className="text-input"
-                      placeholder="Nhập ID hoặc dán ảnh để lấy ID tự động"
-                      value={prefillValues.id1 || ''}
-                      onChange={e => handlePrefillFieldChange('id1', e.target.value)}
-                    />
-                    {prefillFormErrors.id1 && <div className="prefill-error">{prefillFormErrors.id1}</div>}
+                    <div className="prefill-row">
+                      <label htmlFor="prefill-id1">ID phiên 1</label>
+                      <input
+                        id="prefill-id1"
+                        type="text"
+                        className="text-input"
+                        placeholder="Nhập ID hoặc dán ảnh để lấy ID tự động"
+                        value={prefillValues.id1 || ''}
+                        onChange={e => handlePrefillFieldChange('id1', e.target.value)}
+                      />
+                      {prefillFormErrors.id1 && <div className="prefill-error">{prefillFormErrors.id1}</div>}
+                    </div>
                   </div>
 
                   {showPrefillOptionalId ? (
@@ -2726,16 +2729,18 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                   )}
 
                   <div className="prefill-field">
-                    <label htmlFor="prefill-gmv">GMV</label>
-                    <input
-                      id="prefill-gmv"
-                      type="text"
-                      inputMode="numeric"
-                      className="text-input"
-                      placeholder="27504935"
-                      value={prefillValues.gmv || ''}
-                      onChange={e => handlePrefillFieldChange('gmv', e.target.value)}
-                    />
+                    <div className="prefill-row">
+                      <label htmlFor="prefill-gmv">GMV</label>
+                      <input
+                        id="prefill-gmv"
+                        type="text"
+                        inputMode="numeric"
+                        className="text-input"
+                        placeholder="Nhập GMV hoặc nhập ảnh để tách tự động"
+                        value={prefillValues.gmv || ''}
+                        onChange={e => handlePrefillFieldChange('gmv', e.target.value)}
+                      />
+                    </div>
                     {prefillFormErrors.gmv && <div className="prefill-error">{prefillFormErrors.gmv}</div>}
                     {showGmvCandidatePrompt && (
                       <div className="prefill-gmv-choice">
@@ -2761,18 +2766,20 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                   </div>
 
                   <div className="prefill-field">
-                    <label htmlFor="prefill-start-time">Giờ start time thực tế</label>
-                    <input
-                      id="prefill-start-time"
-                      type="text"
-                      className="text-input"
-                      placeholder="Nov 11 20:05:05"
-                      value={prefillValues.startTimeText || ''}
-                      onChange={e => handlePrefillFieldChange('startTimeText', e.target.value)}
-                    />
-                    {prefillFormErrors.startTimeText && (
-                      <div className="prefill-error">{prefillFormErrors.startTimeText}</div>
-                    )}
+                    <div className="prefill-row">
+                      <label htmlFor="prefill-start-time">Giờ bắt đầu</label>
+                      <input
+                        id="prefill-start-time"
+                        type="text"
+                        className="text-input"
+                        placeholder="Nhập giờ bắt đầu hoặc nhập ảnh để tách tự động"
+                        value={prefillValues.startTimeText || ''}
+                        onChange={e => handlePrefillFieldChange('startTimeText', e.target.value)}
+                      />
+                      {prefillFormErrors.startTimeText && (
+                        <div className="prefill-error">{prefillFormErrors.startTimeText}</div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="prefill-form-actions">
