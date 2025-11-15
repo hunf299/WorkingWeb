@@ -2515,18 +2515,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       <span className="prefill-result-value">
                           {prefillValues.email || '—'}
                         </span>
-                        {prefillModal.emailLocked && (
-                        <button
-                          type="button"
-                          className="prefill-edit-button"
-                          onClick={() => {
-                            resetPrefillToForm();
-                            unlockPrefillEmail();
-                          }}
-                        >
-                          Sửa
-                        </button>
-                      )}
                     </div>
                   </div>
 
