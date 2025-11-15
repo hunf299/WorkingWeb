@@ -2625,7 +2625,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
 
                   <div className="prefill-field">
                     <div className="prefill-row">
-                      <label htmlFor="prefill-ocr">Ảnh báo cáo  </label>
+                      <label htmlFor="prefill-ocr">Ảnh báo cáo</label>
                       <input
                         id="prefill-ocr"
                         type="file"
