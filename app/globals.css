@@ -887,9 +887,16 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   padding-right: 36px;
 }
 .prefill-email-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+}
+.prefill-email-header .prefill-result-label,
+.prefill-email-header button {
+  display: inline-flex !important;
+  white-space: nowrap !important;
 }
 .input-spinner {
   position: absolute;
