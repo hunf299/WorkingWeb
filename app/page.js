@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { parseSlot } from '../lib/parse';
 import { buildICS } from '../lib/ics';
 
@@ -76,7 +76,11 @@ async function copyTextToClipboard(text) {
 
 function buildHostZaloMessage(event) {
   const timeLabel = fmtHM(event.start);
-  const roomLabel = event.room || '-';
+  const parts = Array.isArray(event.roomParts)
+    ? event.roomParts.map(part => part.trim()).filter(Boolean)
+    : [];
+  const fallbackRoom = typeof event.room === 'string' ? event.room.trim() : '';
+  const roomLabel = parts.length ? parts.join(' / ') : (fallbackRoom || '-');
   return `Mình có live lúc '${timeLabel}' ở '${roomLabel}' nha ạ`;
 }
 
@@ -1757,6 +1761,16 @@ export default function Page() {
       if (!matchedDay) continue;
       const slot = parseSlot(it.timeSlot, matchedDay);
       if (!slot) continue;
+      const roomParts = Array.isArray(it.roomParts)
+        ? it.roomParts.map(part => (part || '').toString().trim()).filter(Boolean)
+        : typeof it.room === 'string'
+          ? it.room.split('/').map(part => part.trim()).filter(Boolean)
+          : [];
+      const fallbackRoomRaw = typeof it.room === 'string' ? it.room.trim() : '';
+      const fallbackRoom = fallbackRoomRaw.replace(/\//g, '').trim() ? fallbackRoomRaw : '';
+      const roomLabel = roomParts.length
+        ? roomParts.join(' / ')
+        : fallbackRoom;
       out.push({
         title: it.brandChannel,           // Summary = brandChannel
         start: slot.start,
@@ -1764,7 +1778,8 @@ export default function Page() {
         sessionType: it.sessionType,
         talent1: it.talent1,
         talent2: it.talent2,
-        room: it.room,
+        room: roomLabel,
+        roomParts,
         coor: it.coor,
         keyLivestream: it.keyLivestream,
         platformLabel: it.platform,
@@ -1785,6 +1800,17 @@ export default function Page() {
   }, [rawItems, selectedDateStr, daysToShow]);
 
   const filterOptions = useMemo(() => {
+    if (!isActiveUser) {
+      return {
+        brands: [],
+        times: [],
+        rooms: [],
+        sessionTypes: [],
+        hosts: [],
+        coordinators: []
+      };
+    }
+
     const brands = new Set();
     const times = new Set();
     const rooms = new Set();
@@ -1825,7 +1851,7 @@ export default function Page() {
       hosts: sort(hosts),
       coordinators: sort(coordinators)
     };
-  }, [selectedDayEvents]);
+  }, [selectedDayEvents, isActiveUser]);
 
   const hasActiveFilters = useMemo(
     () => Boolean(filterBrand || filterTime || filterRoom || filterSessionType || filterHost || filterCoordinator),
@@ -1835,6 +1861,7 @@ export default function Page() {
 
   // Áp dụng filter/search (theo text)
   const filteredEvents = useMemo(() => {
+    if (!isActiveUser) return [];
     const q = query.trim().toLowerCase();
     return selectedDayEvents.filter(e => {
       const brand = (e.title || '').trim();
@@ -1867,18 +1894,25 @@ export default function Page() {
       ].join(' ').toLowerCase();
       return hay.includes(q);
     });
-  }, [selectedDayEvents, query, filterBrand, filterTime, filterRoom, filterSessionType, filterHost, filterCoordinator]);
+  }, [selectedDayEvents, query, filterBrand, filterTime, filterRoom, filterSessionType, filterHost, filterCoordinator, isActiveUser]);
 
   // Group theo bucket 2 giờ (dựa trên start time)
+  const deferredFilteredEvents = useDeferredValue(filteredEvents);
+
+  const visibleEvents = useMemo(
+    () => (isActiveUser ? deferredFilteredEvents : []),
+    [isActiveUser, deferredFilteredEvents]
+  );
+
   const groupedSingleDay = useMemo(() => {
     if (daysToShow > 1) return [];
-    return groupEventsByBucket(filteredEvents);
-  }, [filteredEvents, daysToShow]);
+    return groupEventsByBucket(visibleEvents);
+  }, [visibleEvents, daysToShow]);
 
   const groupedMultipleDays = useMemo(() => {
     if (daysToShow <= 1) return [];
     const dayMap = new Map();
-    for (const e of filteredEvents) {
+    for (const e of visibleEvents) {
       if (!dayMap.has(e.dateKey)) {
         dayMap.set(e.dateKey, {
           date: e.date,
@@ -1895,7 +1929,7 @@ export default function Page() {
         dayLabel: day.label,
         buckets: groupEventsByBucket(day.events)
       }));
-  }, [filteredEvents, daysToShow]);
+  }, [visibleEvents, daysToShow]);
 
   const prefillValues = prefillModal?.values || {};
   const prefillFormErrors = prefillModal?.formErrors || {};
@@ -2143,7 +2177,9 @@ Nguồn: Google Sheet ${ev.rawDate}`,
       </div>
 
       {/* Danh sách nhóm theo 2h */}
-      {loading ? (
+      {!isActiveUser ? (
+        <p>Vui lòng đăng nhập để xem lịch làm việc.</p>
+      ) : loading ? (
         <div className="event-card"><i>Đang tải dữ liệu…</i></div>
       ) : daysToShow > 1 ? (
         groupedMultipleDays.length ? (
