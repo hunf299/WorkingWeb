@@ -2643,21 +2643,26 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       />
                     </div>
                     <div className="prefill-hint">Dán ảnh trực tiếp hoặc tải lên tối đa 2 ảnh để tự động tách ID phiên/GMV/Giờ bắt đầu.</div>
-                    {prefillModal.ocrImages?.length > 0 && (
-                      <ul className="prefill-ocr-list">
-                        {prefillModal.ocrImages.map((img, idx) => (
-                          <li key={`${img?.name || 'image'}-${idx}`} className="prefill-ocr-item">
-                            <span className="prefill-ocr-name">{img?.name || `Ảnh ${idx + 1}`}</span>
-                            <button
-                              type="button"
-                              className="prefill-ocr-remove"
-                              onClick={() => handleRemoveOcrImage(idx)}
-                            >
-                              Xóa
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                    // {prefillModal.ocrImages?.length > 0 && (
+                    //   <ul className="prefill-ocr-list">
+                    //     {prefillModal.ocrImages.map((img, idx) => (
+                    //       <li key={`${img?.name || 'image'}-${idx}`} className="prefill-ocr-item">
+                    //         <span className="prefill-ocr-name">{img?.name || `Ảnh ${idx + 1}`}</span>
+                    //         <button
+                    //           type="button"
+                    //           className="prefill-ocr-remove"
+                    //           onClick={() => handleRemoveOcrImage(idx)}
+                    //         >
+                    //           Xóa
+                    //         </button>
+                    //       </li>
+                    //     ))}
+                    //   </ul>
+                    // )}
+                    {successMessage && (
+                      <div className="prefill-status-message prefill-status-message--success">
+                        {successMessage}
+                      </div>
                     )}
                   </div>
 
