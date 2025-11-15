@@ -76,11 +76,13 @@ async function copyTextToClipboard(text) {
 
 function buildHostZaloMessage(event) {
   const timeLabel = fmtHM(event.start);
+  const primaryRoomRaw = typeof event?.primaryRoom === 'string' ? event.primaryRoom.trim() : '';
   const parts = Array.isArray(event.roomParts)
     ? event.roomParts.map(part => part.trim()).filter(Boolean)
     : [];
   const fallbackRoom = typeof event.room === 'string' ? event.room.trim() : '';
-  const roomLabel = parts.length ? parts.join(' / ') : (fallbackRoom || '-');
+  const combinedRoom = parts.length ? parts.join(' / ') : (fallbackRoom || '-');
+  const roomLabel = primaryRoomRaw || combinedRoom;
   return `Mình có live lúc '${timeLabel}' ở '${roomLabel}' nha ạ`;
 }
 
@@ -565,12 +567,12 @@ export default function Page() {
     };
   }, [searchInput]);
 
-  function findHostLink(hostName) {
+  const findHostLink = useCallback(hostName => {
     if (!hostName) return null;
     const normalized = hostName.trim();
     if (!normalized) return null;
     return hostLinkMap.get(normalized.toLowerCase()) || null;
-  }
+  }, [hostLinkMap]);
 
   function countMissingTokens(entryTokens, targetTokens) {
     if (!targetTokens?.size) return 0;
@@ -634,56 +636,73 @@ export default function Page() {
     return Math.max(...comparisons);
   }
 
-  function findBrandLink(brandName) {
-    if (!brandName) return null;
-    const normalized = brandName.trim();
-    if (!normalized) return null;
-    const targetMeta = createBrandMetadata(normalized);
-    const targetTokens = targetMeta.tokens;
+  const findBrandLink = useMemo(() => {
+    const cache = new Map();
+    return brandName => {
+      if (!brandName) return null;
+      const normalized = brandName.trim();
+      if (!normalized) return null;
+      const cacheKey = normalized.toLowerCase();
+      if (cache.has(cacheKey)) {
+        return cache.get(cacheKey);
+      }
+      const targetMeta = createBrandMetadata(normalized);
+      const targetTokens = targetMeta.tokens;
 
-    if (!targetMeta.canonical && !targetMeta.brandCore && !targetTokens.size) {
-      return null;
-    }
+      if (!targetMeta.canonical && !targetMeta.brandCore && !targetTokens.size) {
+        cache.set(cacheKey, null);
+        return null;
+      }
 
-    const scored = normalizedBrandLinks
-      .map(entry => {
-        const similarity = computeEntrySimilarity(entry, targetMeta);
-        const missingTokens = countMissingTokens(entry.tokens, targetTokens);
-        const extraTokens = countExtraTokens(entry.tokens, targetTokens);
-        return { entry, similarity, missingTokens, extraTokens };
-      })
-      .filter(candidate => candidate.similarity > 0 || candidate.missingTokens === 0);
+      const scored = normalizedBrandLinks
+        .map(entry => {
+          const similarity = computeEntrySimilarity(entry, targetMeta);
+          const missingTokens = countMissingTokens(entry.tokens, targetTokens);
+          const extraTokens = countExtraTokens(entry.tokens, targetTokens);
+          return { entry, similarity, missingTokens, extraTokens };
+        })
+        .filter(candidate => candidate.similarity > 0 || candidate.missingTokens === 0);
 
-    if (!scored.length) {
-      return null;
-    }
+      if (!scored.length) {
+        cache.set(cacheKey, null);
+        return null;
+      }
 
-    scored.sort((a, b) => {
-      if (a.missingTokens !== b.missingTokens) return a.missingTokens - b.missingTokens;
-      if (b.similarity !== a.similarity) return b.similarity - a.similarity;
-      if (a.extraTokens !== b.extraTokens) return a.extraTokens - b.extraTokens;
-      const aLen = a.entry.canonical?.length ?? Infinity;
-      const bLen = b.entry.canonical?.length ?? Infinity;
-      return aLen - bLen;
-    });
+      scored.sort((a, b) => {
+        if (a.missingTokens !== b.missingTokens) return a.missingTokens - b.missingTokens;
+        if (b.similarity !== a.similarity) return b.similarity - a.similarity;
+        if (a.extraTokens !== b.extraTokens) return a.extraTokens - b.extraTokens;
+        const aLen = a.entry.canonical?.length ?? Infinity;
+        const bLen = b.entry.canonical?.length ?? Infinity;
+        return aLen - bLen;
+      });
 
-    const best = scored[0];
-    if (!best) return null;
+      const best = scored[0];
+      if (!best) {
+        cache.set(cacheKey, null);
+        return null;
+      }
 
-    if (best.missingTokens > 0 && targetTokens.size) {
-      return null;
-    }
+      if (best.missingTokens > 0 && targetTokens.size) {
+        cache.set(cacheKey, null);
+        return null;
+      }
 
-    if (best.similarity <= 0) {
-      return null;
-    }
+      if (best.similarity <= 0) {
+        cache.set(cacheKey, null);
+        return null;
+      }
 
-    if (best.similarity < 0.3) {
-      return null;
-    }
+      if (best.similarity < 0.3) {
+        cache.set(cacheKey, null);
+        return null;
+      }
 
-    return best.entry.link;
-  }
+      const link = best.entry.link;
+      cache.set(cacheKey, link);
+      return link;
+    };
+  }, [normalizedBrandLinks]);
 
   useEffect(() => () => {
     isMountedRef.current = false;
@@ -1766,6 +1785,7 @@ export default function Page() {
         : typeof it.room === 'string'
           ? it.room.split('/').map(part => part.trim()).filter(Boolean)
           : [];
+      const primaryRoom = typeof it.primaryRoom === 'string' ? it.primaryRoom.trim() : '';
       const fallbackRoomRaw = typeof it.room === 'string' ? it.room.trim() : '';
       const fallbackRoom = fallbackRoomRaw.replace(/\//g, '').trim() ? fallbackRoomRaw : '';
       const roomLabel = roomParts.length
@@ -1780,6 +1800,7 @@ export default function Page() {
         talent2: it.talent2,
         room: roomLabel,
         roomParts,
+        primaryRoom,
         coor: it.coor,
         keyLivestream: it.keyLivestream,
         platformLabel: it.platform,
@@ -1903,6 +1924,28 @@ export default function Page() {
     () => (isActiveUser ? deferredFilteredEvents : []),
     [isActiveUser, deferredFilteredEvents]
   );
+
+  const eventComputedMap = useMemo(() => {
+    const map = new Map();
+    for (const e of visibleEvents) {
+      const seen = new Set();
+      const hostEntries = [];
+      for (const raw of [e.talent1, e.talent2]) {
+        const name = (raw || '').trim();
+        if (!name) continue;
+        const key = name.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        hostEntries.push({ name, link: findHostLink(name) });
+      }
+      map.set(e, {
+        brandLink: findBrandLink(e.title),
+        hostEntries,
+        hostZaloMessage: buildHostZaloMessage(e)
+      });
+    }
+    return map;
+  }, [visibleEvents, findBrandLink, findHostLink]);
 
   const groupedSingleDay = useMemo(() => {
     if (daysToShow > 1) return [];
@@ -2190,21 +2233,12 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 <div key={g.bucket} className="group">
                   <div className="group-head">{g.bucket}</div>
                   {g.items.map((e, i) => {
-                    const brandLink = findBrandLink(e.title);
-                    const hostEntries = (() => {
-                      const entries = [];
-                      const seen = new Set();
-                      for (const raw of [e.talent1, e.talent2]) {
-                        const name = (raw || '').trim();
-                        if (!name) continue;
-                        const key = name.toLowerCase();
-                        if (seen.has(key)) continue;
-                        seen.add(key);
-                        entries.push({ name, link: findHostLink(name) });
-                      }
-                      return entries;
-                    })();
-                    const hostZaloMessage = buildHostZaloMessage(e);
+                    const computed = eventComputedMap.get(e) || {
+                      brandLink: null,
+                      hostEntries: [],
+                      hostZaloMessage: buildHostZaloMessage(e)
+                    };
+                    const { brandLink, hostEntries, hostZaloMessage } = computed;
                     const handleHostZaloClick = () => {
                       void copyTextToClipboard(hostZaloMessage);
                     };
@@ -2313,21 +2347,12 @@ Nguồn: Google Sheet ${ev.rawDate}`,
           <div key={g.bucket} className="group">
             <div className="group-head">{g.bucket}</div>
             {g.items.map((e, i) => {
-              const brandLink = findBrandLink(e.title);
-              const hostEntries = (() => {
-                const entries = [];
-                const seen = new Set();
-                for (const raw of [e.talent1, e.talent2]) {
-                  const name = (raw || '').trim();
-                  if (!name) continue;
-                  const key = name.toLowerCase();
-                  if (seen.has(key)) continue;
-                  seen.add(key);
-                  entries.push({ name, link: findHostLink(name) });
-                }
-                return entries;
-              })();
-              const hostZaloMessage = buildHostZaloMessage(e);
+              const computed = eventComputedMap.get(e) || {
+                brandLink: null,
+                hostEntries: [],
+                hostZaloMessage: buildHostZaloMessage(e)
+              };
+              const { brandLink, hostEntries, hostZaloMessage } = computed;
               const handleHostZaloClick = () => {
                 void copyTextToClipboard(hostZaloMessage);
               };
