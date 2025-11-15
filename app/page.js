@@ -2508,7 +2508,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               {prefillModal.link ? (
                 <div className="prefill-result" role="group" aria-labelledby="prefill-modal-title">
                   <div className="prefill-result-item prefill-result-item--email">
-  
+                    <div className="prefill-result-grid">
                     {/* HÀNG 1: Label + nút Sửa */}
                     <div className="prefill-email-header">
                       <span className="prefill-result-label">Email</span>
