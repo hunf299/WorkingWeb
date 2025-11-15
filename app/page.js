@@ -2509,9 +2509,11 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 <div className="prefill-result" role="group" aria-labelledby="prefill-modal-title">
                   <div className="prefill-result-grid">
                   <div className="prefill-result-item prefill-result-item--email">
-                    <span className="prefill-result-label">Email</span>
-                    <div className="prefill-result-value-row">
-                      <span className="prefill-result-value">{prefillValues.email || '—'}</span>
+  
+                    {/* HÀNG 1: Label + nút Sửa */}
+                    <div className="prefill-email-header">
+                      <span className="prefill-result-label">Email</span>
+
                       {prefillModal.emailLocked && (
                         <button
                           type="button"
@@ -2525,7 +2527,16 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                         </button>
                       )}
                     </div>
+
+                    {/* HÀNG 2: Giá trị email */}
+                      <div className="prefill-email-value">
+                        <span className="prefill-result-value">
+                          {prefillValues.email || '—'}
+                        </span>
+                      </div>
+
                   </div>
+
                     <div className="prefill-result-item">
                       <span className="prefill-result-label">Key livestream</span>
                       <span className="prefill-result-value">{prefillValues.keyLivestream || '—'}</span>
@@ -2633,23 +2644,58 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                   </div>
 
                   <div className="prefill-field">
-                    <label htmlFor="prefill-ocr">Ảnh báo cáo (tự OCR)</label>
-                    <input
-                      id="prefill-ocr"
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={event => {
-                        const files = event.target.files
-                          ? Array.from(event.target.files).filter(Boolean)
-                          : [];
-                        if (files.length) {
-                          handlePrefillOcr(files);
-                        }
-                        event.target.value = '';
-                      }}
-                    />
-                    <div className="prefill-hint">Dán ảnh (Ctrl+V hoặc Cmd+V) hoặc tải lên tối đa 2 ảnh (ảnh GMV và ảnh link dashboard).</div>
+                    <div className="prefill-row">
+                      <label htmlFor="prefill-ocr">Ảnh báo cáo</label>
+                      {/* Nút dán ảnh */}
+                      <button
+                        type="button"
+                        className="paste-btn"
+                        onClick={async () => {
+                          try {
+                            const clipboardItems = await navigator.clipboard.read();
+                            const imageItems = clipboardItems.filter(item =>
+                              item.types.some(t => t.startsWith("image/"))
+                            );
+
+                            if (imageItems.length === 0) {
+                              alert("Clipboard không có ảnh!");
+                              return;
+                            }
+
+                            const blobs = await Promise.all(
+                              imageItems.map(async item => {
+                                const type = item.types.find(t => t.startsWith("image/"));
+                                return new File([await item.getType(type)], "pasted-image.png", {
+                                  type
+                                });
+                              })
+                            );
+
+                            handlePrefillOcr(blobs);
+                          } catch (err) {
+                            alert("Trình duyệt không hỗ trợ dán ảnh từ clipboard.");
+                          }
+                        }}
+                      >
+                        Dán ảnh
+                      </button>
+                      <input
+                        id="prefill-ocr"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={event => {
+                          const files = event.target.files
+                            ? Array.from(event.target.files).filter(Boolean)
+                            : [];
+                          if (files.length) {
+                            handlePrefillOcr(files);
+                          }
+                          event.target.value = '';
+                        }}
+                      />
+                    </div>
+                    <div className="prefill-hint">Nhấn nút dán ảnh hoặc tải lên tối đa 2 ảnh để tự động tách ID phiên/GMV/Giờ bắt đầu.</div>
                     {prefillModal.ocrImages?.length > 0 && (
                       <ul className="prefill-ocr-list">
                         {prefillModal.ocrImages.map((img, idx) => (
