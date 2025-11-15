@@ -83,7 +83,7 @@ function buildHostZaloMessage(event) {
   const fallbackRoom = typeof event.room === 'string' ? event.room.trim() : '';
   const combinedRoom = parts.length ? parts.join(' / ') : (fallbackRoom || '-');
   const roomLabel = primaryRoomRaw || combinedRoom;
-  return `Mình có live lúc ${timeLabel} ở ${roomLabel} nha ạ`;
+  return `Mình có live lúc ${timeLabel} ở ${roomLabel} nha `;
 }
 
 /** lấy nhãn bucket 2 giờ cho 1 Date (ví dụ 08:xx -> "08:00–10:00") */
