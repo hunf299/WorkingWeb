@@ -33,18 +33,28 @@ export default async function handler(req, res) {
         fetchSheetValues(SHEET_ID_2 || SHEET_ID, SHEET_RANGE_BRAND)
     ]);
 
-    const items = itemRows.slice(1).map(r => ({
-        rawDate: r[0] || '',
-        brandChannel: r[1] || '',
-        sessionType: r[2] || '',
-        timeSlot: r[3] || '',
-        talent1: r[4] || '',
-        talent2: r[5] || '',
-        coor: `${r[6] || ''} - ${r[7] || ''}`,
-        room: `${r[8] || ''} / ${r[9] || ''} / ${r[10] || ''}`,
-        keyLivestream: r[11] || '',
-        platform: (r[12] || '').toString().trim()
-    }));
+    const items = itemRows.slice(1).map(r => {
+        const coorParts = [r[6], r[7]]
+            .map(value => (value ?? '').toString().trim())
+            .filter(Boolean);
+        const roomParts = [r[8], r[9], r[10]]
+            .map(value => (value ?? '').toString().trim())
+            .filter(Boolean);
+
+        return {
+            rawDate: r[0] || '',
+            brandChannel: r[1] || '',
+            sessionType: r[2] || '',
+            timeSlot: r[3] || '',
+            talent1: r[4] || '',
+            talent2: r[5] || '',
+            coor: coorParts.join(' - '),
+            room: roomParts.join(' / '),
+            roomParts,
+            keyLivestream: r[11] || '',
+            platform: (r[12] || '').toString().trim()
+        };
+    });
 
     const hostLinks = hostRows.slice(1).map(r => ({
         name: (r[0] || '').toString().trim(),
