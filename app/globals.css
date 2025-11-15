@@ -858,6 +858,20 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
     padding: 20px 16px;
     gap: 16px;
   }
+
+  .prefill-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .prefill-row > label {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .prefill-row > *:not(label) {
+    width: 100%;
+  }
 }
 
 .prefill-form {
@@ -872,11 +886,22 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   gap: 8px;
 }
 
-.prefill-field-control {
+.prefill-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
+
+.prefill-row > label {
+  min-width: 140px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.prefill-row > *:not(label) {
+  flex: 1;
+}
+
 .prefill-email-wrapper {
   position: relative;
   flex: 1;
