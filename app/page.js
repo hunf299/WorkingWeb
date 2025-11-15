@@ -2511,7 +2511,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                     <div className="prefill-result-grid">
                     {/* HÀNG 1: Label + nút Sửa */}
                     <div className="prefill-email-header">
-                      <span className="prefill-result-label">Email</span>
+                      <span className="prefill-result-label">  Email  </span>
                       <span className="prefill-result-value">
                           {prefillValues.email || '—'}
                         </span>
