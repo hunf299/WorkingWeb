@@ -2457,7 +2457,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
       {prefillModal && (
   <div
     className="modal-backdrop prefill-modal-backdrop"
-    onClick={closePrefillModal}
   >
     <div
       className="modal-card prefill-modal-card"
