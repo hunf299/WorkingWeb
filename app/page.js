@@ -2512,8 +2512,14 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                     {/* HÀNG 1: Label + nút Sửa */}
                     <div className="prefill-email-header">
                       <span className="prefill-result-label">Email</span>
+                    </div>
 
-                      {prefillModal.emailLocked && (
+                    {/* HÀNG 2: Giá trị email */}
+                      <div className="prefill-email-value">
+                        <span className="prefill-result-value">
+                          {prefillValues.email || '—'}
+                        </span>
+                        {prefillModal.emailLocked && (
                         <button
                           type="button"
                           className="prefill-edit-button"
@@ -2525,13 +2531,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                           Sửa
                         </button>
                       )}
-                    </div>
-
-                    {/* HÀNG 2: Giá trị email */}
-                      <div className="prefill-email-value">
-                        <span className="prefill-result-value">
-                          {prefillValues.email || '—'}
-                        </span>
                       </div>
 
                   </div>
