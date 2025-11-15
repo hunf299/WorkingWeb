@@ -858,6 +858,23 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
     padding: 20px 16px;
     gap: 16px;
   }
+
+  .prefill-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .prefill-row > label {
+    min-width: 110px;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .prefill-row > *:not(label) {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
 }
 
 .prefill-form {
@@ -872,11 +889,23 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   gap: 8px;
 }
 
-.prefill-field-control {
+.prefill-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 12px;
 }
+
+.prefill-row > label {
+  min-width: 140px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.prefill-row > *:not(label) {
+  flex: 1;
+}
+
 .prefill-email-wrapper {
   position: relative;
   flex: 1;
@@ -1228,9 +1257,12 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
     background: rgba(59, 130, 246, 0.15);
     color: #bfdbfe;
   }
-  .prefill-gmv-option-button {
+  .prefill-gmv-option-button { 
     background: #111827;
     border-color: #374151;
+    color: #e5e7eb;
+  }
+  .prefill-row > label {
     color: #e5e7eb;
   }
   .prefill-gmv-option-button:hover,
