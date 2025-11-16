@@ -2454,6 +2454,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               </svg>
               <span className="icon-button-label" aria-hidden="true">Sửa nhắc live</span>
             </button>
+            <HelpButton onClick={openHelpModal} disabled={loggingIn} />
             <button
               type="button"
               className="icon-button icon-button--with-label"
