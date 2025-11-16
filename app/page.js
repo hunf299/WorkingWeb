@@ -613,17 +613,15 @@ const HELP_TABS = [
             <p>Tại mỗi ca làm, bạn sẽ thấy nút: “Điền report” (biểu tượng cây bút). Nhấn vào nút để mở cửa sổ nhập liệu report.</p>
           </li>
           <li>
-            <p>Giao diện nhập thông tin report</p>
-            <p>Sau khi mở, bạn sẽ thấy giao diện "Điền Google Form" với các thông tin:</p>
+            <p>Giao diện nhập thông tin report "Điền Google Form" với các thông tin:</p>
             <p>🔹 Thông tin phiên live: Brand – Nền tảng, Ngày, Giờ live</p>
             <p>🔹 Các ô nhập dữ liệu</p>
             <ol>
               <li>Email → Tự điền vào lần đầu nhập liệu, các lần sau thông tin sẽ được hiển thị tự động</li>
               <li>Key live → Tự lấy từ dữ liệu hệ thống.</li>
               <li>
-                Ảnh báo cáo → Bạn có thể:
+                Ảnh báo cáo → Bạn có thể nhấn chọn tập tin để tải lên hoặc dán trực tiếp ảnh vào:
                 <ul>
-                  <li>Nhấn Chọn tập tin để tải lên hoặc dán trực tiếp ảnh vào</li>
                   <li>
                     Lưu ý về ảnh hợp lệ để tách thông tin:
                     <ul>
@@ -640,9 +638,7 @@ const HELP_TABS = [
                   </li>
                 </ul>
               </li>
-              <li>ID phiên 1 / ID phiên 2: Có thể nhập thủ công hoặc để hệ thống tự tách từ ảnh</li>
-              <li>GMV: Nhập thủ công hoặc để hệ thống tự nhận dạng từ ảnh.</li>
-              <li>Giờ bắt đầu: Tự động tách khi dán ảnh hoặc nhập theo định dạng thời gian</li>
+              <li>ID phiên 1 / GMV / Giờ bắt đầu: Có thể nhập thủ công hoặc để hệ thống tự tách từ ảnh</li>
             </ol>
             <p>Hệ thống sẽ hiển thị thông báo màu xanh: “Đã trích xuất ID phiên, GMV và giờ bắt đầu.” (nếu ảnh hợp lệ)</p>
             <div className="help-image-grid">
