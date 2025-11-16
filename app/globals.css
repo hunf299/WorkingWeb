@@ -431,14 +431,17 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   text-transform: none;
   white-space: nowrap;
   opacity: 0;
+  max-width: 0;
+  overflow: hidden;
   margin-left: 0;
-  transition: opacity .2s ease, margin-left .2s ease;
+  transition: opacity .2s ease, margin-left .2s ease, max-width .2s ease;
 }
 
 .prefill-trigger:hover .prefill-trigger-label,
 .prefill-trigger:focus-visible .prefill-trigger-label {
   opacity: 1;
   margin-left: 6px;
+  max-width: 120px;
 }
 
 /* Title to */

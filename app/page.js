@@ -74,7 +74,6 @@ async function copyTextToClipboard(text) {
   return success;
 }
 
-const HOST_TEMPLATE_STORAGE_KEY = 'host_script_template';
 const DEFAULT_HOST_MESSAGE_TEMPLATE = 'Mình có live lúc Time ở Room nha';
 
 function applyHostMessageTemplate(template, timeLabel, roomLabel) {
@@ -514,21 +513,23 @@ export default function Page() {
   const [hostScriptTemplate, setHostScriptTemplate] = useState(DEFAULT_HOST_MESSAGE_TEMPLATE);
   const [showHostScriptModal, setShowHostScriptModal] = useState(false);
   const [hostScriptDraft, setHostScriptDraft] = useState(DEFAULT_HOST_MESSAGE_TEMPLATE);
+  const [hostScriptSaving, setHostScriptSaving] = useState(false);
+  const [hostScriptSaveError, setHostScriptSaveError] = useState('');
   const isActiveUser = trialUser?.status === 'active';
   const calendarCardBodyId = 'calendar-card-fields';
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const stored = window.localStorage.getItem(HOST_TEMPLATE_STORAGE_KEY);
-      if (typeof stored === 'string' && stored.trim()) {
-        setHostScriptTemplate(stored);
-        setHostScriptDraft(stored);
-      }
-    } catch (err) {
-      // ignore
-    }
-  }, []);
+    const storedScript = typeof trialUser?.script === 'string' ? trialUser.script : '';
+    const normalized = storedScript.trim() || DEFAULT_HOST_MESSAGE_TEMPLATE;
+    setHostScriptTemplate(normalized);
+  }, [trialUser?.script]);
+
+  useEffect(() => {
+    if (showHostScriptModal) return;
+    const storedScript = typeof trialUser?.script === 'string' ? trialUser.script : '';
+    const normalized = storedScript.trim() || DEFAULT_HOST_MESSAGE_TEMPLATE;
+    setHostScriptDraft(normalized);
+  }, [trialUser?.script, showHostScriptModal]);
 
   const updateSearch = useCallback((value, options = {}) => {
     const nextValue = typeof value === 'string' ? value : '';
@@ -544,28 +545,55 @@ export default function Page() {
 
   const openHostScriptModal = useCallback(() => {
     setHostScriptDraft(hostScriptTemplate);
+    setHostScriptSaveError('');
     setShowHostScriptModal(true);
   }, [hostScriptTemplate]);
 
   const closeHostScriptModal = useCallback(() => {
+    setHostScriptSaveError('');
     setShowHostScriptModal(false);
   }, []);
 
-  const handleSaveHostScriptTemplate = useCallback(event => {
+  const handleSaveHostScriptTemplate = useCallback(async event => {
     event?.preventDefault?.();
     const normalized = hostScriptDraft.trim() || DEFAULT_HOST_MESSAGE_TEMPLATE;
-    setHostScriptTemplate(normalized);
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem(HOST_TEMPLATE_STORAGE_KEY, normalized);
-      } catch (err) {
-        // ignore write errors
-      }
+    setHostScriptSaveError('');
+    if (!trialUser?.user_id) {
+      setHostScriptSaveError('Không tìm thấy thông tin người dùng để lưu script.');
+      return;
     }
-    setShowHostScriptModal(false);
-  }, [hostScriptDraft]);
+    setHostScriptSaving(true);
+    try {
+      const response = await fetch('/api/trial-users/script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ script: normalized })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || payload?.ok !== true) {
+        const message = typeof payload?.error === 'string'
+          ? payload.error
+          : 'Không lưu được script.';
+        throw new Error(message);
+      }
+      const savedScript = typeof payload?.script === 'string' && payload.script.trim()
+        ? payload.script
+        : normalized;
+      setHostScriptTemplate(savedScript);
+      setTrialUser(prev => (prev ? { ...prev, script: savedScript } : prev));
+      setShowHostScriptModal(false);
+    } catch (err) {
+      const message = typeof err?.message === 'string'
+        ? err.message
+        : 'Không lưu được script.';
+      setHostScriptSaveError(message);
+    } finally {
+      setHostScriptSaving(false);
+    }
+  }, [hostScriptDraft, trialUser?.user_id, setTrialUser]);
 
   const handleResetHostScriptDraft = useCallback(() => {
+    setHostScriptSaveError('');
     setHostScriptDraft(DEFAULT_HOST_MESSAGE_TEMPLATE);
   }, []);
 
@@ -2109,8 +2137,8 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               className="icon-button icon-button--with-label"
               onClick={openHostScriptModal}
               disabled={loggingIn}
-              aria-label="Cá nhân hoá script nhắc live"
-              title="Cá nhân hoá script nhắc live"
+              aria-label="Sửa nhắc live"
+              title="Sửa nhắc live"
             >
               <svg
                 aria-hidden="true"
@@ -2132,7 +2160,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                   d="M4.5 19.5a8.25 8.25 0 0115 0"
                 />
               </svg>
-              <span className="icon-button-label" aria-hidden="true">Cá nhân hoá</span>
+              <span className="icon-button-label" aria-hidden="true">Sửa nhắc live</span>
             </button>
             <button
               type="button"
@@ -2199,7 +2227,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
           <div className="calendar-card-actions">
             <button
               type="button"
-              className="icon-button calendar-card-action"
+              className="icon-button icon-button--with-label calendar-card-action"
               onClick={downloadICSForDay}
               disabled={!isActiveUser}
               aria-label="Tải lịch đang xem (.ics)"
@@ -2230,7 +2258,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                   d="M12 4.5v11.25"
                 />
               </svg>
-              <span className="sr-only">Tải lịch đang xem (.ics)</span>
+              <span className="icon-button-label" aria-hidden="true">Tải lịch</span>
             </button>
             <button
               type="button"
@@ -2908,16 +2936,20 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 </div>
                 <div className="host-script-preview-meta">(Time = 20:00, Room = Studio A)</div>
               </div>
+              {hostScriptSaveError && (
+                <div className="modal-error">{hostScriptSaveError}</div>
+              )}
               <div className="host-script-modal-actions">
                 <button
                   type="button"
                   className="btn ghost"
                   onClick={handleResetHostScriptDraft}
+                  disabled={hostScriptSaving}
                 >
                   Khôi phục mặc định
                 </button>
-                <button type="submit" className="btn">
-                  Lưu
+                <button type="submit" className="btn" disabled={hostScriptSaving}>
+                  {hostScriptSaving ? 'Đang lưu…' : 'Lưu'}
                 </button>
               </div>
             </form>
