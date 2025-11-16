@@ -610,8 +610,7 @@ const HELP_TABS = [
         <ol className="help-numbered">
           <li>
             <p>Mở chức năng điền report</p>
-            <p>Tại mỗi ca làm, bạn sẽ thấy nút: “Điền report” (biểu tượng cây bút)</p>
-            <p>Nhấn vào nút để mở cửa sổ nhập liệu report.</p>
+            <p>Tại mỗi ca làm, bạn sẽ thấy nút: “Điền report” (biểu tượng cây bút). Nhấn vào nút để mở cửa sổ nhập liệu report.</p>
           </li>
           <li>
             <p>Giao diện nhập thông tin report</p>
@@ -624,16 +623,15 @@ const HELP_TABS = [
               <li>
                 Ảnh báo cáo → Bạn có thể:
                 <ul>
-                  <li>Nhấn Chọn tập tin để tải lên</li>
-                  <li>Hoặc dán trực tiếp ảnh vào</li>
+                  <li>Nhấn Chọn tập tin để tải lên hoặc dán trực tiếp ảnh vào</li>
                   <li>
                     Lưu ý về ảnh hợp lệ để tách thông tin:
                     <ul>
                       <li>
-                        SHP: ảnh 1 là ảnh chụp link dashboard + Doanh thu (đ), ảnh 2 là giờ bắt đầu. (Bạn chèn giúp mình ví dụ minh học cho ảnh 1 là file SHP_pic1 và ảnh 2 là file SHP_pic2 trong thư mục tổng của project)
+                        SHP: ảnh 1 là ảnh chụp link dashboard + Doanh thu (đ), ảnh 2 là giờ bắt đầu. 
                       </li>
                       <li>
-                        TTS: ảnh 1 là ảnh chụp link dashboard, ảnh 2 là ảnh chụp giờ bắt đầu + GMV (đ). (Bạn chèn giúp mình ví dụ minh học cho ảnh 1 là file TTS_pic1 và ảnh 2 là file TTS_pic2 trong thư mục tổng của project)
+                        TTS: ảnh 1 là ảnh chụp link dashboard, ảnh 2 là ảnh chụp giờ bắt đầu + GMV (đ). 
                       </li>
                     </ul>
                   </li>
@@ -649,20 +647,20 @@ const HELP_TABS = [
             <p>Hệ thống sẽ hiển thị thông báo màu xanh: “Đã trích xuất ID phiên, GMV và giờ bắt đầu.” (nếu ảnh hợp lệ)</p>
             <div className="help-image-grid">
               <figure>
+                <figcaption>SHP_Ảnh 1</figcaption>
                 <Image src={SHPPic1} alt="Ví dụ ảnh SHP_pic1" />
-                <figcaption>SHP_pic1</figcaption>
               </figure>
               <figure>
+                <figcaption>SHP_Ảnh 2</figcaption>
                 <Image src={SHPPic2} alt="Ví dụ ảnh SHP_pic2" />
-                <figcaption>SHP_pic2</figcaption>
               </figure>
               <figure>
+                <figcaption>TTS_Ảnh 2</figcaption>
                 <Image src={TTSPic1} alt="Ví dụ ảnh TTS_pic1" />
-                <figcaption>TTS_pic1</figcaption>
               </figure>
               <figure>
+                <figcaption>TTS_Ảnh 2</figcaption>
                 <Image src={TTSPic2} alt="Ví dụ ảnh TTS_pic2" />
-                <figcaption>TTS_pic2</figcaption>
               </figure>
             </div>
           </li>
