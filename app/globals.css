@@ -27,6 +27,12 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
 
 .page-header h1 { margin-bottom: 0; }
 
+.page-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .icon-button {
   background: transparent;
   border: 1px solid transparent;
@@ -39,6 +45,46 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   justify-content: center;
   cursor: pointer;
   transition: background-color .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.icon-button--with-label {
+  min-width: 40px;
+  width: 40px;
+  padding-inline: 0;
+  overflow: hidden;
+  gap: 0;
+}
+
+.icon-button--with-label .icon {
+  transition: margin-right .2s ease;
+}
+
+.icon-button-label {
+  font-size: .85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  max-width: 0;
+  margin-left: 0;
+  transition: opacity .2s ease, max-width .2s ease, margin-left .2s ease;
+}
+
+.icon-button--with-label:hover,
+.icon-button--with-label:focus-visible {
+  width: auto;
+  padding-inline: 14px;
+}
+
+.icon-button--with-label:hover .icon,
+.icon-button--with-label:focus-visible .icon {
+  margin-right: 8px;
+}
+
+.icon-button--with-label:hover .icon-button-label,
+.icon-button--with-label:focus-visible .icon-button-label {
+  opacity: 1;
+  max-width: 200px;
+  margin-left: 4px;
 }
 
 .icon-button:hover {
@@ -344,6 +390,7 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   position: absolute;
   top: 12px;
   right: 12px;
+  min-width: 36px;
   width: 36px;
   height: 36px;
   border-radius: 999px;
@@ -354,7 +401,10 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   justify-content: center;
   color: #1f2937;
   cursor: pointer;
-  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+  overflow: hidden;
+  gap: 0;
+  padding: 0;
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease, padding .2s ease;
 }
 
 .prefill-trigger:hover,
@@ -362,6 +412,7 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   background: #eef2ff;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
   transform: translateY(-1px);
+  padding: 0 12px;
 }
 
 .prefill-trigger:focus-visible {
@@ -372,6 +423,25 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
 .prefill-trigger-icon {
   width: 18px;
   height: 18px;
+}
+
+.prefill-trigger-label {
+  font-size: .8rem;
+  font-weight: 600;
+  text-transform: none;
+  white-space: nowrap;
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  margin-left: 0;
+  transition: opacity .2s ease, margin-left .2s ease, max-width .2s ease;
+}
+
+.prefill-trigger:hover .prefill-trigger-label,
+.prefill-trigger:focus-visible .prefill-trigger-label {
+  opacity: 1;
+  margin-left: 6px;
+  max-width: 120px;
 }
 
 /* Title to */
@@ -631,6 +701,10 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   max-width: 720px;
 }
 
+.host-script-modal-card {
+  max-width: 520px;
+}
+
 .modal-card h2 {
   font-size: 1.2rem;
   font-weight: 700;
@@ -641,6 +715,62 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   font-size: .95rem;
   color: #4b5563;
   margin-bottom: 16px;
+}
+
+.host-script-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.host-script-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.host-script-label {
+  font-weight: 600;
+  color: #374151;
+}
+
+.host-script-textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.host-script-preview {
+  background: #f3f4f6;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: .9rem;
+  color: #1f2937;
+}
+
+.host-script-preview-label {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.host-script-preview-value {
+  word-break: break-word;
+}
+
+.host-script-preview-meta {
+  margin-top: 6px;
+  font-size: .8rem;
+  color: #6b7280;
+}
+
+.host-script-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.host-script-modal-actions .btn {
+  width: auto;
 }
 
 .modal-form {
