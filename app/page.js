@@ -1,8 +1,15 @@
 'use client';
 
+import Image from 'next/image';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { parseSlot } from '../lib/parse';
 import { buildICS } from '../lib/ics';
+import HelpButton from './components/HelpButton';
+import HelpModal from './components/HelpModal';
+import SHPPic1 from '../SHP_pic1.png';
+import SHPPic2 from '../SHP_pic2.png';
+import TTSPic1 from '../TTS_pic1.jpeg';
+import TTSPic2 from '../TTS_pic2.jpg';
 
 function toYMD(d) {
   const y = d.getFullYear();
@@ -480,6 +487,248 @@ function createBrandMetadata(label) {
   };
 }
 
+const HELP_TABS = [
+  {
+    id: 'quick-guide',
+    label: 'Hướng dẫn nhanh',
+    content: (
+      <div className="help-tab-panel">
+        <ol className="help-numbered">
+          <li>
+            <p>Truy cập và tìm lịch bằng tên</p>
+            <p>Khi vào trang, bạn sẽ thấy cửa sổ yêu cầu nhập tên.</p>
+            <p>Bước 1: Nhập tên của bạn vào ô “Ví dụ: Nguyễn Văn A”.</p>
+            <p>Bước 2: Nhấn Xác thực để tiếp tục.</p>
+          </li>
+          <li>
+            <p>Màn hình xem lịch làm việc</p>
+            <p>Sau khi nhập tên, hệ thống sẽ hiển thị:</p>
+            <ul>
+              <li>Thanh tìm kiếm tên</li>
+              <li>Nút tải lịch</li>
+              <li>Nút sửa script nhắc live / Đăng xuất</li>
+            </ul>
+            <p>
+              Bạn có thể đổi ngày hoặc áp dụng bộ lọc để xem lịch theo nhu cầu qua nút mở rộng bên cạnh nút tải lịch.
+            </p>
+          </li>
+          <li>
+            <p>Xem chi tiết ca làm</p>
+            <p>Lịch được chia theo từng khung 2 giờ</p>
+            <ul>
+              <li>✏️ Chỉnh sửa script nhắc live</li>
+              <li>📄 Điền report</li>
+            </ul>
+          </li>
+          <li>
+            <p>Tải lịch</p>
+            <p>Nhấn nút Tải lịch (biểu tượng download) để xuất lịch làm việc theo ngày</p>
+          </li>
+          <li>
+            <p>Quản lý tài khoản</p>
+            <p>Ở góc trên cùng bên phải:</p>
+            <ul>
+              <li>Biểu tượng người dùng: chỉnh sửa script nhắc live</li>
+              <li>Đăng xuất: thoát khỏi hệ thống</li>
+            </ul>
+          </li>
+          <li>
+            <p>Điền report ca làm</p>
+            <ul>
+              <li>Nhấn để mở công cụ tự động điền form báo cáo</li>
+              <li>Hoàn thành theo yêu cầu của từng ca</li>
+            </ul>
+          </li>
+        </ol>
+      </div>
+    )
+  },
+  {
+    id: 'view-schedule',
+    label: 'Xem lịch',
+    content: (
+      <div className="help-tab-panel">
+        <ol className="help-numbered">
+          <li>
+            <p>Ô tìm kiếm nâng cao</p>
+            <p>
+              Ở đầu màn hình có thanh tìm kiếm cho phép bạn tìm nhanh theo nhiều tiêu chí: Brand, Session, Talent, Room, Coordinator
+            </p>
+            <p>👉 Chỉ cần nhập từ khóa bất kỳ, hệ thống sẽ hiển thị chính xác các ca liên quan.</p>
+          </li>
+          <li>
+            <p>Chọn ngày</p>
+            <p>Bạn có thể chọn ngày bắt đầu xem lịch trong tuỳ chọn mở rộng (mũi tên) bằng cách:</p>
+            <ol>
+              <li>Nhấn vào ô Ngày</li>
+              <li>Lịch dạng popup sẽ xuất hiện</li>
+              <li>Chọn ngày mong muốn</li>
+              <li>Nhấn Xóa nếu muốn bỏ chọn</li>
+            </ol>
+          </li>
+          <li>
+            <p>Chọn số ngày muốn xem</p>
+            <p>
+              Ngay bên cạnh ô ngày là tùy chọn số ngày: 1 ngày, 2 ngày, 3 ngày, 4 ngày, 5 ngày, 6 ngày, 7 ngày, 15 ngày, 1 tháng
+            </p>
+            <p>👉 Chọn số ngày để hệ thống hiển thị lịch liên tục theo khoảng bạn mong muốn.</p>
+          </li>
+          <li>
+            <p>Bộ lọc chi tiết</p>
+            <p>
+              Nhấn nút Bộ lọc trong tuỳ chọn mở rộng (mũi tên) để thu hẹp kết quả theo các thông tin chuyên sâu: Khung giờ, Brand, Session, Talent, Room, Coordinator
+            </p>
+            <p>Bạn có thể:</p>
+            <ul>
+              <li>Nhấn Xóa bộ lọc để làm mới</li>
+              <li>Nhấn Xong để áp dụng</li>
+            </ul>
+          </li>
+          <li>
+            <p>Tải lịch</p>
+            <p>Ở góc phải có nút Tải lịch: Nhấn một lần để tải lịch theo khoảng bạn đã chọn</p>
+          </li>
+          <li>
+            <p>Giao diện lịch làm việc</p>
+            <p>
+              Sau khi nhập tên hoặc tìm kiếm, màn hình sẽ hiển thị danh sách các ca của mỗi người dùng theo từng khung giờ:
+            </p>
+            <p>
+              Mỗi ca gồm: Tên brand + nền tảng (Shopee, TikTok…), Thời gian, Địa điểm, Session type, Host, Coordinator
+            </p>
+            <p>Các ca được nhóm rõ ràng theo mốc thời gian 2 giờ</p>
+          </li>
+        </ol>
+      </div>
+    )
+  },
+  {
+    id: 'report',
+    label: 'Điền report',
+    content: (
+      <div className="help-tab-panel">
+        <ol className="help-numbered">
+          <li>
+            <p>Mở chức năng điền report</p>
+            <p>Tại mỗi ca làm, bạn sẽ thấy nút: “Điền report” (biểu tượng cây bút)</p>
+            <p>Nhấn vào nút để mở cửa sổ nhập liệu report.</p>
+          </li>
+          <li>
+            <p>Giao diện nhập thông tin report</p>
+            <p>Sau khi mở, bạn sẽ thấy giao diện "Điền Google Form" với các thông tin:</p>
+            <p>🔹 Thông tin phiên live: Brand – Nền tảng, Ngày, Giờ live</p>
+            <p>🔹 Các ô nhập dữ liệu</p>
+            <ol>
+              <li>Email → Tự điền vào lần đầu nhập liệu, các lần sau thông tin sẽ được hiển thị tự động</li>
+              <li>Key live → Tự lấy từ dữ liệu hệ thống.</li>
+              <li>
+                Ảnh báo cáo → Bạn có thể:
+                <ul>
+                  <li>Nhấn Chọn tập tin để tải lên</li>
+                  <li>Hoặc dán trực tiếp ảnh vào</li>
+                  <li>
+                    Lưu ý về ảnh hợp lệ để tách thông tin:
+                    <ul>
+                      <li>
+                        SHP: ảnh 1 là ảnh chụp link dashboard + Doanh thu (đ), ảnh 2 là giờ bắt đầu. (Bạn chèn giúp mình ví dụ minh học cho ảnh 1 là file SHP_pic1 và ảnh 2 là file SHP_pic2 trong thư mục tổng của project)
+                      </li>
+                      <li>
+                        TTS: ảnh 1 là ảnh chụp link dashboard, ảnh 2 là ảnh chụp giờ bắt đầu + GMV (đ). (Bạn chèn giúp mình ví dụ minh học cho ảnh 1 là file TTS_pic1 và ảnh 2 là file TTS_pic2 trong thư mục tổng của project)
+                      </li>
+                    </ul>
+                  </li>
+                  <li>
+                    ⚠️ Hệ thống hỗ trợ tối đa 2 ảnh để tự động tách các thông tin trên và ảnh chụp chỉ chứa các trường cần nhập (không để lọt số khác vào ảnh).
+                  </li>
+                </ul>
+              </li>
+              <li>ID phiên 1 / ID phiên 2: Có thể nhập thủ công hoặc để hệ thống tự tách từ ảnh</li>
+              <li>GMV: Nhập thủ công hoặc để hệ thống tự nhận dạng từ ảnh.</li>
+              <li>Giờ bắt đầu: Tự động tách khi dán ảnh hoặc nhập theo định dạng thời gian</li>
+            </ol>
+            <p>Hệ thống sẽ hiển thị thông báo màu xanh: “Đã trích xuất ID phiên, GMV và giờ bắt đầu.” (nếu ảnh hợp lệ)</p>
+            <div className="help-image-grid">
+              <figure>
+                <Image src={SHPPic1} alt="Ví dụ ảnh SHP_pic1" />
+                <figcaption>SHP_pic1</figcaption>
+              </figure>
+              <figure>
+                <Image src={SHPPic2} alt="Ví dụ ảnh SHP_pic2" />
+                <figcaption>SHP_pic2</figcaption>
+              </figure>
+              <figure>
+                <Image src={TTSPic1} alt="Ví dụ ảnh TTS_pic1" />
+                <figcaption>TTS_pic1</figcaption>
+              </figure>
+              <figure>
+                <Image src={TTSPic2} alt="Ví dụ ảnh TTS_pic2" />
+                <figcaption>TTS_pic2</figcaption>
+              </figure>
+            </div>
+          </li>
+          <li>
+            <p>Tạo link Form</p>
+            <p>Sau khi điền toàn bộ thông tin:</p>
+            <p>👉 Nhấn “Tạo link”</p>
+            <p>Hệ thống lập tức mở giao diện mới hiển thị:</p>
+            <ul>
+              <li>Sửa: Chỉnh lại thông tin và tạo link lại.</li>
+              <li>Copy link: Copy link điền form.</li>
+              <li>Mở form: Mở trực tiếp Google Form với dữ liệu đã được điền sẵn.</li>
+              <li>Đóng: Thoát giao diện report.</li>
+            </ul>
+          </li>
+        </ol>
+      </div>
+    )
+  },
+  {
+    id: 'zalo',
+    label: 'Group Zalo',
+    content: (
+      <div className="help-tab-panel">
+        <ol className="help-numbered">
+          <li>
+            <p>Nhấn vào biểu tượng Zalo trong từng ca làm</p>
+            <p>Trong mỗi ca, bạn sẽ thấy nút Zalo màu xanh.</p>
+            <p>👉 Khi nhấn vào nút này:</p>
+            <ul>
+              <li>Hệ thống sẽ dẫn bạn tới link group zalo của host/brand phù hợp</li>
+              <li>Hệ thống tự động tạo tin nhắn nhắc live cho host dựa trên thông tin ca</li>
+              <li>Tin nhắn sẽ được tự động copy vào bộ nhớ tạm</li>
+              <li>Bạn chỉ cần dán/paste vào nhóm Zalo</li>
+            </ul>
+          </li>
+          <li>
+            <p>Chỉnh sửa Script nhắc live</p>
+            <p>
+              Để chỉnh sửa câu nhắc live, bạn nhấn vào biểu tượng: 👤 Sửa nhắc live (nằm góc trên bên phải màn hình lịch)
+            </p>
+            <p>Bạn có thể:</p>
+            <ul>
+              <li>✏️ Nhập câu nhắc theo ý bạn</li>
+              <li>
+                Lưu ý sử dụng đúng 2 biến để thế cho phần thời gian và địa điểm:
+                <ul>
+                  <li>Time</li>
+                  <li>Room</li>
+                </ul>
+              </li>
+              <li>👀 Xem ví dụ hiển thị</li>
+              <li>
+                Bên dưới sẽ có ví dụ hiển thị tự động giúp bạn kiểm tra xem câu nhắc đã đúng chưa.
+              </li>
+              <li>🔄 Khôi phục mặc định</li>
+              <li>💾 Lưu</li>
+              <li>Lưu script để hệ thống sử dụng cho tất cả các ca live sau này.</li>
+            </ul>
+          </li>
+        </ol>
+      </div>
+    )
+  }
+];
+
 export default function Page() {
   const [rawItems, setRawItems] = useState([]);      // dữ liệu raw từ sheet
   const [selectedDateStr, setSelectedDateStr] = useState(toYMD(new Date())); // yyyy-mm-dd
@@ -515,8 +764,13 @@ export default function Page() {
   const [hostScriptDraft, setHostScriptDraft] = useState(DEFAULT_HOST_MESSAGE_TEMPLATE);
   const [hostScriptSaving, setHostScriptSaving] = useState(false);
   const [hostScriptSaveError, setHostScriptSaveError] = useState('');
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [activeHelpTabId, setActiveHelpTabId] = useState(HELP_TABS[0].id);
   const isActiveUser = trialUser?.status === 'active';
   const calendarCardBodyId = 'calendar-card-fields';
+  const helpModalStorageKey = useMemo(() => {
+    return trialUser?.user_id ? `help_modal_seen_${trialUser.user_id}` : null;
+  }, [trialUser?.user_id]);
 
   useEffect(() => {
     const storedScript = typeof trialUser?.script === 'string' ? trialUser.script : '';
@@ -541,6 +795,26 @@ export default function Page() {
 
   const toggleCalendarExpanded = useCallback(() => {
     setCalendarExpanded(prev => !prev);
+  }, []);
+
+  const openHelpModal = useCallback(() => {
+    setActiveHelpTabId(HELP_TABS[0].id);
+    setShowHelpModal(true);
+  }, []);
+
+  const closeHelpModal = useCallback(() => {
+    if (helpModalStorageKey && typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(helpModalStorageKey, 'true');
+      } catch (error) {
+        // ignore write errors
+      }
+    }
+    setShowHelpModal(false);
+  }, [helpModalStorageKey]);
+
+  const handleSelectHelpTab = useCallback(tabId => {
+    setActiveHelpTabId(tabId);
   }, []);
 
   const openHostScriptModal = useCallback(() => {
@@ -651,6 +925,23 @@ export default function Page() {
       clearTimeout(handler);
     };
   }, [searchInput]);
+
+  useEffect(() => {
+    if (!trialUser?.user_id) return;
+    if (typeof window === 'undefined') return;
+    const loginCount = typeof trialUser?.login_count === 'number' ? trialUser.login_count : 0;
+    if (loginCount > 1) return;
+    try {
+      const seen = window.localStorage.getItem(`help_modal_seen_${trialUser.user_id}`);
+      if (!seen) {
+        setActiveHelpTabId(HELP_TABS[0].id);
+        setShowHelpModal(true);
+      }
+    } catch (error) {
+      setActiveHelpTabId(HELP_TABS[0].id);
+      setShowHelpModal(true);
+    }
+  }, [trialUser?.user_id, trialUser?.login_count]);
 
   const findHostLink = useCallback(hostName => {
     if (!hostName) return null;
@@ -2162,6 +2453,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               </svg>
               <span className="icon-button-label" aria-hidden="true">Sửa nhắc live</span>
             </button>
+            <HelpButton onClick={openHelpModal} disabled={loggingIn} />
             <button
               type="button"
               className="icon-button icon-button--with-label"
@@ -2576,6 +2868,14 @@ Nguồn: Google Sheet ${ev.rawDate}`,
       ) : (
         <p>Không có sự kiện cho ngày này.</p>
       )}
+
+      <HelpModal
+        isOpen={showHelpModal}
+        onClose={closeHelpModal}
+        tabs={HELP_TABS}
+        activeTabId={activeHelpTabId}
+        onSelectTab={handleSelectHelpTab}
+      />
 
       {prefillModal && (
   <div

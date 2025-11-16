@@ -712,6 +712,203 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   margin-bottom: 12px;
 }
 
+.help-modal-card {
+  max-width: 960px;
+  width: min(960px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.help-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.help-modal-content {
+  max-height: min(65vh, 640px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.help-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  color: #111827;
+  font-size: .95rem;
+}
+
+.help-numbered {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-left: 20px;
+}
+
+.help-numbered > li {
+  padding-left: 4px;
+}
+
+.help-numbered p,
+.help-numbered ul,
+.help-numbered ol {
+  margin-top: 4px;
+}
+
+.help-numbered ul,
+.help-numbered ol {
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.help-numbered ul ul,
+.help-numbered ol ol {
+  margin-top: 4px;
+}
+
+.help-button-wrapper {
+  position: relative;
+}
+
+.help-button {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.help-button:hover,
+.help-button:focus-visible {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.help-button-tooltip {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 8px);
+  transform: translateY(-50%);
+  background: #111827;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease;
+}
+
+.help-button-wrapper:hover .help-button-tooltip,
+.help-button-wrapper:focus-within .help-button-tooltip {
+  opacity: 1;
+  transform: translate(-4px, -50%);
+}
+
+.help-tabs {
+  position: relative;
+}
+
+.help-tabs-scroll {
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding-right: 40px;
+  scroll-behavior: smooth;
+}
+
+.help-tabs-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.help-tabs-scroll::-webkit-scrollbar-thumb {
+  background: rgba(37, 99, 235, 0.35);
+  border-radius: 999px;
+}
+
+.help-tab-button {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 1px solid #cbd5f5;
+  padding: 8px 18px;
+  background: #fff;
+  color: #1f2937;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color .2s ease, border-color .2s ease, color .2s ease;
+  white-space: nowrap;
+}
+
+.help-tab-button--active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #1d4ed8;
+}
+
+.help-tab-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+.help-tabs-scroll-button {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  border: none;
+  background: rgba(15, 23, 42, 0.9);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.help-tabs-scroll-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
+}
+
+.help-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.help-image-grid figure {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  text-align: center;
+  font-size: .8rem;
+}
+
+.help-image-grid img {
+  border-radius: 10px;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+@media (max-width: 640px) {
+  .help-modal-card {
+    padding: 20px 16px;
+    max-height: 90vh;
+  }
+
+  .help-tabs-scroll {
+    padding-right: 32px;
+  }
+}
+
 .modal-desc {
   font-size: .95rem;
   color: #4b5563;
