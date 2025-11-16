@@ -1,0 +1,8 @@
+# Ignore local environment files; rely on Vercel env vars instead.
+.env
+.env.local
+.env.*.local
+
+# Node build artifacts
+.next
+out
