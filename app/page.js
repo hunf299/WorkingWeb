@@ -797,8 +797,8 @@ export default function Page() {
     setCalendarExpanded(prev => !prev);
   }, []);
 
-  const openHelpModal = useCallback(() => {
-    setActiveHelpTabId(HELP_TABS[0].id);
+  const openHelpModal = useCallback((targetTabId = HELP_TABS[0].id) => {
+    setActiveHelpTabId(targetTabId);
     setShowHelpModal(true);
   }, []);
 
@@ -2423,6 +2423,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         <h1>Lịch làm việc</h1>
         {trialUser && (
           <div className="page-header-actions">
+            <HelpButton onClick={() => openHelpModal()} disabled={loggingIn} />
             <button
               type="button"
               className="icon-button icon-button--with-label"
@@ -2915,14 +2916,24 @@ Nguồn: Google Sheet ${ev.rawDate}`,
           </div>
         </div>
 
-        <button
-          type="button"
-          className="modal-close-button"
-          onClick={closePrefillModal}
-          aria-label="Đóng điền form"
-        >
-          ×
-        </button>
+        <div className="prefill-modal-actions">
+          <HelpButton
+            onClick={() => openHelpModal('report')}
+            variant="icon-only"
+            label="HDSD"
+            ariaLabel="Xem hướng dẫn Điền report"
+            title="Hướng dẫn Điền report"
+            showTooltip
+          />
+          <button
+            type="button"
+            className="modal-close-button"
+            onClick={closePrefillModal}
+            aria-label="Đóng điền form"
+          >
+            ×
+          </button>
+        </div>
       </div>
 
 

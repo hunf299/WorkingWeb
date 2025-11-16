@@ -1,11 +1,30 @@
-export default function HelpButton({ onClick, disabled }) {
+export default function HelpButton({
+  onClick,
+  disabled,
+  variant = 'with-label',
+  label = 'HDSD',
+  ariaLabel = 'Hướng dẫn sử dụng',
+  title = 'Hướng dẫn sử dụng',
+  showTooltip,
+}) {
+  const isIconOnly = variant === 'icon-only';
+  const shouldShowTooltip = typeof showTooltip === 'boolean' ? showTooltip : isIconOnly;
+  const buttonClassName = [
+    'icon-button',
+    !isIconOnly ? 'icon-button--with-label' : '',
+    'help-button',
+    isIconOnly ? 'help-button--icon-only' : 'help-button--with-label',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className="help-button-wrapper">
+    <div className={`help-button-wrapper${shouldShowTooltip ? ' help-button-wrapper--tooltip' : ''}`}>
       <button
         type="button"
-        className="icon-button help-button"
-        aria-label="Hướng dẫn sử dụng"
-        title="Hướng dẫn sử dụng"
+        className={buttonClassName}
+        aria-label={ariaLabel}
+        title={title}
         onClick={onClick}
         disabled={disabled}
       >
@@ -25,8 +44,17 @@ export default function HelpButton({ onClick, disabled }) {
           />
           <circle cx="12" cy="12" r="9" />
         </svg>
+        {!isIconOnly && (
+          <span className="icon-button-label" aria-hidden="true">
+            {label}
+          </span>
+        )}
       </button>
-      <span className="help-button-tooltip" role="tooltip">HDSD</span>
+      {shouldShowTooltip && (
+        <span className="help-button-tooltip" role="tooltip">
+          {label}
+        </span>
+      )}
     </div>
   );
 }

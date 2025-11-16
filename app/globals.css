@@ -773,17 +773,27 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
 
 .help-button-wrapper {
   position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 
 .help-button {
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  color: inherit;
 }
 
-.help-button:hover,
-.help-button:focus-visible {
+.help-button--icon-only {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #1f2937;
+}
+
+.help-button--icon-only:hover,
+.help-button--icon-only:focus-visible {
   border-color: #2563eb;
   background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
 }
 
 .help-button-tooltip {
@@ -896,6 +906,13 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   object-fit: cover;
   border: 1px solid #e5e7eb;
   background: #f9fafb;
+}
+
+.prefill-modal-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 @media (max-width: 640px) {
@@ -1516,6 +1533,66 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
 }
 
 @media (prefers-color-scheme: dark) {
+  .help-modal-card {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+  }
+
+  .help-modal-header h2,
+  .help-modal-content,
+  .help-tab-panel,
+  .help-numbered,
+  .help-numbered > li,
+  .help-numbered p,
+  .help-numbered ul,
+  .help-numbered ol,
+  .help-image-grid figure {
+    color: #f3f4f6;
+  }
+
+  .help-tab-button {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(148, 163, 184, 0.35);
+    color: #e5e7eb;
+  }
+
+  .help-tab-button--active {
+    background: #2563eb;
+    border-color: #1d4ed8;
+    color: #fff;
+  }
+
+  .help-tabs-scroll::-webkit-scrollbar-thumb {
+    background: rgba(59, 130, 246, 0.45);
+  }
+
+  .help-tabs-scroll-button {
+    background: rgba(37, 99, 235, 0.35);
+    color: #f8fafc;
+  }
+
+  .help-image-grid img {
+    border-color: rgba(148, 163, 184, 0.45);
+    background: rgba(15, 23, 42, 0.65);
+  }
+
+  .help-button-tooltip {
+    background: #f9fafb;
+    color: #111827;
+  }
+
+  .help-button--icon-only {
+    background: rgba(15, 23, 42, 0.85);
+    border-color: rgba(148, 163, 184, 0.5);
+    color: #e5e7eb;
+  }
+
+  .help-button--icon-only:hover,
+  .help-button--icon-only:focus-visible {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: #60a5fa;
+    color: #bfdbfe;
+  }
+
   .modal-card {
     background: #1f2937;
     box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
