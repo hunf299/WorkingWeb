@@ -689,6 +689,14 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   z-index: 1000;
 }
 
+.prefill-modal-backdrop {
+  z-index: 1100;
+}
+
+.help-modal-backdrop {
+  z-index: 1200;
+}
+
 .modal-card {
   background: #fff;
   border-radius: 16px;
@@ -718,6 +726,7 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   display: flex;
   flex-direction: column;
   gap: 16px;
+  color: #111827;
 }
 
 .help-modal-header {
@@ -737,7 +746,6 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   display: flex;
   flex-direction: column;
   gap: 16px;
-  color: #111827;
   font-size: .95rem;
 }
 
@@ -794,6 +802,33 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
   border-color: #2563eb;
   background: rgba(37, 99, 235, 0.08);
   color: #1d4ed8;
+}
+
+.help-button--tone-minimal {
+  width: auto;
+  height: auto;
+  min-width: 0;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #6b7280;
+}
+
+.help-button--tone-minimal .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.help-button--tone-minimal:hover,
+.help-button--tone-minimal:focus-visible {
+  background: #f3f4f6;
+  color: #111827;
+  border: none;
+}
+
+.help-button--tone-minimal:focus-visible {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
 }
 
 .help-button-tooltip {
@@ -1535,6 +1570,7 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
 @media (prefers-color-scheme: dark) {
   .help-modal-card {
     border: 1px solid rgba(148, 163, 184, 0.35);
+    color: #f3f4f6;
   }
 
   .help-modal-header h2,
@@ -1591,6 +1627,20 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
     background: rgba(59, 130, 246, 0.2);
     border-color: #60a5fa;
     color: #bfdbfe;
+  }
+
+  .help-button--tone-minimal {
+    color: #d1d5db;
+  }
+
+  .help-button--tone-minimal:hover,
+  .help-button--tone-minimal:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f9fafb;
+  }
+
+  .help-button--tone-minimal:focus-visible {
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.45);
   }
 
   .modal-card {

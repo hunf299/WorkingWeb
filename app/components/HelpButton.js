@@ -6,14 +6,17 @@ export default function HelpButton({
   ariaLabel = 'Hướng dẫn sử dụng',
   title = 'Hướng dẫn sử dụng',
   showTooltip,
+  tone = 'default',
 }) {
   const isIconOnly = variant === 'icon-only';
   const shouldShowTooltip = typeof showTooltip === 'boolean' ? showTooltip : isIconOnly;
+  const toneClassName = tone !== 'default' ? `help-button--tone-${tone}` : '';
   const buttonClassName = [
     'icon-button',
     !isIconOnly ? 'icon-button--with-label' : '',
     'help-button',
     isIconOnly ? 'help-button--icon-only' : 'help-button--with-label',
+    toneClassName,
   ]
     .filter(Boolean)
     .join(' ');

@@ -2924,6 +2924,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             ariaLabel="Xem hướng dẫn Điền report"
             title="Hướng dẫn Điền report"
             showTooltip
+            tone="minimal"
           />
           <button
             type="button"
