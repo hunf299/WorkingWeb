@@ -74,7 +74,21 @@ async function copyTextToClipboard(text) {
   return success;
 }
 
-function buildHostZaloMessage(event) {
+const HOST_TEMPLATE_STORAGE_KEY = 'host_script_template';
+const DEFAULT_HOST_MESSAGE_TEMPLATE = 'Mình có live lúc Time ở Room nha';
+
+function applyHostMessageTemplate(template, timeLabel, roomLabel) {
+  const base = typeof template === 'string' && template.trim()
+    ? template
+    : DEFAULT_HOST_MESSAGE_TEMPLATE;
+  const safeTime = timeLabel || '';
+  const safeRoom = roomLabel || '-';
+  return base
+    .replace(/\bTime\b/g, safeTime)
+    .replace(/\bRoom\b/g, safeRoom);
+}
+
+function buildHostZaloMessage(event, template) {
   const timeLabel = fmtHM(event.start);
   const primaryRoomRaw = typeof event?.primaryRoom === 'string' ? event.primaryRoom.trim() : '';
   const parts = Array.isArray(event.roomParts)
@@ -83,7 +97,7 @@ function buildHostZaloMessage(event) {
   const fallbackRoom = typeof event.room === 'string' ? event.room.trim() : '';
   const combinedRoom = parts.length ? parts.join(' / ') : (fallbackRoom || '-');
   const roomLabel = primaryRoomRaw || combinedRoom;
-  return `Mình có live lúc ${timeLabel} ở ${roomLabel} nha `;
+  return applyHostMessageTemplate(template, timeLabel, roomLabel);
 }
 
 /** lấy nhãn bucket 2 giờ cho 1 Date (ví dụ 08:xx -> "08:00–10:00") */
@@ -497,8 +511,24 @@ export default function Page() {
   const [hasAppliedLoginSearch, setHasAppliedLoginSearch] = useState(false);
   const [pendingVerificationName, setPendingVerificationName] = useState(null);
   const [prefillModal, setPrefillModal] = useState(null);
+  const [hostScriptTemplate, setHostScriptTemplate] = useState(DEFAULT_HOST_MESSAGE_TEMPLATE);
+  const [showHostScriptModal, setShowHostScriptModal] = useState(false);
+  const [hostScriptDraft, setHostScriptDraft] = useState(DEFAULT_HOST_MESSAGE_TEMPLATE);
   const isActiveUser = trialUser?.status === 'active';
   const calendarCardBodyId = 'calendar-card-fields';
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = window.localStorage.getItem(HOST_TEMPLATE_STORAGE_KEY);
+      if (typeof stored === 'string' && stored.trim()) {
+        setHostScriptTemplate(stored);
+        setHostScriptDraft(stored);
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, []);
 
   const updateSearch = useCallback((value, options = {}) => {
     const nextValue = typeof value === 'string' ? value : '';
@@ -510,6 +540,33 @@ export default function Page() {
 
   const toggleCalendarExpanded = useCallback(() => {
     setCalendarExpanded(prev => !prev);
+  }, []);
+
+  const openHostScriptModal = useCallback(() => {
+    setHostScriptDraft(hostScriptTemplate);
+    setShowHostScriptModal(true);
+  }, [hostScriptTemplate]);
+
+  const closeHostScriptModal = useCallback(() => {
+    setShowHostScriptModal(false);
+  }, []);
+
+  const handleSaveHostScriptTemplate = useCallback(event => {
+    event?.preventDefault?.();
+    const normalized = hostScriptDraft.trim() || DEFAULT_HOST_MESSAGE_TEMPLATE;
+    setHostScriptTemplate(normalized);
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(HOST_TEMPLATE_STORAGE_KEY, normalized);
+      } catch (err) {
+        // ignore write errors
+      }
+    }
+    setShowHostScriptModal(false);
+  }, [hostScriptDraft]);
+
+  const handleResetHostScriptDraft = useCallback(() => {
+    setHostScriptDraft(DEFAULT_HOST_MESSAGE_TEMPLATE);
   }, []);
 
   const hostLinkMap = useMemo(() => {
@@ -1941,11 +1998,11 @@ export default function Page() {
       map.set(e, {
         brandLink: findBrandLink(e.title),
         hostEntries,
-        hostZaloMessage: buildHostZaloMessage(e)
+        hostZaloMessage: buildHostZaloMessage(e, hostScriptTemplate)
       });
     }
     return map;
-  }, [visibleEvents, findBrandLink, findHostLink]);
+  }, [visibleEvents, findBrandLink, findHostLink, hostScriptTemplate]);
 
   const groupedSingleDay = useMemo(() => {
     if (daysToShow > 1) return [];
@@ -2046,35 +2103,68 @@ Nguồn: Google Sheet ${ev.rawDate}`,
       <div className="page-header">
         <h1>Lịch làm việc</h1>
         {trialUser && (
-          <button
-            type="button"
-            className="icon-button"
-            onClick={handleLogout}
-            disabled={loggingIn}
-            aria-label="Đăng xuất"
-          >
-            <svg
-              aria-hidden="true"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              className="icon"
+          <div className="page-header-actions">
+            <button
+              type="button"
+              className="icon-button icon-button--with-label"
+              onClick={openHostScriptModal}
+              disabled={loggingIn}
+              aria-label="Cá nhân hoá script nhắc live"
+              title="Cá nhân hoá script nhắc live"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 9l3.75 3-3.75 3M21 12H9"
-              />
-            </svg>
-            <span className="sr-only">Đăng xuất</span>
-          </button>
+              <svg
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                className="icon"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15.75 9A3.75 3.75 0 118.25 9a3.75 3.75 0 017.5 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4.5 19.5a8.25 8.25 0 0115 0"
+                />
+              </svg>
+              <span className="icon-button-label" aria-hidden="true">Cá nhân hoá</span>
+            </button>
+            <button
+              type="button"
+              className="icon-button icon-button--with-label"
+              onClick={handleLogout}
+              disabled={loggingIn}
+              aria-label="Đăng xuất"
+              title="Đăng xuất"
+            >
+              <svg
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                className="icon"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9l3.75 3-3.75 3M21 12H9"
+                />
+              </svg>
+              <span className="icon-button-label" aria-hidden="true">Đăng xuất</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -2239,7 +2329,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                     const computed = eventComputedMap.get(e) || {
                       brandLink: null,
                       hostEntries: [],
-                      hostZaloMessage: buildHostZaloMessage(e)
+                      hostZaloMessage: buildHostZaloMessage(e, hostScriptTemplate)
                     };
                     const { brandLink, hostEntries, hostZaloMessage } = computed;
                     const handleHostZaloClick = () => {
@@ -2274,6 +2364,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                               d="M15.75 6.375l1.875 1.875"
                             />
                           </svg>
+                          <span className="prefill-trigger-label" aria-hidden="true">Điền form</span>
                         </button>
                         <div className="event-title-row">
                           <h2 className="event-title">{e.title}</h2>
@@ -2353,7 +2444,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               const computed = eventComputedMap.get(e) || {
                 brandLink: null,
                 hostEntries: [],
-                hostZaloMessage: buildHostZaloMessage(e)
+                hostZaloMessage: buildHostZaloMessage(e, hostScriptTemplate)
               };
               const { brandLink, hostEntries, hostZaloMessage } = computed;
               const handleHostZaloClick = () => {
@@ -2361,34 +2452,35 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               };
               return (
                 <div key={i} className="event-card">
-                  <button
-                    type="button"
-                    className="prefill-trigger"
-                    onClick={() => openPrefillModalForEvent(e)}
-                    title="Điền Google Form tự động"
-                    aria-label="Điền Google Form tự động"
+                <button
+                  type="button"
+                  className="prefill-trigger"
+                  onClick={() => openPrefillModalForEvent(e)}
+                  title="Điền Google Form tự động"
+                  aria-label="Điền Google Form tự động"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    className="prefill-trigger-icon"
+                    aria-hidden="true"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      className="prefill-trigger-icon"
-                      aria-hidden="true"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M16.862 4.487a2.1 2.1 0 112.97 2.97L8.654 18.636a4.2 4.2 0 01-1.768 1.043l-3.118.89.89-3.118a4.2 4.2 0 011.043-1.768L16.862 4.487z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M15.75 6.375l1.875 1.875"
-                      />
-                    </svg>
-                  </button>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M16.862 4.487a2.1 2.1 0 112.97 2.97L8.654 18.636a4.2 4.2 0 01-1.768 1.043l-3.118.89.89-3.118a4.2 4.2 0 011.043-1.768L16.862 4.487z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15.75 6.375l1.875 1.875"
+                    />
+                  </svg>
+                  <span className="prefill-trigger-label" aria-hidden="true">Điền form</span>
+                </button>
                   <div className="event-title-row">
                     <h2 className="event-title">{e.title}</h2>
                     {brandLink && (
@@ -2767,6 +2859,68 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 </form>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {showHostScriptModal && (
+        <div
+          className="modal-backdrop host-script-modal-backdrop"
+          onClick={closeHostScriptModal}
+        >
+          <div
+            className="modal-card host-script-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="host-script-modal-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="host-script-modal-header">
+              <h2 id="host-script-modal-title">Cá nhân hoá script nhắc live</h2>
+              <button
+                type="button"
+                className="modal-close-button"
+                onClick={closeHostScriptModal}
+                aria-label="Đóng cá nhân hoá script"
+              >
+                ×
+              </button>
+            </div>
+            <p className="modal-desc">
+              Nhập câu nhắc và dùng từ khoá <strong>Time</strong> và <strong>Room</strong> để tự động thay
+              thế bằng giờ/phòng thực tế.
+            </p>
+            <form className="host-script-form" onSubmit={handleSaveHostScriptTemplate}>
+              <label className="host-script-label" htmlFor="host-script-input">
+                Script nhắc live
+              </label>
+              <textarea
+                id="host-script-input"
+                className="text-input host-script-textarea"
+                value={hostScriptDraft}
+                onChange={event => setHostScriptDraft(event.target.value)}
+                placeholder="Ví dụ: Mình có live lúc Time ở Room nha"
+              />
+              <div className="host-script-preview">
+                <div className="host-script-preview-label">Ví dụ hiển thị:</div>
+                <div className="host-script-preview-value">
+                  {applyHostMessageTemplate(hostScriptDraft, '20:00', 'Studio A')}
+                </div>
+                <div className="host-script-preview-meta">(Time = 20:00, Room = Studio A)</div>
+              </div>
+              <div className="host-script-modal-actions">
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={handleResetHostScriptDraft}
+                >
+                  Khôi phục mặc định
+                </button>
+                <button type="submit" className="btn">
+                  Lưu
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
