@@ -920,8 +920,8 @@ h1 { font-size: 1.5rem; margin-bottom: 12px; }
 
 .help-image-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, 1fr); /* 2 ảnh / hàng */
+  gap: 12px; /* hoặc tùy bạn */
   margin-top: 12px;
 }
 
