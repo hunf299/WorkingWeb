@@ -74,7 +74,7 @@ export async function POST(req) {
   const { data: user, error } = await supabase
     .from('users_trial')
     .select(
-      'id, name, email, first_login_at, trial_expires_at, last_login_at, login_count, is_blocked'
+      'id, name, email, first_login_at, trial_expires_at, last_login_at, login_count, is_blocked, script'
     )
     .eq('name_norm', nameNorm)
     .maybeSingle();
@@ -132,7 +132,7 @@ export async function POST(req) {
     })
     .eq('id', user.id)
     .select(
-      'id, name, email, first_login_at, trial_expires_at, last_login_at, login_count, is_blocked'
+      'id, name, email, first_login_at, trial_expires_at, last_login_at, login_count, is_blocked, script'
     )
     .single();
 
@@ -158,6 +158,7 @@ export async function POST(req) {
     login_count: updatedUser.login_count,
     status,
     days_left: daysLeft,
+    script: typeof updatedUser.script === 'string' ? updatedUser.script : '',
   };
   const response = NextResponse.json(responsePayload);
   if (status === 'active') {
