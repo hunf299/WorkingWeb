@@ -2677,7 +2677,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                               d="M15.75 6.375l1.875 1.875"
                             />
                           </svg>
-                          <span className="prefill-trigger-label" aria-hidden="true">Điền form</span>
+                          <span className="prefill-trigger-label" aria-hidden="true">Điền report</span>
                         </button>
                         <div className="event-title-row">
                           <h2 className="event-title">{e.title}</h2>
@@ -2792,7 +2792,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       d="M15.75 6.375l1.875 1.875"
                     />
                   </svg>
-                  <span className="prefill-trigger-label" aria-hidden="true">Điền form</span>
+                  <span className="prefill-trigger-label" aria-hidden="true">Điền report</span>
                 </button>
                   <div className="event-title-row">
                     <h2 className="event-title">{e.title}</h2>
