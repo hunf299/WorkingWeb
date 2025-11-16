@@ -83,6 +83,62 @@ async function copyTextToClipboard(text) {
 
 const DEFAULT_HOST_MESSAGE_TEMPLATE = 'Mình có live lúc Time ở Room nha';
 
+async function computeDeviceFingerprint() {
+  if (typeof window === 'undefined') return null;
+  if (typeof navigator === 'undefined') return null;
+  try {
+    const nav = navigator;
+    const userAgent = nav.userAgent || '';
+    const language = nav.language || '';
+    const languages = Array.isArray(nav.languages) ? nav.languages.join(',') : '';
+    const platform = nav.platform || '';
+    const deviceMemory = typeof nav.deviceMemory === 'number' ? String(nav.deviceMemory) : '';
+    const hardwareConcurrency = typeof nav.hardwareConcurrency === 'number'
+      ? String(nav.hardwareConcurrency)
+      : '';
+    const maxTouchPoints = typeof nav.maxTouchPoints === 'number' ? String(nav.maxTouchPoints) : '';
+    const timezone = typeof Intl !== 'undefined' && Intl.DateTimeFormat
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+      : '';
+    const timezoneOffset = String(new Date().getTimezoneOffset());
+    const screenInfo = typeof window.screen === 'object' && window.screen
+      ? [window.screen.width, window.screen.height, window.screen.colorDepth, window.screen.pixelDepth]
+          .map(value => (typeof value === 'number' ? String(value) : ''))
+          .join('x')
+      : '';
+
+    const fingerprintSource = [
+      userAgent,
+      language,
+      languages,
+      platform,
+      timezone,
+      timezoneOffset,
+      screenInfo,
+      deviceMemory,
+      hardwareConcurrency,
+      maxTouchPoints,
+    ].join('|');
+
+    if (!fingerprintSource.trim()) {
+      return null;
+    }
+
+    if (window.crypto?.subtle && typeof TextEncoder !== 'undefined') {
+      const encoded = new TextEncoder().encode(fingerprintSource);
+      const digest = await window.crypto.subtle.digest('SHA-256', encoded);
+      return Array.from(new Uint8Array(digest))
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+    }
+
+    return fingerprintSource;
+  } catch (error) {
+    console.warn('Không thể lấy device fingerprint', error);
+    return null;
+  }
+}
+
 function applyHostMessageTemplate(template, timeLabel, roomLabel) {
   const base = typeof template === 'string' && template.trim()
     ? template
@@ -734,6 +790,7 @@ export default function Page() {
   const [trialEmailError, setTrialEmailError] = useState('');
   const isMountedRef = useRef(true);
   const trialEmailFetchIdRef = useRef(0);
+  const deviceFingerprintRef = useRef(null);
   const [filterBrand, setFilterBrand] = useState('');
   const [filterTime, setFilterTime] = useState('');
   const [filterRoom, setFilterRoom] = useState('');
@@ -819,6 +876,17 @@ export default function Page() {
   const closeHostScriptModal = useCallback(() => {
     setHostScriptSaveError('');
     setShowHostScriptModal(false);
+  }, []);
+
+  const getDeviceFingerprint = useCallback(async () => {
+    if (deviceFingerprintRef.current) {
+      return deviceFingerprintRef.current;
+    }
+    const fingerprint = await computeDeviceFingerprint();
+    if (fingerprint) {
+      deviceFingerprintRef.current = fingerprint;
+    }
+    return fingerprint;
   }, []);
 
   const handleSaveHostScriptTemplate = useCallback(async event => {
@@ -2019,10 +2087,15 @@ export default function Page() {
     setNameInput(name);
     setLoggingIn(true);
     try {
+      const deviceFingerprint = await getDeviceFingerprint();
+      const payload = { name };
+      if (deviceFingerprint) {
+        payload.device_fingerprint = deviceFingerprint;
+      }
       const res = await fetch('/api/login-by-name', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
+        body: JSON.stringify(payload)
       });
       const response = await res.json();
       if (!res.ok) {
@@ -2056,10 +2129,15 @@ export default function Page() {
     const trimmed = typeof name === 'string' ? name.trim() : '';
     if (!trimmed) return;
     try {
+      const deviceFingerprint = await getDeviceFingerprint();
+      const payload = { name: trimmed };
+      if (deviceFingerprint) {
+        payload.device_fingerprint = deviceFingerprint;
+      }
       const res = await fetch('/api/login-by-name', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmed })
+        body: JSON.stringify(payload)
       });
       const response = await res.json();
       if (!res.ok) {

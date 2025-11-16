@@ -60,6 +60,10 @@ export async function POST(req) {
   }
 
   const name = typeof payload?.name === 'string' ? payload.name : '';
+  const fingerprintRaw = typeof payload?.device_fingerprint === 'string'
+    ? payload.device_fingerprint
+    : '';
+  const deviceFingerprint = fingerprintRaw.trim().slice(0, 512);
   const trimmed = name.trim();
   if (!trimmed) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -122,14 +126,20 @@ export async function POST(req) {
     nextLoginCount = currentLoginCount + 1;
   }
 
+  const updatePayload = {
+    first_login_at: firstLoginAt,
+    trial_expires_at: trialExpiresAt,
+    last_login_at: nowIso,
+    login_count: nextLoginCount,
+  };
+
+  if (deviceFingerprint) {
+    updatePayload.device_fingerprint = deviceFingerprint;
+  }
+
   const { data: updatedUser, error: updateError } = await supabase
     .from('users_trial')
-    .update({
-      first_login_at: firstLoginAt,
-      trial_expires_at: trialExpiresAt,
-      last_login_at: nowIso,
-      login_count: nextLoginCount,
-    })
+    .update(updatePayload)
     .eq('id', user.id)
     .select(
       'id, name, email, first_login_at, trial_expires_at, last_login_at, login_count, is_blocked, script'
