@@ -516,7 +516,7 @@ const HELP_TABS = [
             <p>Xem chi tiết ca làm</p>
             <p>Lịch được chia theo từng khung 2 giờ</p>
             <ul>
-              <li>✏️ Chỉnh sửa script nhắc live</li>
+              <li>💬 Truy cập group Zalo + sao chép sẵn script nhắc live cho group host</li>
               <li>📄 Điền report</li>
             </ul>
           </li>
@@ -613,8 +613,7 @@ const HELP_TABS = [
             <p>Tại mỗi ca làm, bạn sẽ thấy nút: “Điền report” (biểu tượng cây bút). Nhấn vào nút để mở cửa sổ nhập liệu report.</p>
           </li>
           <li>
-            <p>Giao diện nhập thông tin report "Điền Google Form" với các thông tin:</p>
-            <p>🔹 Thông tin phiên live: Brand – Nền tảng, Ngày, Giờ live</p>
+            <p>Giao diện nhập thông tin report "Điền Google Form" với các thông tin: Brand – Nền tảng, Ngày, Giờ live</p>
             <p>🔹 Các ô nhập dữ liệu</p>
             <ol>
               <li>Email → Tự điền vào lần đầu nhập liệu, các lần sau thông tin sẽ được hiển thị tự động</li>
@@ -651,7 +650,7 @@ const HELP_TABS = [
                 <Image src={SHPPic2} alt="Ví dụ ảnh SHP_pic2" />
               </figure>
               <figure>
-                <figcaption>TTS_Ảnh 2</figcaption>
+                <figcaption>TTS_Ảnh 1</figcaption>
                 <Image src={TTSPic1} alt="Ví dụ ảnh TTS_pic1" />
               </figure>
               <figure>
