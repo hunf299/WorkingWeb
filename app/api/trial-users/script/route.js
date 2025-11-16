@@ -2,7 +2,7 @@ export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { getSupabaseServiceRoleClient } from '../../../../lib/supabaseAdmin';
+import { getSupabaseServiceRoleClient } from '../../../../../lib/supabaseAdmin';
 
 const COOKIE_NAME = 'trial_user_id';
 
