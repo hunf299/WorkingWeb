@@ -2779,11 +2779,11 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                               </div>
                               <div className="ecc-tag">
                                 <span className="ecc-icon">📝</span>
-                                <span>Session: {e.sessionType || '—'}</span>
+                                <span>{e.sessionType || '—'}</span>
                               </div>
                               <div className="ecc-tag">
                                 <span className="ecc-icon">🖥️</span>
-                                <span>Coor: {e.coor || '—'}</span>
+                                <span>{e.coor || '—'}</span>
                               </div>
                             </div>
                           </div>
@@ -2890,11 +2890,11 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                         </div>
                         <div className="ecc-tag">
                           <span className="ecc-icon">📝</span>
-                          <span>Session: {e.sessionType || '—'}</span>
+                          <span>{e.sessionType || '—'}</span>
                         </div>
                         <div className="ecc-tag">
                           <span className="ecc-icon">🖥️</span>
-                          <span>Coor: {e.coor || '—'}</span>
+                          <span>{e.coor || '—'}</span>
                         </div>
                       </div>
                     </div>
