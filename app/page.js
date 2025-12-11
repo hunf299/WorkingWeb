@@ -2703,7 +2703,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         </div>
       </div>
 
-      {/* Danh sách nhóm theo 2h */}
+     {/* Danh sách nhóm theo 2h */}
       {!isActiveUser ? (
         <p>Vui lòng nhập tên để xem lịch làm việc.</p>
       ) : loading ? (
@@ -2714,130 +2714,110 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             <div key={day.dayKey} className="day-section">
               <div className="day-head">{day.dayLabel}</div>
               {day.buckets.map(g => (
-                <div key={g.bucket} className="group">
-                  <div className="group-head">{g.bucket}</div>
-                  {g.items.map((e, i) => {
-                    const computed = eventComputedMap.get(e) || {
-                      brandLink: null,
-                      hostEntries: [],
-                      hostZaloMessage: buildHostZaloMessage(e, hostScriptTemplate)
-                    };
-                    const { brandLink, hostEntries, hostZaloMessage } = computed;
-                    const handleHostZaloClick = () => {
-                      void copyTextToClipboard(hostZaloMessage);
-                    };
-                    return (
-                      <div key={i} className="event-card">
-                        {/* 1. Nút Report/Prefill (Trôi góc phải trên cùng - Style gốc) */}
-                        <button
-                          type="button"
-                          className="prefill-trigger"
-                          onClick={() => openPrefillModalForEvent(e)}
-                          title="Điền Google Form tự động"
-                          aria-label="Điền Google Form tự động"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            className="prefill-trigger-icon"
-                            aria-hidden="true"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M16.862 4.487a2.1 2.1 0 112.97 2.97L8.654 18.636a4.2 4.2 0 01-1.768 1.043l-3.118.89.89-3.118a4.2 4.2 0 011.043-1.768L16.862 4.487z"
-                            />
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M15.75 6.375l1.875 1.875"
-                            />
-                          </svg>
-                          <span className="prefill-trigger-label" aria-hidden="true">Điền report</span>
-                        </button>
+                <div key={g.bucket} className="group-wrapper">
+                  {/* REDESIGN: Group Head tinh gọn dạng Divider */}
+                  <div className="group-divider">
+                    <span className="group-divider-label">{g.bucket}</span>
+                    <span className="group-divider-line"></span>
+                  </div>
+                  
+                  <div className="group-grid">
+                    {g.items.map((e, i) => {
+                      const computed = eventComputedMap.get(e) || {
+                        brandLink: null,
+                        hostEntries: [],
+                        hostZaloMessage: buildHostZaloMessage(e, hostScriptTemplate)
+                      };
+                      const { brandLink, hostEntries, hostZaloMessage } = computed;
+                      const handleHostZaloClick = () => {
+                        void copyTextToClipboard(hostZaloMessage);
+                      };
 
-                        {/* 2. Tiêu đề Brand & Nút Zalo Brand */}
-                        <div className="event-title-row">
-                          <h2 className="event-title">{e.title}</h2>
-                          {brandLink && (
-                            <a
-                              href={brandLink}
-                              className="zalo-link-button"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title="Nhóm Zalo Brand"
+                      return (
+                        /* REDESIGN: Cấu trúc Card mới */
+                        <div key={i} className="event-card-compact">
+                          {/* 1. Header: Thời gian & Nút Report */}
+                          <div className="ecc-header">
+                            <span className="ecc-time">
+                              {fmtHM(e.start)} – {fmtHM(e.end)}
+                            </span>
+                            <button
+                              type="button"
+                              className="ecc-report-btn"
+                              onClick={() => openPrefillModalForEvent(e)}
+                              title="Điền report"
                             >
-                              💬 Zalo
-                            </a>
-                          )}
-                        </div>
-
-                        {/* 3. Giờ Live (Không hiện ngày) */}
-                        <div className="event-time">
-                          ⏰ {fmtHM(e.start)} – {fmtHM(e.end)}
-                        </div>
-
-                        {/* 4. Thông tin chi tiết (Meta) - Gom Talent vào chung */}
-                        <div className="event-meta">
-                          {/* Phòng */}
-                          <div className="meta-line">
-                            <span aria-hidden="true">📍</span>
-                            <div className="meta-line-content">
-                              <span>{e.room || '-'}</span>
-                            </div>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                              <span>Report</span>
+                            </button>
                           </div>
 
-                          {/* Session Type */}
-                          <div className="meta-line">
-                            <span aria-hidden="true">📝</span>
-                            <div className="meta-line-content">
-                              <span>Session: {e.sessionType || '—'}</span>
-                            </div>
-                          </div>
-
-                          {/* Talent (Host) - Đưa vào giữa, dùng nút Zalo giống Brand */}
-                          <div className="meta-line">
-                            <span aria-hidden="true">🎤</span>
-                            <div className="meta-line-content">
-                              {hostEntries.length ? (
-                                hostEntries.map(entry => (
-                                  <span key={entry.name} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                    <span>{entry.name}</span>
-                                    {entry.link && (
-                                      <a
-                                        href={entry.link}
-                                        className="zalo-link-button" // Dùng class y hệt Brand
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={handleHostZaloClick}
-                                        title={`Zalo của ${entry.name}`}
-                                      >
-                                        💬 Zalo
-                                      </a>
-                                    )}
-                                    <span className="sep" style={{opacity:0.3, margin: '0 4px'}}>|</span>
-                                  </span>
-                                ))
-                              ) : (
-                                <span>—</span>
+                          {/* 2. Body: Title & Meta Tags */}
+                          <div className="ecc-body">
+                            <div className="ecc-title-row">
+                              <h3 className="ecc-title">{e.title}</h3>
+                              {brandLink && (
+                                <a
+                                  href={brandLink}
+                                  className="ecc-zalo-badge"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  Zalo
+                                </a>
                               )}
                             </div>
+
+                            {/* Gom nhóm Meta thành Tags để tiết kiệm diện tích */}
+                            <div className="ecc-tags">
+                              <div className="ecc-tag ecc-tag--room">
+                                <span className="ecc-icon">📍</span>
+                                <span>{e.room || '-'}</span>
+                              </div>
+                              <div className="ecc-tag">
+                                <span className="ecc-icon">📝</span>
+                                <span>{e.sessionType || '-'}</span>
+                              </div>
+                              <div className="ecc-tag">
+                                <span className="ecc-icon">🖥️</span>
+                                <span>{e.coor || '-'}</span>
+                              </div>
+                            </div>
                           </div>
 
-                          {/* Coordinator */}
-                          <div className="meta-line">
-                            <span aria-hidden="true">🖥️</span>
-                            <div className="meta-line-content">
-                              <span>Coor: {e.coor || '—'}</span>
+                          {/* 3. Footer: Host (Tách riêng để nổi bật) */}
+                          <div className="ecc-footer">
+                            <div className="ecc-host-row">
+                              <span className="ecc-icon">🎤</span>
+                              <div className="ecc-hosts-list">
+                                {hostEntries.length ? (
+                                  hostEntries.map(entry => (
+                                    <span key={entry.name} className="ecc-host-item">
+                                      {entry.name}
+                                      {entry.link && (
+                                        <a
+                                          href={entry.link}
+                                          className="ecc-zalo-dot"
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={handleHostZaloClick}
+                                          title={`Zalo của ${entry.name}`}
+                                        >
+                                          💬
+                                        </a>
+                                      )}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="ecc-host-empty">—</span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               ))}
             </div>
@@ -2847,130 +2827,105 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         )
       ) : groupedSingleDay.length ? (
         groupedSingleDay.map(g => (
-          <div key={g.bucket} className="group">
-            <div className="group-head">{g.bucket}</div>
-            {g.items.map((e, i) => {
-              const computed = eventComputedMap.get(e) || {
-                brandLink: null,
-                hostEntries: [],
-                hostZaloMessage: buildHostZaloMessage(e, hostScriptTemplate)
-              };
-              const { brandLink, hostEntries, hostZaloMessage } = computed;
-              const handleHostZaloClick = () => {
-                void copyTextToClipboard(hostZaloMessage);
-              };
-              return (
-                <div key={i} className="event-card">
-                  {/* 1. Nút Report/Prefill (Trôi góc phải trên cùng - Style gốc) */}
-                  <button
-                    type="button"
-                    className="prefill-trigger"
-                    onClick={() => openPrefillModalForEvent(e)}
-                    title="Điền Google Form tự động"
-                    aria-label="Điền Google Form tự động"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      className="prefill-trigger-icon"
-                      aria-hidden="true"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M16.862 4.487a2.1 2.1 0 112.97 2.97L8.654 18.636a4.2 4.2 0 01-1.768 1.043l-3.118.89.89-3.118a4.2 4.2 0 011.043-1.768L16.862 4.487z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M15.75 6.375l1.875 1.875"
-                      />
-                    </svg>
-                    <span className="prefill-trigger-label" aria-hidden="true">Điền report</span>
-                  </button>
-
-                  {/* 2. Tiêu đề Brand & Nút Zalo Brand */}
-                  <div className="event-title-row">
-                    <h2 className="event-title">{e.title}</h2>
-                    {brandLink && (
-                      <a
-                        href={brandLink}
-                        className="zalo-link-button"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Nhóm Zalo Brand"
+          <div key={g.bucket} className="group-wrapper">
+             {/* REDESIGN: Group Head tinh gọn dạng Divider */}
+             <div className="group-divider">
+                <span className="group-divider-label">{g.bucket}</span>
+                <span className="group-divider-line"></span>
+              </div>
+            
+            <div className="group-grid">
+              {g.items.map((e, i) => {
+                const computed = eventComputedMap.get(e) || {
+                  brandLink: null,
+                  hostEntries: [],
+                  hostZaloMessage: buildHostZaloMessage(e, hostScriptTemplate)
+                };
+                const { brandLink, hostEntries, hostZaloMessage } = computed;
+                const handleHostZaloClick = () => {
+                  void copyTextToClipboard(hostZaloMessage);
+                };
+                return (
+                  /* REDESIGN: Cấu trúc Card mới (Copy y hệt cấu trúc trên) */
+                  <div key={i} className="event-card-compact">
+                    <div className="ecc-header">
+                      <span className="ecc-time">
+                        {fmtHM(e.start)} – {fmtHM(e.end)}
+                      </span>
+                      <button
+                        type="button"
+                        className="ecc-report-btn"
+                        onClick={() => openPrefillModalForEvent(e)}
+                        title="Điền report"
                       >
-                        💬 Zalo
-                      </a>
-                    )}
-                  </div>
-
-                  {/* 3. Giờ Live (Không hiện ngày) */}
-                  <div className="event-time">
-                    ⏰ {fmtHM(e.start)} – {fmtHM(e.end)}
-                  </div>
-
-                  {/* 4. Thông tin chi tiết (Meta) - Gom Talent vào chung */}
-                  <div className="event-meta">
-                    {/* Phòng */}
-                    <div className="meta-line">
-                      <span aria-hidden="true">📍</span>
-                      <div className="meta-line-content">
-                        <span>{e.room || '-'}</span>
-                      </div>
+                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                         <span>Report</span>
+                      </button>
                     </div>
 
-                    {/* Session Type */}
-                    <div className="meta-line">
-                      <span aria-hidden="true">📝</span>
-                      <div className="meta-line-content">
-                        <span>Session: {e.sessionType || '—'}</span>
-                      </div>
-                    </div>
-
-                    {/* Talent (Host) - Đưa vào giữa, dùng nút Zalo giống Brand */}
-                    <div className="meta-line">
-                      <span aria-hidden="true">🎤</span>
-                      <div className="meta-line-content">
-                        {hostEntries.length ? (
-                          hostEntries.map(entry => (
-                            <span key={entry.name} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                              <span>{entry.name}</span>
-                              {entry.link && (
-                                <a
-                                  href={entry.link}
-                                  className="zalo-link-button" // Dùng class y hệt Brand
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={handleHostZaloClick}
-                                  title={`Zalo của ${entry.name}`}
-                                >
-                                  💬 Zalo
-                                </a>
-                              )}
-                              <span className="sep" style={{opacity:0.3, margin: '0 4px'}}>|</span>
-                            </span>
-                          ))
-                        ) : (
-                          <span>—</span>
+                    <div className="ecc-body">
+                      <div className="ecc-title-row">
+                        <h3 className="ecc-title">{e.title}</h3>
+                        {brandLink && (
+                          <a
+                            href={brandLink}
+                            className="ecc-zalo-badge"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Zalo
+                          </a>
                         )}
                       </div>
+
+                      <div className="ecc-tags">
+                        <div className="ecc-tag ecc-tag--room">
+                          <span className="ecc-icon">📍</span>
+                          <span>{e.room || '-'}</span>
+                        </div>
+                        <div className="ecc-tag">
+                          <span className="ecc-icon">📝</span>
+                          <span>{e.sessionType || '-'}</span>
+                        </div>
+                        <div className="ecc-tag">
+                          <span className="ecc-icon">🖥️</span>
+                          <span>{e.coor || '-'}</span>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Coordinator */}
-                    <div className="meta-line">
-                      <span aria-hidden="true">🖥️</span>
-                      <div className="meta-line-content">
-                        <span>Coor: {e.coor || '—'}</span>
+                    <div className="ecc-footer">
+                      <div className="ecc-host-row">
+                        <span className="ecc-icon">🎤</span>
+                        <div className="ecc-hosts-list">
+                          {hostEntries.length ? (
+                            hostEntries.map(entry => (
+                              <span key={entry.name} className="ecc-host-item">
+                                {entry.name}
+                                {entry.link && (
+                                  <a
+                                    href={entry.link}
+                                    className="ecc-zalo-dot"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={handleHostZaloClick}
+                                    title={`Zalo của ${entry.name}`}
+                                  >
+                                    💬
+                                  </a>
+                                )}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="ecc-host-empty">—</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         ))
       ) : (
