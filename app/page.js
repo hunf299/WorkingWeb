@@ -2630,22 +2630,22 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               aria-expanded={calendarExpanded}
               aria-controls={calendarCardBodyId}
               aria-label={calendarExpanded ? 'Thu gọn cài đặt lịch' : 'Mở cài đặt lịch'}
+              title={calendarExpanded ? 'Thu gọn' : 'Mở rộng'}
             >
               <svg
                 className="calendar-card-chevron"
                 xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
                 fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth="2"
                 stroke="currentColor"
-                strokeWidth="1.6"
+                style={{ width: '24px', height: '24px' }}
                 aria-hidden="true"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d={calendarExpanded ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}
-                />
+                {/* Icon mũi tên xuống chuẩn (Chevron Down) */}
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
               </svg>
+              {/* sr-only giữ nguyên để hỗ trợ trình đọc màn hình */}
               <span className="sr-only">{calendarExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
             </button>
           </div>
