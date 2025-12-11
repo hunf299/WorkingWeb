@@ -1470,6 +1470,9 @@ h1 {
   font-size: 1rem;
   color: var(--text-primary);
   font-weight: 600;
+  word-break: break-all;   /* Bắt buộc xuống dòng dù là chuỗi liền mạch */
+  overflow-wrap: break-word; /* Hỗ trợ các trình duyệt hiện đại */
+  white-space: normal;     /* Đảm bảo cho phép xuống dòng */
 }
 
 .prefill-result-link { display: flex; flex-direction: column; gap: 12px; }
@@ -1575,13 +1578,14 @@ h1 {
   width: 100%;
   height: 52px; /* Cao hơn, dễ bấm */
   padding-left: 48px; /* Chừa chỗ cho icon kính lúp */
-  padding-right: 48px; /* Chừa chỗ cho nút Xóa */
   border-radius: 16px; /* Bo góc mềm */
   background: var(--bg-input, #f3f4f6); /* Nền xám, bỏ viền */
   border: 2px solid transparent;
   font-size: 1rem;
   font-weight: 500;
   transition: all 0.2s ease;
+  padding-right: 60px !important; /* Tăng từ 48px lên 60px hoặc hơn */
+  text-overflow: ellipsis;        /* Thêm dấu ... nếu text quá dài (tùy chọn) */
 }
 
 /* Giả lập icon kính lúp bằng CSS (vì không sửa được HTML) */
@@ -1907,4 +1911,85 @@ h1 {
 /* Khi đang mở rộng (Expanded) thì xoay mũi tên lên */
 .calendar-card-toggle[aria-expanded="true"] .calendar-card-chevron {
   transform: rotate(180deg);
+}
+
+/* =========================================
+   MOBILE TOOLTIP (Hiện chữ khi chạm trên điện thoại)
+   ========================================= */
+@media (max-width: 768px) {
+  /* 1. Cho phép hiển thị phần tử con tràn ra ngoài nút */
+  .calendar-card-action,
+  .calendar-card-toggle {
+    position: relative !important;
+    overflow: visible !important;
+  }
+
+  /* 2. Tạo tooltip giả từ thuộc tính aria-label */
+  .calendar-card-action:active::after,
+  .calendar-card-action:focus::after,
+  .calendar-card-toggle:active::after,
+  .calendar-card-toggle:focus::after {
+    content: attr(aria-label); /* Lấy nội dung chữ tự động */
+    
+    position: absolute;
+    bottom: 125%; /* Nằm phía trên nút */
+    right: 0;     /* Căn lề phải để không bị tràn màn hình */
+    
+    background: #0f172a; /* Màu nền tối (Slate-900) */
+    color: #ffffff;
+    
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem; /* Chữ nhỏ gọn */
+    font-weight: 600;
+    white-space: nowrap; /* Không xuống dòng */
+    
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    z-index: 100;
+    pointer-events: none;
+    animation: tooltipPopup 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  
+  /* Tạo mũi tên nhỏ bên dưới tooltip */
+  .calendar-card-action:active::before,
+  .calendar-card-action:focus::before,
+  .calendar-card-toggle:active::before,
+  .calendar-card-toggle:focus::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    right: 18px; /* Căn chỉnh với icon */
+    border: 6px solid transparent;
+    border-top-color: #0f172a;
+    z-index: 100;
+  }
+
+  @keyframes tooltipPopup {
+    from { opacity: 0; transform: translateY(5px) scale(0.9); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+}
+
+.text-input:disabled, 
+.date-input:disabled,
+.prefill-email-input:disabled {
+  background-color: #f1f5f9 !important;   /* Nền xám nhạt */
+  color: #0f172a !important;              /* Chữ đen đậm (Slate-900) */
+  opacity: 1 !important;                  /* Ép không bị mờ */
+  -webkit-text-fill-color: #0f172a !important; /* Fix lỗi trên iPhone/Safari */
+  border-color: #e2e8f0 !important;
+  cursor: not-allowed;
+  font-weight: 500;
+}
+
+/* 2. Dark Mode: Chữ trắng sáng trên nền tối */
+@media (prefers-color-scheme: dark) {
+  .text-input:disabled, 
+  .date-input:disabled,
+  .prefill-email-input:disabled {
+    background-color: rgba(255, 255, 255, 0.05) !important; /* Nền tối trong suốt */
+    color: #f8fafc !important;              /* Chữ trắng sáng (Slate-50) */
+    -webkit-text-fill-color: #f8fafc !important; /* Fix lỗi trên iPhone/Safari */
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
 }
