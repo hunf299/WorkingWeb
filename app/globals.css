@@ -2677,3 +2677,225 @@ h1 {
   .group-divider-label { background: rgba(255,255,255,0.05); color: #93c5fd; border-color: rgba(255,255,255,0.1); }
   .group-divider-line { background: rgba(255,255,255,0.1); }
 }
+
+/* ... (Giữ nguyên các phần cũ) ... */
+
+/* =========================================
+   REDESIGN 2025: COMPACT LAYOUT
+   ========================================= */
+
+/* 1. Group Divider (Thay thế Header nhóm cũ) */
+.group-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0 16px;
+}
+
+.group-divider-label {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--primary);
+  background: var(--bg-input);
+  padding: 6px 16px;
+  border-radius: 99px;
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.group-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+/* 2. Grid Layout cho danh sách Card */
+.group-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .group-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1200px) {
+  .group-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* 3. Compact Event Card */
+.event-card-compact {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s ease;
+  height: 100%; /* Để các card trong cùng hàng cao bằng nhau */
+}
+
+.event-card-compact:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-float);
+  border-color: var(--primary);
+}
+
+/* Header Card: Giờ + Nút Report */
+.ecc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border-subtle);
+  margin-bottom: 4px;
+}
+
+.ecc-time {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.ecc-report-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ecc-report-btn:hover {
+  background: #eff6ff;
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.ecc-report-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Body Card */
+.ecc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.ecc-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.ecc-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.3;
+}
+
+/* Unified Zalo Button (Dùng chung cho Brand & Host) */
+.zalo-compact-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);
+  transition: transform 0.2s;
+  white-space: nowrap;
+}
+
+.zalo-compact-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(14, 165, 233, 0.3);
+}
+
+/* Tags Info (Room, Session, Coor) */
+.ecc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ecc-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-input);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.ecc-tag--room {
+  background: rgba(245, 158, 11, 0.1);
+  color: #b45309;
+}
+
+.ecc-icon {
+  font-size: 0.9em;
+  opacity: 0.7;
+}
+
+/* Footer: Host */
+.ecc-footer {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-subtle);
+}
+
+.ecc-host-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.9rem;
+}
+
+.ecc-hosts-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ecc-host-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Dark Mode Overrides */
+@media (prefers-color-scheme: dark) {
+  .group-divider-label { background: rgba(255,255,255,0.05); color: #93c5fd; border-color: rgba(255,255,255,0.1); }
+  .group-divider-line { background: rgba(255,255,255,0.1); }
+  .event-card-compact { background: rgba(30, 41, 59, 0.6); border-color: rgba(255,255,255,0.05); }
+  .ecc-tag { background: rgba(255,255,255,0.05); color: #cbd5e1; }
+  .ecc-tag--room { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+  .ecc-report-btn:hover { background: rgba(255,255,255,0.1); }
+  .ecc-header, .ecc-footer { border-color: rgba(255,255,255,0.1); }
+}
