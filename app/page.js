@@ -2727,29 +2727,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       void copyTextToClipboard(hostZaloMessage);
                     };
                     return (
-                      {!isActiveUser ? (
-        <p>Vui lòng nhập tên để xem lịch làm việc.</p>
-      ) : loading ? (
-        <div className="event-card"><i>Đang tải dữ liệu…</i></div>
-      ) : daysToShow > 1 ? (
-        groupedMultipleDays.length ? (
-          groupedMultipleDays.map(day => (
-            <div key={day.dayKey} className="day-section">
-              <div className="day-head">{day.dayLabel}</div>
-              {day.buckets.map(g => (
-                <div key={g.bucket} className="group">
-                  <div className="group-head">{g.bucket}</div>
-                  {g.items.map((e, i) => {
-                    const computed = eventComputedMap.get(e) || {
-                      brandLink: null,
-                      hostEntries: [],
-                      hostZaloMessage: buildHostZaloMessage(e, hostScriptTemplate)
-                    };
-                    const { brandLink, hostEntries, hostZaloMessage } = computed;
-                    const handleHostZaloClick = () => {
-                      void copyTextToClipboard(hostZaloMessage);
-                    };
-                    return (
                       <div key={i} className="event-card">
                         {/* 1. Nút Report/Prefill (Trôi góc phải trên cùng - Style gốc) */}
                         <button
