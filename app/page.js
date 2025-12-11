@@ -2728,93 +2728,94 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                     };
                     return (
                       <div key={i} className="event-card">
-                        <button
-                          type="button"
-                          className="prefill-trigger"
-                          onClick={() => openPrefillModalForEvent(e)}
-                          title="Điền Google Form tự động"
-                          aria-label="Điền Google Form tự động"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            className="prefill-trigger-icon"
-                            aria-hidden="true"
+                        {/* HEADER: Giờ + Ngày + Nút Report */}
+                        <div className="event-card-header">
+                          <div className="event-time-badge">
+                            <span className="event-time-highlight">
+                              {fmtHM(e.start)} – {fmtHM(e.end)}
+                            </span>
+                            <span className="event-date-sub">{e.dateLabel}</span>
+                          </div>
+                          
+                          <button
+                            type="button"
+                            className="event-action-report"
+                            onClick={() => openPrefillModalForEvent(e)}
+                            title="Điền báo cáo (Google Form)"
+                            aria-label="Điền báo cáo"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M16.862 4.487a2.1 2.1 0 112.97 2.97L8.654 18.636a4.2 4.2 0 01-1.768 1.043l-3.118.89.89-3.118a4.2 4.2 0 011.043-1.768L16.862 4.487z"
-                            />
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M15.75 6.375l1.875 1.875"
-                            />
-                          </svg>
-                          <span className="prefill-trigger-label" aria-hidden="true">Điền report</span>
-                        </button>
-                        <div className="event-title-row">
-                          <h2 className="event-title">{e.title}</h2>
-                          {brandLink && (
-                            <a
-                              href={brandLink}
-                              className="zalo-link-button"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              💬 Zalo
-                            </a>
-                          )}
+                            {/* Icon cây bút */}
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" style={{width:'18px', height:'18px'}}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.1 2.1 0 112.97 2.97L8.654 18.636a4.2 4.2 0 01-1.768 1.043l-3.118.89.89-3.118a4.2 4.2 0 011.043-1.768L16.862 4.487z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6.375l1.875 1.875" />
+                            </svg>
+                          </button>
                         </div>
-                        <div className="event-time">⏰ {fmtHM(e.start)}–{fmtHM(e.end)}</div>
-                        <div className="event-date">📅 {e.dateLabel}</div>
-                        <div className="event-meta">
-                          <div className="meta-line">
-                            <span aria-hidden="true">📍</span>
-                            <div className="meta-line-content">
-                              <span>{e.room || '-'}</span>
+
+                        {/* BODY: Tên Brand + Thông tin chính */}
+                        <div className="event-card-body">
+                          <div className="event-brand-row">
+                            <h3 className="event-title-main">{e.title}</h3>
+                            {brandLink && (
+                              <a
+                                href={brandLink}
+                                className="zalo-link-button zalo-link-button--inline"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Nhóm Zalo chung"
+                              >
+                                Zalo
+                              </a>
+                            )}
+                          </div>
+
+                          {/* CHIPS: Các thông tin phụ được gom nhóm */}
+                          <div className="event-chips-grid">
+                            {/* Phòng */}
+                            <div className="event-chip event-chip--room">
+                              <span aria-hidden="true">📍</span>
+                              <span>{e.room || 'Chưa có phòng'}</span>
+                            </div>
+
+                            {/* Session Type */}
+                            <div className="event-chip">
+                              <span aria-hidden="true">📝</span>
+                              <span>{e.sessionType || 'Session?'}</span>
+                            </div>
+
+                            {/* Coordinator */}
+                            <div className="event-chip event-chip--coor">
+                              <span aria-hidden="true">🖥️</span>
+                              <span>{e.coor || 'Chưa có Coor'}</span>
                             </div>
                           </div>
-                          <div className="meta-line">
-                            <span aria-hidden="true">📝</span>
-                            <div className="meta-line-content">
-                              <span>Session type: {e.sessionType || '—'}</span>
-                            </div>
-                          </div>
-                          <div className="meta-line">
-                            <span aria-hidden="true">🎤</span>
-                            <div className="meta-line-content meta-line-content--hosts">
-                              {hostEntries.length ? (
-                                hostEntries.map(entry => (
-                                  <span key={entry.name} className="meta-host-entry">
-                                    <span>{entry.name}</span>
-                                    {entry.link && (
-                                      <a
-                                        href={entry.link}
-                                        className="zalo-link-button zalo-link-button--inline"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={handleHostZaloClick}
-                                      >
-                                        💬 Zalo
-                                      </a>
-                                    )}
-                                  </span>
-                                ))
-                              ) : (
-                                <span>—</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="meta-line">
-                            <span aria-hidden="true">🖥️</span>
-                            <div className="meta-line-content">
-                              <span>{e.coor || '—'}</span>
-                            </div>
+                        </div>
+
+                        {/* FOOTER: Danh sách Host */}
+                        <div className="event-card-footer">
+                          <div className="event-host-list">
+                            <span className="event-host-label">Talent:</span>
+                            {hostEntries.length ? (
+                              hostEntries.map(entry => (
+                                <span key={entry.name} className="host-tag">
+                                  <span>{entry.name}</span>
+                                  {entry.link && (
+                                    <a
+                                      href={entry.link}
+                                      className="host-zalo-mini"
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={handleHostZaloClick}
+                                      title={`Zalo của ${entry.name}`}
+                                    >
+                                      Z
+                                    </a>
+                                  )}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="event-chip">Chưa có Talent</span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -2843,92 +2844,94 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               };
               return (
                 <div key={i} className="event-card">
-                <button
-                  type="button"
-                  className="prefill-trigger"
-                  onClick={() => openPrefillModalForEvent(e)}
-                  title="Điền Google Form tự động"
-                  aria-label="Điền Google Form tự động"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    className="prefill-trigger-icon"
-                    aria-hidden="true"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M16.862 4.487a2.1 2.1 0 112.97 2.97L8.654 18.636a4.2 4.2 0 01-1.768 1.043l-3.118.89.89-3.118a4.2 4.2 0 011.043-1.768L16.862 4.487z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M15.75 6.375l1.875 1.875"
-                    />
-                  </svg>
-                  <span className="prefill-trigger-label" aria-hidden="true">Điền report</span>
-                </button>
-                  <div className="event-title-row">
-                    <h2 className="event-title">{e.title}</h2>
-                    {brandLink && (
-                      <a
-                        href={brandLink}
-                        className="zalo-link-button"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        💬 Zalo
-                      </a>
-                    )}
+                  {/* HEADER: Giờ + Ngày + Nút Report */}
+                  <div className="event-card-header">
+                    <div className="event-time-badge">
+                      <span className="event-time-highlight">
+                        {fmtHM(e.start)} – {fmtHM(e.end)}
+                      </span>
+                      <span className="event-date-sub">{e.dateLabel}</span>
+                    </div>
+                    
+                    <button
+                      type="button"
+                      className="event-action-report"
+                      onClick={() => openPrefillModalForEvent(e)}
+                      title="Điền báo cáo (Google Form)"
+                      aria-label="Điền báo cáo"
+                    >
+                      {/* Icon cây bút */}
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" style={{width:'18px', height:'18px'}}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.1 2.1 0 112.97 2.97L8.654 18.636a4.2 4.2 0 01-1.768 1.043l-3.118.89.89-3.118a4.2 4.2 0 011.043-1.768L16.862 4.487z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6.375l1.875 1.875" />
+                      </svg>
+                    </button>
                   </div>
-                  <div className="event-time">⏰ {fmtHM(e.start)}–{fmtHM(e.end)}</div>
-                  <div className="event-meta">
-                    <div className="meta-line">
-                      <span aria-hidden="true">📍</span>
-                      <div className="meta-line-content">
-                        <span>{e.room || '-'}</span>
+
+                  {/* BODY: Tên Brand + Thông tin chính */}
+                  <div className="event-card-body">
+                    <div className="event-brand-row">
+                      <h3 className="event-title-main">{e.title}</h3>
+                      {brandLink && (
+                        <a
+                          href={brandLink}
+                          className="zalo-link-button zalo-link-button--inline"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Nhóm Zalo chung"
+                        >
+                          Zalo
+                        </a>
+                      )}
+                    </div>
+
+                    {/* CHIPS: Các thông tin phụ được gom nhóm */}
+                    <div className="event-chips-grid">
+                      {/* Phòng */}
+                      <div className="event-chip event-chip--room">
+                        <span aria-hidden="true">📍</span>
+                        <span>{e.room || 'Chưa có phòng'}</span>
+                      </div>
+
+                      {/* Session Type */}
+                      <div className="event-chip">
+                        <span aria-hidden="true">📝</span>
+                        <span>{e.sessionType || 'Session?'}</span>
+                      </div>
+
+                      {/* Coordinator */}
+                      <div className="event-chip event-chip--coor">
+                        <span aria-hidden="true">🖥️</span>
+                        <span>{e.coor || 'Chưa có Coor'}</span>
                       </div>
                     </div>
-                    <div className="meta-line">
-                      <span aria-hidden="true">📝</span>
-                      <div className="meta-line-content">
-                        <span>Session type: {e.sessionType || '—'}</span>
-                      </div>
-                    </div>
-                    <div className="meta-line">
-                      <span aria-hidden="true">🎤</span>
-                      <div className="meta-line-content meta-line-content--hosts">
-                        {hostEntries.length ? (
-                          hostEntries.map(entry => (
-                            <span key={entry.name} className="meta-host-entry">
-                              <span>{entry.name}</span>
-                              {entry.link && (
-                                <a
-                                  href={entry.link}
-                                  className="zalo-link-button zalo-link-button--inline"
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={handleHostZaloClick}
-                                >
-                                  💬 Zalo
-                                </a>
-                              )}
-                            </span>
-                          ))
-                        ) : (
-                          <span>—</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="meta-line">
-                      <span aria-hidden="true">🖥️</span>
-                      <div className="meta-line-content">
-                        <span>{e.coor || '—'}</span>
-                      </div>
+                  </div>
+
+                  {/* FOOTER: Danh sách Host */}
+                  <div className="event-card-footer">
+                    <div className="event-host-list">
+                      <span className="event-host-label">Talent:</span>
+                      {hostEntries.length ? (
+                        hostEntries.map(entry => (
+                          <span key={entry.name} className="host-tag">
+                            <span>{entry.name}</span>
+                            {entry.link && (
+                              <a
+                                href={entry.link}
+                                className="host-zalo-mini"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={handleHostZaloClick}
+                                title={`Zalo của ${entry.name}`}
+                              >
+                                Z
+                              </a>
+                            )}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="event-chip">Chưa có Talent</span>
+                      )}
                     </div>
                   </div>
                 </div>
