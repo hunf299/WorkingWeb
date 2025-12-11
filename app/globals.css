@@ -2447,3 +2447,233 @@ h1 {
   .meta-line-content { color: #e2e8f0; }
   .group-head { border-left-color: var(--primary); }
 }
+/* ... (Giữ nguyên phần đầu file) ... */
+
+/* =========================================
+   REDESIGN: COMPACT CARD & GROUPING (2025)
+   ========================================= */
+
+/* 1. Group Divider (Thay thế Group Head cũ) */
+.group-wrapper {
+  margin-bottom: 24px;
+}
+
+.group-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.group-divider-label {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--primary);
+  background: var(--bg-input);
+  padding: 4px 12px;
+  border-radius: 99px;
+  white-space: nowrap;
+  border: 1px solid var(--border-subtle);
+}
+
+.group-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+/* Layout Grid cho các card trong 1 group */
+.group-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .group-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1200px) {
+  .group-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* 2. Compact Event Card (ECC) */
+.event-card-compact {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.event-card-compact:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-float);
+  border-color: var(--primary);
+}
+
+/* Header: Time + Report Btn */
+.ecc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: -4px; /* Kéo title lại gần hơn */
+}
+
+.ecc-time {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.ecc-report-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ecc-report-btn:hover {
+  background: #eff6ff;
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Body: Title + Tags */
+.ecc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ecc-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ecc-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.ecc-zalo-badge {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #0ea5e9;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 99px;
+  text-decoration: none;
+  margin-top: 2px;
+}
+
+/* Tags Container */
+.ecc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ecc-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-input);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  max-width: 100%;
+}
+
+.ecc-tag--room {
+  background: rgba(245, 158, 11, 0.1);
+  color: #b45309;
+}
+
+.ecc-icon {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+/* Footer: Host */
+.ecc-footer {
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-subtle);
+  margin-top: auto; /* Đẩy xuống đáy nếu card bị kéo giãn */
+}
+
+.ecc-host-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.ecc-hosts-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ecc-host-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ecc-zalo-dot {
+  font-size: 0.7rem;
+  text-decoration: none;
+  opacity: 0.8;
+  transition: transform 0.2s;
+}
+.ecc-zalo-dot:hover {
+  transform: scale(1.2);
+  opacity: 1;
+}
+
+.ecc-host-empty {
+  color: var(--text-secondary);
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+/* Dark Mode Overrides */
+@media (prefers-color-scheme: dark) {
+  .ecc-time { background: rgba(255,255,255,0.05); color: #cbd5e1; }
+  .ecc-tag { background: rgba(255,255,255,0.05); color: #cbd5e1; }
+  .ecc-tag--room { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+  .ecc-report-btn:hover { background: rgba(255,255,255,0.1); }
+  .group-divider-label { background: rgba(255,255,255,0.05); color: #93c5fd; border-color: rgba(255,255,255,0.1); }
+  .group-divider-line { background: rgba(255,255,255,0.1); }
+}
