@@ -1997,36 +1997,290 @@ h1 {
 /* =========================================
    MOBILE FIX: KHÓA KÍCH THƯỚC NÚT (Ngăn bung rộng)
    ========================================= */
+/* =========================================
+   MOBILE TOOLTIP & FIX (Hiện chữ khi chạm + Khóa bung nút)
+   ========================================= */
 @media (max-width: 768px) {
-  /* 1. Ép tất cả các nút hành động về kích thước cố định */
+  /* 1. Ép tất cả các nút (Header + Calendar) về kích thước cố định */
   .calendar-card-action,
   .calendar-card-toggle,
-  .icon-button,
-  .icon-button--with-label {
-    width: 44px !important;       /* Chiều rộng cố định */
-    min-width: 44px !important;   /* Không cho co nhỏ hơn */
-    height: 44px !important;      /* Chiều cao cố định */
-    padding: 0 !important;        /* Bỏ padding thừa */
-    border-radius: 12px !important; /* Hoặc 50% tùy ý thích */
-    justify-content: center !important; /* Căn giữa icon */
+  .icon-button {
+    width: 44px !important;       /* Vuông vức */
+    min-width: 44px !important;
+    height: 44px !important;
+    padding: 0 !important;
+    border-radius: 12px !important;
+    justify-content: center !important;
     
-    /* Quan trọng: Cho phép tooltip (popup) hiện ra ngoài khung nút */
-    position: relative !important; 
-    overflow: visible !important; 
+    position: relative !important; /* Để định vị tooltip */
+    overflow: visible !important;  /* Để tooltip trồi ra ngoài */
   }
 
-  /* 2. Ẩn tuyệt đối các dòng chữ label bên trong nút */
-  /* (Chỉ hiện tooltip bên ngoài, không hiện chữ làm vỡ nút) */
+  /* 2. Ẩn chữ bên trong nút (Tránh vỡ giao diện) */
   .icon-button-label,
   .calendar-card-action .icon-button-label,
   .calendar-card-toggle .sr-only {
     display: none !important;
   }
 
-  /* 3. Tắt hiệu ứng hover đổi màu nền quá gắt trên mobile (Optional) */
-  /* Giúp đỡ bị cảm giác "dính" màu khi chạm */
+  /* 3. Tắt hiệu ứng nảy khi chạm */
   .calendar-card-action:hover,
-  .calendar-card-toggle:hover {
-    transform: none !important; /* Tắt hiệu ứng nảy lên */
+  .calendar-card-toggle:hover,
+  .icon-button:hover {
+    transform: none !important;
   }
+
+  /* 4. TẠO TOOLTIP (Hiện chữ khi chạm) */
+  /* Áp dụng cho cả nút Calendar (.calendar-card-...) và nút Header (.icon-button) */
+  .calendar-card-action:active::after,
+  .calendar-card-action:focus::after,
+  .calendar-card-toggle:active::after,
+  .calendar-card-toggle:focus::after,
+  .icon-button:active::after,
+  .icon-button:focus::after {
+    content: attr(aria-label); /* Lấy nội dung từ aria-label */
+    
+    position: absolute;
+    bottom: 125%; /* Hiện phía trên nút */
+    right: 0;     /* Căn phải */
+    
+    background: #0f172a; /* Nền đen */
+    color: #ffffff;      /* Chữ trắng */
+    
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    z-index: 100;
+    pointer-events: none;
+    animation: tooltipPopup 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  /* Mũi tên nhỏ dưới tooltip */
+  .calendar-card-action:active::before,
+  .calendar-card-action:focus::before,
+  .calendar-card-toggle:active::before,
+  .calendar-card-toggle:focus::before,
+  .icon-button:active::before,
+  .icon-button:focus::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    right: 18px; /* Căn giữa icon */
+    border: 6px solid transparent;
+    border-top-color: #0f172a;
+    z-index: 100;
+  }
+}
+
+/* =========================================
+   EVENT CARD REDESIGN (Bento & Tags Style)
+   ========================================= */
+
+/* 1. Group Header (Thanh chia giờ) */
+.group-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input); /* Nền xám nhạt */
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 6px 16px;
+  border-radius: 99px;
+  margin: 24px 0 16px 0;
+  border: 1px solid var(--border-subtle);
+  border-left: 1px solid var(--border-subtle); /* Reset border cũ */
+}
+
+/* 2. Event Card (Khung chính) */
+.event-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px; /* Bo góc mềm mại */
+  padding: 20px;
+  margin-bottom: 16px;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px; /* Khoảng cách giữa các khối nội dung */
+}
+
+.event-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
+  border-color: var(--primary);
+}
+
+/* 3. Event Header: Giờ & Ngày & Nút Report */
+.event-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.event-time-badge {
+  display: flex;
+  flex-direction: column;
+}
+
+.event-time-highlight {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--primary);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.event-date-sub {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Nút Report (Prefill) làm lại gọn hơn */
+.event-action-report {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.event-action-report:hover {
+  background: #eff6ff; /* Xanh rất nhạt */
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* 4. Event Body: Tên Brand & Zalo Link */
+.event-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.event-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.event-title-main {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* 5. Info Chips (Room, Session, Coor) - Gom nhóm gọn gàng */
+.event-chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.event-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--bg-input); /* Nền xám nhẹ */
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+}
+
+.event-chip--room {
+  background: rgba(245, 158, 11, 0.1); /* Cam nhạt */
+  color: #d97706;
+}
+
+.event-chip--coor {
+  background: rgba(99, 102, 241, 0.1); /* Tím nhạt */
+  color: #4f46e5;
+}
+
+.event-chip-icon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+}
+
+/* 6. Event Footer: Host & Zalo con */
+.event-card-footer {
+  padding-top: 16px;
+  border-top: 1px dashed var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.event-host-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.event-host-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+.host-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid var(--border-subtle);
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.host-zalo-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: #0088ff;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.6rem;
+  margin-left: 4px;
+  text-decoration: none;
+}
+.host-zalo-mini:hover { transform: scale(1.1); }
+
+/* Dark Mode Adjustments */
+@media (prefers-color-scheme: dark) {
+  .event-chip { background: rgba(255,255,255,0.05); color: #cbd5e1; }
+  .event-chip--room { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+  .event-chip--coor { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
+  .host-tag { background: rgba(255,255,255,0.05); color: #e2e8f0; border-color: rgba(255,255,255,0.1); }
+  .event-action-report:hover { background: rgba(255,255,255,0.1); }
+  .group-head { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
 }
