@@ -1993,3 +1993,40 @@ h1 {
     border-color: rgba(255, 255, 255, 0.1) !important;
   }
 }
+
+/* =========================================
+   MOBILE FIX: KHÓA KÍCH THƯỚC NÚT (Ngăn bung rộng)
+   ========================================= */
+@media (max-width: 768px) {
+  /* 1. Ép tất cả các nút hành động về kích thước cố định */
+  .calendar-card-action,
+  .calendar-card-toggle,
+  .icon-button,
+  .icon-button--with-label {
+    width: 44px !important;       /* Chiều rộng cố định */
+    min-width: 44px !important;   /* Không cho co nhỏ hơn */
+    height: 44px !important;      /* Chiều cao cố định */
+    padding: 0 !important;        /* Bỏ padding thừa */
+    border-radius: 12px !important; /* Hoặc 50% tùy ý thích */
+    justify-content: center !important; /* Căn giữa icon */
+    
+    /* Quan trọng: Cho phép tooltip (popup) hiện ra ngoài khung nút */
+    position: relative !important; 
+    overflow: visible !important; 
+  }
+
+  /* 2. Ẩn tuyệt đối các dòng chữ label bên trong nút */
+  /* (Chỉ hiện tooltip bên ngoài, không hiện chữ làm vỡ nút) */
+  .icon-button-label,
+  .calendar-card-action .icon-button-label,
+  .calendar-card-toggle .sr-only {
+    display: none !important;
+  }
+
+  /* 3. Tắt hiệu ứng hover đổi màu nền quá gắt trên mobile (Optional) */
+  /* Giúp đỡ bị cảm giác "dính" màu khi chạm */
+  .calendar-card-action:hover,
+  .calendar-card-toggle:hover {
+    transform: none !important; /* Tắt hiệu ứng nảy lên */
+  }
+}
