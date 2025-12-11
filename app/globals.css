@@ -1800,38 +1800,82 @@ h1 {
    DARK MODE OVERRIDES (Fix lỗi hiển thị)
    ========================================= */
 @media (prefers-color-scheme: dark) {
-  /* 1. Cấu hình chung cho cả 2 nút: Tải lịch & Toggle */
-  .calendar-card-action,
-  .calendar-card-toggle {
-    background: rgba(255, 255, 255, 0.05) !important; /* Nền tối (trong suốt nhẹ) */
-    border-color: rgba(255, 255, 255, 0.1) !important; /* Viền xám mờ */
-    color: #f8fafc !important; /* Icon màu trắng sáng */
-  }
-
-  /* 2. Hiệu ứng khi di chuột (Hover) ở Dark Mode */
-  .calendar-card-action:hover,
-  .calendar-card-toggle:hover {
-    background: rgba(255, 255, 255, 0.1) !important; /* Sáng hơn chút khi hover */
-    border-color: #3b82f6 !important; /* Viền xanh (var(--primary)) */
-    color: #ffffff !important; /* Icon trắng tinh */
-  }
-
-  /* 3. Trạng thái nút Toggle đang mở (Expanded) */
-  .calendar-card-toggle[aria-expanded="true"] {
-    background: #3b82f6 !important; /* Nền xanh khi đang mở */
-    border-color: #3b82f6 !important;
-    color: #ffffff !important;
-  }
-  
-  /* 4. Fix ô tìm kiếm trong Dark Mode (nhắc lại để đảm bảo không bị lỗi cũ) */
+  /* 1. Fix lỗi ô tìm kiếm (Giữ nguyên) */
   .calendar-card-search-input .text-input {
     background: #0f172a;
     color: #f8fafc;
     border-color: transparent;
   }
+  
   .calendar-card-search-input .text-input:focus {
     background: #1e293b;
-    border-color: #3b82f6;
+    color: #fff;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25);
+  }
+
+  .calendar-card-search-input::before {
+    filter: invert(1) opacity(0.7);
+  }
+
+  /* 2. Fix lỗi Card nền tối (Giữ nguyên) */
+  .calendar-card {
+    background: #1e293b;
+    border-color: rgba(255,255,255,0.08);
+  }
+
+  /* --- CẬP NHẬT MỚI: Gộp tất cả các nút cần icon trắng vào đây --- */
+  /* Bao gồm: Tải lịch, Mũi tên (.calendar-card-...) & Sửa, Đăng xuất (.icon-button) */
+  .calendar-card-action,
+  .calendar-card-toggle,
+  .icon-button { 
+    background: rgba(255, 255, 255, 0.05) !important; /* Nền tối mờ */
+    border-color: rgba(255, 255, 255, 0.1) !important; /* Viền sáng mờ */
+    color: #ffffff !important;                        /* ICON MÀU TRẮNG TINH */
+  }
+
+  /* Hiệu ứng Hover cho tất cả các nút trên */
+  .calendar-card-action:hover,
+  .calendar-card-toggle:hover,
+  .icon-button:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+    border-color: var(--primary) !important;
+  }
+
+  /* Trạng thái nút Toggle đang mở (Expanded) */
+  .calendar-card-toggle[aria-expanded="true"] {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: #fff !important;
+  }
+  /* --------------------------------------------------------------- */
+
+  /* Phần body mở rộng (Giữ nguyên) */
+  .calendar-card-body {
+    background: rgba(15, 23, 42, 0.5);
+    border-top-color: rgba(255,255,255,0.08);
+  }
+
+  /* Các input con (Giữ nguyên) */
+  .date-input, select.date-input, .filter-trigger {
+    background: #0f172a;
+    border-color: rgba(255,255,255,0.1);
+    color: #e2e8f0;
+  }
+
+  .date-input:hover, .filter-trigger:hover {
+    border-color: var(--primary);
+  }
+
+  /* Nút xóa trong ô tìm kiếm (Giữ nguyên) */
+  .calendar-card-clear {
+    background: rgba(255,255,255,0.1);
+    color: #cbd5e1;
+  }
+  .calendar-card-clear:hover {
+    background: #ef4444;
+    color: #fff;
   }
 }
 
