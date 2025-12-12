@@ -2573,7 +2573,7 @@ h1 {
 /* 2. Compact Event Card (ECC) */
 .event-card-compact {
   background: var(--bg-card);
-  border: 1:04 PM 12/12/2025px solid var(--border-subtle);
+  border: 1px solid var(--border-subtle);
   border-radius: 16px;
   padding: 16px;
   display: flex;
