@@ -3732,3 +3732,611 @@ h1 {
     line-height: 1.3; /* Trên mobile giãn dòng ra chút cho dễ đọc */
   }
 }
+/* =========================================
+   THEME VARIABLES (2025 Modern Palette)
+   ========================================= */
+:root {
+  /* Light Mode Palette */
+  --bg-app: #f3f6fc;          /* Cool, soft blue-white */
+  --bg-card: #ffffff;
+  --bg-input: #f1f5f9;        /* Filled input style */
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-glow: rgba(59, 130, 246, 0.4);
+  
+  --border-subtle: #e2e8f0;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+
+  --shadow-card: 0 4px 20px -2px rgba(148, 163, 184, 0.15), 0 0 2px rgba(148, 163, 184, 0.1);
+  --shadow-float: 0 10px 30px -4px rgba(59, 130, 246, 0.15);
+  
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy interaction */
+  --font-main: "Inter", system-ui, -apple-system, sans-serif; /* Clean modern sans */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark Mode Palette - "Deep Void" */
+    --bg-app: #020617;        /* Very dark navy/black */
+    --bg-card: #0f172a;       /* Slate 900 */
+    --bg-input: #1e293b;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    
+    --primary: #60a5fa;       /* Lighter blue for dark mode */
+    --primary-hover: #3b82f6;
+    --primary-glow: rgba(96, 165, 250, 0.3);
+    
+    --border-subtle: #1e293b;
+    
+    --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+    --shadow-float: 0 10px 40px -10px rgba(0, 0, 0, 0.7);
+  }
+}
+
+/* =========================================
+   RESET & GLOBAL
+   ========================================= */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-main);
+  line-height: 1.6;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  /* Smooth scrolling for whole page */
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Container */
+.container {
+  width: 100%;
+  max-width: 800px; /* Slightly wider for modern look */
+  margin: 0 auto;
+  padding: 32px 24px; /* More breathing room */
+}
+
+h1 { 
+  font-size: 1.75rem; 
+  font-weight: 800; 
+  letter-spacing: -0.03em; /* Tighter tracking for headings */
+  margin-bottom: 16px; 
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent; /* Gradient text effect */
+  background-clip: text;
+  display: inline-block; /* Fix for gradient text */
+}
+
+/* Page Header */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.page-header h1 { margin-bottom: 0; }
+
+.page-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* =========================================
+   BUTTONS & ICONS
+   ========================================= */
+
+.icon-button {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  width: 44px; /* Larger touch targets */
+  height: 44px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-spring);
+}
+
+.icon-button--with-label {
+  min-width: 44px;
+  width: 44px;
+  padding-inline: 0;
+  overflow: hidden;
+  gap: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+}
+
+.icon-button--with-label .icon {
+  transition: margin-right .3s ease;
+}
+
+.icon-button-label {
+  font-size: .9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  max-width: 0;
+  margin-left: 0;
+  transition: all 0.3s ease;
+}
+
+/* Hover Effects */
+.icon-button--with-label:hover,
+.icon-button--with-label:focus-visible {
+  width: auto;
+  padding-inline: 18px;
+  border-color: var(--primary);
+  background: var(--bg-card);
+}
+
+.icon-button--with-label:hover .icon,
+.icon-button--with-label:focus-visible .icon {
+  margin-right: 10px;
+  color: var(--primary);
+}
+
+.icon-button--with-label:hover .icon-button-label,
+.icon-button--with-label:focus-visible .icon-button-label {
+  opacity: 1;
+  max-width: 200px;
+  margin-left: 4px;
+  color: var(--primary);
+}
+
+.icon-button:hover:not(.icon-button--with-label) {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--primary);
+  transform: translateY(-2px); /* Slight lift */
+}
+
+.icon-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px var(--primary-glow);
+}
+
+.icon-button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.icon-button .icon {
+  width: 24px;
+  height: 24px;
+}
+
+.sr-only {
+  position: absolute;
+  top: 0; left: 0; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+/* =========================================
+   INPUTS (Filled Style Trend)
+   ========================================= */
+.date-input, .text-input {
+  appearance: none;
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid transparent; /* No border by default */
+  border-radius: var(--radius-md);
+  background: var(--bg-input); /* Filled background */
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.date-input:hover, .text-input:hover {
+  background: rgba(0,0,0,0.03); /* Subtle darken on hover */
+}
+
+.date-input:focus, .text-input:focus {
+  outline: none;
+  background: var(--bg-card);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-glow);
+}
+
+/* Filters */
+.filters-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  width: 100%;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: .8rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.filter-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.filter-trigger:hover {
+  background: #e2e8f0;
+}
+
+.filter-trigger[data-active="true"] {
+  background: rgba(37, 99, 235, 0.1);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+}
+
+.filter-trigger-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-trigger-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
+}
+
+/* =========================================
+   BUTTONS (Primary)
+   ========================================= */
+.btn {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  font-size: .95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-spring);
+  box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(37, 99, 235, 0.3);
+}
+
+.btn:active {
+  transform: translateY(0);
+  background: var(--primary-hover);
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--border-subtle);
+  box-shadow: none;
+}
+
+.btn.ghost:hover {
+  background: rgba(37,99,235,.06);
+  border-color: var(--primary);
+}
+
+.btn[disabled], .btn:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+  filter: grayscale(1);
+  transform: none;
+  box-shadow: none;
+}
+
+.text-input:disabled, .date-input:disabled {
+  background: #e2e8f0;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+
+/* =========================================
+   MODERN COMMAND BAR (Redesign Calendar Card)
+   ========================================= */
+
+/* 1. Container chính */
+.calendar-card {
+  background: var(--bg-card); 
+  border: 1px solid var(--border-subtle);
+  border-radius: 24px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+  margin-bottom: 20px;
+  overflow: visible;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  z-index: 10;
+}
+
+.calendar-card:hover {
+  box-shadow: 0 12px 40px rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.calendar-card[data-expanded="true"] {
+  border-color: var(--primary);
+}
+
+/* 2. Header: Nơi chứa Thanh tìm kiếm + Các nút hành động */
+.calendar-card-header {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: transparent;
+}
+
+/* Phần trên cùng: Search + Action Buttons + Toggle */
+.calendar-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  flex-wrap: nowrap; /* Đảm bảo nằm cùng 1 hàng */
+}
+
+/* Khu vực chứa ô tìm kiếm: Chiếm hết khoảng trống còn lại */
+.calendar-card-title {
+  flex: 1; /* Chiếm phần lớn diện tích */
+  display: flex;
+  flex-direction: column;
+  min-width: 100px; /* Đảm bảo không bị co quá nhỏ */
+}
+
+.calendar-card-search {
+  width: 100%;
+}
+
+.calendar-card-search-input {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+/* INPUT TÌM KIẾM */
+.calendar-card-search-input .text-input {
+  width: 100%;
+  height: 52px;
+  padding-left: 48px;
+  border-radius: 16px;
+  background: var(--bg-input, #f3f4f6);
+  border: 2px solid transparent;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  padding-right: 60px !important;
+  text-overflow: ellipsis;
+}
+
+/* Icon kính lúp */
+.calendar-card-search-input::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z' /%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity 0.2s;
+}
+
+.calendar-card-search-input .text-input:focus {
+  background: #fff;
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.calendar-card-clear {
+  position: absolute;
+  right: 12px;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(0,0,0,0.05);
+  border-radius: 99px;
+  border: none;
+}
+.calendar-card-clear:hover {
+  background: #ef4444;
+  color: white;
+}
+
+/* Buttons Group: Các nút bên phải (Download, Salary, Toggle) */
+.calendar-card-action {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle, #e2e8f0);
+  background: #fff;
+  color: var(--text-secondary, #64748b);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0; /* Không cho co lại */
+}
+
+.calendar-card-action:hover {
+  background: var(--bg-input, #f8fafc);
+  color: var(--primary);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.calendar-card-toggle[aria-expanded="true"] {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  transform: rotate(0deg); 
+}
+
+.calendar-card-toggle .calendar-card-chevron {
+  transition: transform 0.3s ease;
+}
+.calendar-card-toggle[aria-expanded="true"] .calendar-card-chevron {
+  transform: rotate(180deg);
+}
+
+/* Responsive: Ẩn label text của nút trên mobile */
+.icon-button-label {
+  display: none;
+}
+@media (min-width: 768px) {
+  .icon-button-label { display: block; margin-left: 8px; }
+  /* Cho phép nút mở rộng width khi có label */
+  .calendar-card-action:not(.calendar-card-toggle) { 
+    width: auto; 
+    padding: 0 16px; 
+  }
+}
+
+/* 4. Body: Khu vực Ngày, Số ngày & Bộ lọc */
+.calendar-card-body {
+  border-top: 1px dashed var(--border-subtle, #e2e8f0);
+  padding: 16px;
+  background: var(--bg-subtle, #fcfcfc);
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+  animation: slideDown 0.3s ease forwards;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.calendar-card-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: end;
+}
+
+.calendar-card-field {
+  gap: 6px;
+}
+
+.calendar-card-field label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text-secondary, #64748b);
+  letter-spacing: 0.05em;
+  margin-left: 4px;
+}
+
+.calendar-card-footer {
+  display: flex;
+  margin-top: 12px;
+}
+
+@media (min-width: 768px) {
+  .calendar-card-body {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    padding: 16px 20px 20px 20px;
+  }
+  .calendar-card-controls {
+    display: flex;
+    flex: 1;
+    gap: 16px;
+    margin-bottom: 0;
+  }
+  .calendar-card-field { flex: 1; }
+  .calendar-card-field:first-child { flex: 1.5; }
+  .calendar-card-footer {
+    margin-top: 0;
+    flex: 0 0 auto;
+  }
+}
+
+/* Dark Mode Fixes */
+@media (prefers-color-scheme: dark) {
+  .calendar-card {
+    background: #1e293b;
+    border-color: rgba(255,255,255,0.08);
+  }
+  .calendar-card-search-input .text-input {
+    background: #0f172a;
+    color: #f8fafc;
+    border-color: transparent;
+  }
+  .calendar-card-search-input .text-input:focus {
+    background: #1e293b;
+    border-color: var(--primary);
+  }
+  .calendar-card-action, .calendar-card-toggle { 
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+  }
+  .calendar-card-action:hover, .calendar-card-toggle:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: var(--primary) !important;
+  }
+  .calendar-card-toggle[aria-expanded="true"] {
+    background: var(--primary) !important;
+  }
+}
+
+/* Mobile Tooltip overrides (keep existing logic) */
+@media (max-width: 768px) {
+  .calendar-card-action, .calendar-card-toggle {
+    position: relative !important;
+    overflow: visible !important;
+  }
+  .calendar-card-action:active::after,
+  .calendar-card-action:focus::after,
+  .calendar-card-toggle:active::after,
+  .calendar-card-toggle:focus::after {
+    content: attr(aria-label);
+    position: absolute;
+    bottom: 125%; right: 0;
+    background: #0f172a; color: #fff;
+    padding: 6px 12px; border-radius: 8px;
+    font-size: 0.75rem; white-space: nowrap;
+    z-index: 100; pointer-events: none;
+  }
+}
