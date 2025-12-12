@@ -3352,3 +3352,87 @@ h1 {
     gap: 8px;
   }
 }
+/* =========================================
+   FIXED FINAL: ALIGNMENT & MOBILE LAYOUT
+   ========================================= */
+
+/* 1. Header Row: Căn giữa tuyệt đối (Vertically Centered) */
+.prefill-header-row {
+  display: flex;
+  align-items: center; /* QUAN TRỌNG: Căn giữa theo trục dọc */
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+}
+
+/* 2. Brand Text: Điều chỉnh để thẳng hàng với Chips */
+.prefill-header-brand {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.2;   /* Tăng nhẹ để chữ thoáng và dễ căn giữa */
+  margin-right: auto; /* Đẩy Date/Time sang phải (nếu muốn) */
+  /* Đã XÓA padding-bottom gây lệch */
+}
+
+/* 3. Wrapper gom nhóm Ngày & Giờ (Giữ nguyên trên 1 dòng ở Mobile) */
+.prefill-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;      /* Không cho phép co lại */
+  white-space: nowrap; /* Ép buộc không xuống dòng nội bộ */
+}
+
+/* 4. Chips (Date/Time) */
+.prefill-header-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;        /* Chiều cao cố định */
+  gap: 6px;
+  font-size: 0.85rem;
+  padding: 0 12px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+/* 5. Grid Form Desktop (Mặc định 2 cột) */
+.prefill-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.grid-span-2 {
+  grid-column: span 2;
+}
+
+/* 6. Mobile Responsiveness: Ép về 1 cột dọc cho Form */
+@media (max-width: 640px) {
+  /* Chuyển Form về 1 cột dọc: Mỗi ô 1 hàng */
+  .prefill-form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* Reset các ô đang span 2 cột về full width */
+  .grid-span-2 {
+    width: 100%;
+  }
+  
+  /* Đảm bảo ô input chiếm hết chiều ngang */
+  .modern-input-group {
+    width: 100%;
+  }
+
+  /* Header trên mobile: Giảm gap chút cho gọn */
+  .prefill-header-row {
+    gap: 8px;
+  }
+}
