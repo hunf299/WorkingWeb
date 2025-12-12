@@ -2713,224 +2713,225 @@ Nguồn: Google Sheet ${ev.rawDate}`,
           groupedMultipleDays.map(day => (
             <div key={day.dayKey} className="day-section">
               <div className="day-head">{day.dayLabel}</div>
-              {day.buckets.map(g => (
-                <div key={g.bucket}>
-                  {/* REDESIGN: Group Divider */}
-                  <div className="group-divider">
-                    <span className="group-divider-label">{g.bucket}</span>
-                    <span className="group-divider-line"></span>
-                  </div>
+              {/* WRAPPER MỚI: buckets-grid */}
+              <div className="buckets-grid">
+                {day.buckets.map(g => (
+                  <div 
+                    key={g.bucket} 
+                    className={`bucket-wrapper ${g.items.length === 1 ? 'bucket-single' : ''}`}
+                  >
+                    {/* Group Divider */}
+                    <div className="group-divider">
+                      <span className="group-divider-label">{g.bucket}</span>
+                      <span className="group-divider-line"></span>
+                    </div>
 
-                  <div className="group-grid">
-                    {g.items.map((e, i) => {
-                      const computed = eventComputedMap.get(e) || {
-                        brandLink: null,
-                        hostEntries: [],
-                        hostZaloMessage: buildHostZaloMessage(e, hostScriptTemplate)
-                      };
-                      const { brandLink, hostEntries, hostZaloMessage } = computed;
-                      const handleHostZaloClick = () => {
-                        void copyTextToClipboard(hostZaloMessage);
-                      };
+                    {/* Grid Layout (Giữ nguyên nội dung bên trong) */}
+                    <div className="group-grid">
+                      {g.items.map((e, i) => {
+                        const computed = eventComputedMap.get(e) || {
+                          brandLink: null,
+                          hostEntries: [],
+                          hostZaloMessage: buildHostZaloMessage(e, hostScriptTemplate)
+                        };
+                        const { brandLink, hostEntries, hostZaloMessage } = computed;
+                        const handleHostZaloClick = () => {
+                          void copyTextToClipboard(hostZaloMessage);
+                        };
 
-                      return (
-                        <div key={i} className="event-card-compact">
-                          {/* Header: Time + Điền Report */}
-                          <div className="ecc-header">
-                            <div className="ecc-time">
-                              ⏰ {fmtHM(e.start)} – {fmtHM(e.end)}
-                            </div>
-                            <button
-                              type="button"
-                              className="ecc-report-btn"
-                              onClick={() => openPrefillModalForEvent(e)}
-                              title="Điền report"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ecc-report-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                              <span>Điền report</span>
-                            </button>
-                          </div>
-
-                          {/* Body: Brand + Meta Tags (Room, Session, Coor, Host) */}
-                          <div className="ecc-body">
-                            <div className="ecc-title-row">
-                              <h3 className="ecc-title">{e.title}</h3>
-                              {brandLink && (
-                                <a
-                                  href={brandLink}
-                                  className="zalo-compact-btn"
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  title="Nhóm Zalo Brand"
-                                >
-                                  Zalo
-                                </a>
-                              )}
-                            </div>
-
-                            <div className="ecc-tags">
-                              {/* Tag 1: Room */}
-                              <div className="ecc-tag ecc-tag--room">
-                                <span className="ecc-icon">📍</span>
-                                <span>{e.room || '-'}</span>
+                        return (
+                          <div key={i} className="event-card-compact">
+                            <div className="ecc-header">
+                              <div className="ecc-time">
+                                ⏰ {fmtHM(e.start)} – {fmtHM(e.end)}
                               </div>
-                              
-                              {/* Tag 2: Host (Đưa vào đây theo yêu cầu) */}
-                              <div className="ecc-tag ecc-tag--host">
-                                <span className="ecc-icon">🎤</span>
-                                <div className="ecc-host-content">
-                                  {hostEntries.length ? (
-                                    hostEntries.map((entry, idx) => (
-                                      <span key={entry.name} className="ecc-host-item">
-                                        <span>{entry.name}</span>
-                                        {entry.link && (
-                                          <a
-                                            href={entry.link}
-                                            className="zalo-compact-btn" /* Dùng chung class nút Zalo */
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            onClick={handleHostZaloClick}
-                                            title={`Zalo của ${entry.name}`}
-                                          >
-                                            Zalo
-                                          </a>
-                                        )}
-                                        {idx < hostEntries.length - 1 && <span className="ecc-host-sep">|</span>}
-                                      </span>
-                                    ))
-                                  ) : (
-                                    <span>—</span>
-                                  )}
+                              <button
+                                type="button"
+                                className="ecc-report-btn"
+                                onClick={() => openPrefillModalForEvent(e)}
+                                title="Điền report"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ecc-report-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                <span>Điền report</span>
+                              </button>
+                            </div>
+
+                            <div className="ecc-body">
+                              <div className="ecc-title-row">
+                                <h3 className="ecc-title">{e.title}</h3>
+                                {brandLink && (
+                                  <a
+                                    href={brandLink}
+                                    className="zalo-compact-btn"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title="Nhóm Zalo Brand"
+                                  >
+                                    Zalo
+                                  </a>
+                                )}
+                              </div>
+
+                              <div className="ecc-tags">
+                                <div className="ecc-tag ecc-tag--room">
+                                  <span className="ecc-icon">📍</span>
+                                  <span>{e.room || '-'}</span>
+                                </div>
+                                <div className="ecc-tag ecc-tag--host">
+                                    <span className="ecc-icon">🎤</span>
+                                    <div className="ecc-host-content">
+                                      {hostEntries.length ? (
+                                        hostEntries.map((entry, idx) => (
+                                          <span key={entry.name} className="ecc-host-item">
+                                            <span>{entry.name}</span>
+                                            {entry.link && (
+                                              <a
+                                                href={entry.link}
+                                                className="zalo-compact-btn"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={handleHostZaloClick}
+                                                title={`Zalo của ${entry.name}`}
+                                              >
+                                                Zalo
+                                              </a>
+                                            )}
+                                            {idx < hostEntries.length - 1 && <span className="ecc-host-sep">|</span>}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <span>—</span>
+                                      )}
+                                    </div>
+                                </div>
+                                <div className="ecc-tag">
+                                  <span className="ecc-icon">📝</span>
+                                  <span>{e.sessionType || '—'}</span>
+                                </div>
+                                <div className="ecc-tag">
+                                  <span className="ecc-icon">🖥️</span>
+                                  <span>{e.coor || '—'}</span>
                                 </div>
                               </div>
-
-                              {/* Tag 3: Session */}
-                              <div className="ecc-tag">
-                                <span className="ecc-icon">📝</span>
-                                <span>{e.sessionType || '—'}</span>
-                              </div>
-
-                              {/* Tag 4: Coor */}
-                              <div className="ecc-tag">
-                                <span className="ecc-icon">🖥️</span>
-                                <span>{e.coor || '—'}</span>
-                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           ))
         ) : (
           <p>Không có sự kiện trong khoảng ngày này.</p>
         )
       ) : groupedSingleDay.length ? (
-        groupedSingleDay.map(g => (
-          <div key={g.bucket}>
-            <div className="group-divider">
-              <span className="group-divider-label">{g.bucket}</span>
-              <span className="group-divider-line"></span>
-            </div>
-            
-            <div className="group-grid">
-              {g.items.map((e, i) => {
-                const computed = eventComputedMap.get(e) || {
-                  brandLink: null,
-                  hostEntries: [],
-                  hostZaloMessage: buildHostZaloMessage(e, hostScriptTemplate)
-                };
-                const { brandLink, hostEntries, hostZaloMessage } = computed;
-                const handleHostZaloClick = () => {
-                  void copyTextToClipboard(hostZaloMessage);
-                };
-                return (
-                  <div key={i} className="event-card-compact">
-                    <div className="ecc-header">
-                      <div className="ecc-time">
-                        ⏰ {fmtHM(e.start)} – {fmtHM(e.end)}
+        /* WRAPPER MỚI: buckets-grid cho chế độ xem 1 ngày */
+        <div className="buckets-grid">
+          {groupedSingleDay.map(g => (
+            <div 
+              key={g.bucket} 
+              className={`bucket-wrapper ${g.items.length === 1 ? 'bucket-single' : ''}`}
+            >
+              <div className="group-divider">
+                <span className="group-divider-label">{g.bucket}</span>
+                <span className="group-divider-line"></span>
+              </div>
+              
+              <div className="group-grid">
+                {g.items.map((e, i) => {
+                  const computed = eventComputedMap.get(e) || {
+                    brandLink: null,
+                    hostEntries: [],
+                    hostZaloMessage: buildHostZaloMessage(e, hostScriptTemplate)
+                  };
+                  const { brandLink, hostEntries, hostZaloMessage } = computed;
+                  const handleHostZaloClick = () => {
+                    void copyTextToClipboard(hostZaloMessage);
+                  };
+                  return (
+                    <div key={i} className="event-card-compact">
+                      <div className="ecc-header">
+                        <div className="ecc-time">
+                          ⏰ {fmtHM(e.start)} – {fmtHM(e.end)}
+                        </div>
+                        <button
+                          type="button"
+                          className="ecc-report-btn"
+                          onClick={() => openPrefillModalForEvent(e)}
+                          title="Điền report"
+                        >
+                           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ecc-report-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                          <span>Điền report</span>
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="ecc-report-btn"
-                        onClick={() => openPrefillModalForEvent(e)}
-                        title="Điền report"
-                      >
-                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ecc-report-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                        <span>Điền report</span>
-                      </button>
+
+                      <div className="ecc-body">
+                        <div className="ecc-title-row">
+                          <h3 className="ecc-title">{e.title}</h3>
+                          {brandLink && (
+                            <a
+                              href={brandLink}
+                              className="zalo-compact-btn"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Nhóm Zalo Brand"
+                            >
+                              Zalo
+                            </a>
+                          )}
+                        </div>
+
+                        <div className="ecc-tags">
+                          <div className="ecc-tag ecc-tag--room">
+                            <span className="ecc-icon">📍</span>
+                            <span>{e.room || '-'}</span>
+                          </div>
+                          <div className="ecc-tag ecc-tag--host">
+                              <span className="ecc-icon">🎤</span>
+                              <div className="ecc-host-content">
+                                {hostEntries.length ? (
+                                  hostEntries.map((entry, idx) => (
+                                    <span key={entry.name} className="ecc-host-item">
+                                      <span>{entry.name}</span>
+                                      {entry.link && (
+                                        <a
+                                          href={entry.link}
+                                          className="zalo-compact-btn"
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={handleHostZaloClick}
+                                          title={`Zalo của ${entry.name}`}
+                                        >
+                                          Zalo
+                                        </a>
+                                      )}
+                                      {idx < hostEntries.length - 1 && <span className="ecc-host-sep">|</span>}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span>—</span>
+                                )}
+                              </div>
+                          </div>
+                          <div className="ecc-tag">
+                            <span className="ecc-icon">📝</span>
+                            <span>{e.sessionType || '—'}</span>
+                          </div>
+                          <div className="ecc-tag">
+                            <span className="ecc-icon">🖥️</span>
+                            <span>{e.coor || '—'}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-
-                    <div className="ecc-body">
-                      <div className="ecc-title-row">
-                        <h3 className="ecc-title">{e.title}</h3>
-                        {brandLink && (
-                          <a
-                            href={brandLink}
-                            className="zalo-compact-btn"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Nhóm Zalo Brand"
-                          >
-                            Zalo
-                          </a>
-                        )}
-                      </div>
-
-                      <div className="ecc-tags">
-                        <div className="ecc-tag ecc-tag--room">
-                          <span className="ecc-icon">📍</span>
-                          <span>{e.room || '-'}</span>
-                        </div>
-                        
-                        {/* Host Tag Inline */}
-                        <div className="ecc-tag ecc-tag--host">
-                            <span className="ecc-icon">🎤</span>
-                            <div className="ecc-host-content">
-                              {hostEntries.length ? (
-                                hostEntries.map((entry, idx) => (
-                                  <span key={entry.name} className="ecc-host-item">
-                                    <span>{entry.name}</span>
-                                    {entry.link && (
-                                      <a
-                                        href={entry.link}
-                                        className="zalo-compact-btn"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={handleHostZaloClick}
-                                        title={`Zalo của ${entry.name}`}
-                                      >
-                                        Zalo
-                                      </a>
-                                    )}
-                                    {idx < hostEntries.length - 1 && <span className="ecc-host-sep">|</span>}
-                                  </span>
-                                ))
-                              ) : (
-                                <span>—</span>
-                              )}
-                            </div>
-                        </div>
-
-                        <div className="ecc-tag">
-                          <span className="ecc-icon">📝</span>
-                          <span>{e.sessionType || '—'}</span>
-                        </div>
-                        <div className="ecc-tag">
-                          <span className="ecc-icon">🖥️</span>
-                          <span>{e.coor || '—'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))
+          ))}
+        </div>
       ) : (
         <p>Không có sự kiện cho ngày này.</p>
       )}
