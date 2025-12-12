@@ -3628,8 +3628,23 @@ Nguồn: Google Sheet ${ev.rawDate}`,
       {salaryResult && (
         <div className="modal-backdrop">
           <div className="modal-card">
-            <h2>Kết quả tính lương</h2>
-            <p className="modal-desc">Đã tính lương cho {salaryResult.coordinator || 'coordinator không xác định'}.</p>
+            {/* Header mới: Tiêu đề + Nút X */}
+            <div className="filters-modal-header">
+              <h2 style={{ margin: 0 }}>Kết quả tính lương</h2>
+              <button
+                type="button"
+                className="modal-close-button"
+                onClick={() => setSalaryResult(null)}
+                aria-label="Đóng"
+              >
+                ×
+              </button>
+            </div>
+            
+            <p className="modal-desc" style={{ marginTop: '16px' }}>
+              Đã tính lương cho {salaryResult.coordinator || 'coordinator không xác định'}.
+            </p>
+
             <div className="prefill-modal-summary">
               <div className="prefill-modal-summary-item">
                 <span>Ca Shopee</span>
@@ -3643,6 +3658,8 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 <span>Ca Tiktok</span>
                 <span>{salaryResult.counts?.tiktok ?? 0}</span>
               </div>
+              
+              {/* Các dòng này sẽ tự động xuống dòng và full-width nhờ CSS */}
               <div className="prefill-modal-summary-item">
                 <span>Số tiền vừa cộng</span>
                 <span>{(salaryResult.addedMoney || 0).toLocaleString('vi-VN')} đ</span>
@@ -3656,15 +3673,10 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 <span>{salaryResult.salaryDetail || 'Chưa có dữ liệu'}</span>
               </div>
             </div>
-            <div className="modal-footer">
-              <button type="button" className="btn" onClick={() => setSalaryResult(null)}>
-                Đóng
-              </button>
-            </div>
+            {/* Đã xóa nút Đóng ở footer */}
           </div>
         </div>
       )}
-
       {showLoginModal && (
         <div className="modal-backdrop">
           <div className="modal-card">
