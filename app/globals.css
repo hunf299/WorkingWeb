@@ -633,8 +633,15 @@ h1 {
     align-items: center;
     gap: 24px;
   }
+  .calendar-card-top {
+    flex: 1;
+  }
   .calendar-card-title {
     padding-right: 180px;
+  }
+  .calendar-card-actions {
+    width: auto;
+    flex-wrap: nowrap;
   }
   .filters-modal-footer .btn {
     flex: 0 0 auto;
@@ -1544,14 +1551,22 @@ h1 {
 .calendar-card-header {
   padding: 12px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 12px;
   background: transparent;
 }
 
+.calendar-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
 /* Ẩn label "Tìm kiếm" cũ để giao diện sạch hơn (vì placeholder đã nói lên điều đó) */
 .calendar-card-label {
-  display: none; 
+  display: none;
 }
 
 /* Khu vực chứa ô tìm kiếm: Chiếm hết khoảng trống còn lại */
@@ -1636,6 +1651,9 @@ h1 {
   position: static; /* Reset vị trí absolute cũ */
   display: flex;
   gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  width: 100%;
 }
 
 /* Nút Toggle (Cài đặt) & Download */
