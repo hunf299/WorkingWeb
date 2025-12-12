@@ -778,6 +778,46 @@ const HELP_TABS = [
   }
 ];
 
+function RoomTag({ primaryRoom, roomParts }) {
+  const [expanded, setExpanded] = useState(false);
+
+  // Nếu không có danh sách chi tiết hoặc chỉ có 1 phòng trùng với primary, không cần chức năng toggle
+  const hasMultipleRooms = roomParts && roomParts.length > 0;
+  
+  // Xử lý click: Chặn sự kiện nổi bọt (để không kích hoạt click của card cha nếu có)
+  const handleClick = (e) => {
+    e.stopPropagation();
+    setExpanded(!expanded);
+  };
+
+  // Nội dung hiển thị
+  const displayContent = expanded 
+    ? roomParts.join(' / ') // Khi mở: Hiện tất cả r8, r9, r10
+    : (primaryRoom || roomParts[0] || '-'); // Khi đóng: Chỉ hiện r9 (primary) hoặc fallback
+
+  if (!hasMultipleRooms) {
+    return (
+      <div className="ecc-tag ecc-tag--room">
+        <span className="ecc-icon">📍</span>
+        <span>{displayContent}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="ecc-tag ecc-tag--room" 
+      onClick={handleClick}
+      title={expanded ? "Thu gọn" : "Bấm để xem chi tiết các phòng"}
+    >
+      <span className="ecc-icon">📍</span>
+      <span>{displayContent}</span>
+      {/* Mũi tên chỉ báo */}
+      <span className={`room-expand-arrow ${expanded ? 'expanded' : ''}`}>▼</span>
+    </div>
+  );
+}
+
 export default function Page() {
   const [rawItems, setRawItems] = useState([]);      // dữ liệu raw từ sheet
   const [selectedDateStr, setSelectedDateStr] = useState(toYMD(new Date())); // yyyy-mm-dd
@@ -2773,10 +2813,10 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                               </div>
 
                               <div className="ecc-tags">
-                                <div className="ecc-tag ecc-tag--room">
-                                  <span className="ecc-icon">📍</span>
-                                  <span>{e.room || '-'}</span>
-                                </div>
+                                <RoomTag 
+                                  primaryRoom={e.primaryRoom} 
+                                  roomParts={e.roomParts} 
+                                />
                                 <div className="ecc-tag ecc-tag--host">
                                     <span className="ecc-icon">🎤</span>
                                     <div className="ecc-host-content">
@@ -2884,10 +2924,10 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                         </div>
 
                         <div className="ecc-tags">
-                          <div className="ecc-tag ecc-tag--room">
-                            <span className="ecc-icon">📍</span>
-                            <span>{e.room || '-'}</span>
-                          </div>
+                          <RoomTag 
+                            primaryRoom={e.primaryRoom} 
+                            roomParts={e.roomParts} 
+                          />
                           <div className="ecc-tag ecc-tag--host">
                               <span className="ecc-icon">🎤</span>
                               <div className="ecc-host-content">
