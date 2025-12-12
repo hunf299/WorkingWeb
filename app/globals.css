@@ -1639,7 +1639,6 @@ h1 {
   border-radius: 99px;
   border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
   display: flex; /* QUAN TRỌNG: Để căn giữa chữ bên trong nút */
   align-items: center; /* QUAN TRỌNG: Căn giữa chữ bên trong nút */
   justify-content: center; /* QUAN TRỌNG: Căn giữa chữ bên trong nút */
