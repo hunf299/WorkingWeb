@@ -87,7 +87,7 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 
 .page-header h1 { margin-bottom: 0; }
@@ -389,7 +389,7 @@ h1 {
 /* =========================================
    EVENTS FLOW & TIMELINE
    ========================================= */
-.group { margin-bottom: 32px; }
+.group { margin-bottom: 20px; }
 
 .group-head {
   font-weight: 800;
@@ -1524,7 +1524,7 @@ h1 {
   border: 1px solid var(--border-subtle); /* Hoặc #e2e8f0 */
   border-radius: 24px; /* Bo góc cực lớn theo trend 2025 */
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04); /* Bóng mềm, sâu */
-  margin-bottom: 32px;
+  margin-bottom: 20px;
   overflow: visible; /* Để shadow không bị cắt */
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
