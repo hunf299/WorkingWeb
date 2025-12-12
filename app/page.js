@@ -2528,6 +2528,13 @@ Nguồn: Google Sheet ${ev.rawDate}`,
 
   const isEmailBusy = trialEmailStatus === 'loading' || trialEmailStatus === 'saving';
 
+  function getShortDate(dateLabel) {
+  if (!dateLabel) return '';
+  // Giả sử format là "Th 2, 01/01" -> lấy phần sau dấu phẩy
+  const parts = dateLabel.split(',');
+  return parts.length > 1 ? parts[1].trim() : dateLabel;
+  }
+
   return (
     <div className="container">
       <div className="page-header">
@@ -2982,12 +2989,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         activeTabId={activeHelpTabId}
         onSelectTab={handleSelectHelpTab}
       />
-
-      function getShortDate(dateLabel) {
-        if (!dateLabel) return '';
-        const parts = dateLabel.split(',');
-        return parts.length > 1 ? parts[1].trim() : dateLabel;
-      }
 
       {prefillModal && (
         <div className="modal-backdrop prefill-modal-backdrop">
