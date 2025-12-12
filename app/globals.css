@@ -1527,12 +1527,12 @@ h1 {
 
 /* 1. Container chính: Biến Card thành Floating Bar */
 .calendar-card {
-  background: var(--bg-card); /* Hoặc #ffffff */
-  border: 1px solid var(--border-subtle); /* Hoặc #e2e8f0 */
-  border-radius: 24px; /* Bo góc cực lớn theo trend 2025 */
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04); /* Bóng mềm, sâu */
+  background: var(--bg-card); 
+  border: 1px solid var(--border-subtle);
+  border-radius: 24px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
   margin-bottom: 20px;
-  overflow: visible; /* Để shadow không bị cắt */
+  overflow: visible;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   z-index: 10;
@@ -1552,40 +1552,40 @@ h1 {
   padding: 12px;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
   gap: 12px;
   background: transparent;
 }
 
+/* MOBILE LAYOUT DEFAULT */
 .calendar-card-top {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
+  flex-wrap: wrap; /* Cho phép xuống dòng trên mobile */
 }
 
-/* Ẩn label "Tìm kiếm" cũ để giao diện sạch hơn (vì placeholder đã nói lên điều đó) */
-.calendar-card-label {
-  display: none;
-}
-
-/* Khu vực chứa ô tìm kiếm: Chiếm hết khoảng trống còn lại */
+/* Ô tìm kiếm: Nằm góc trái trên (Order 1) */
 .calendar-card-title {
-  flex: 1;
-  padding-right: 0; /* Reset padding cũ */
   display: flex;
   flex-direction: column;
+  order: 1;
+  /* Trên mobile: Chiếm hết chiều rộng trừ đi khoảng trống cho nút mũi tên */
+  width: calc(100% - 64px); 
+  flex: none; 
 }
 
-.calendar-card-search {
-  width: 100%;
-}
+.calendar-card-search { width: 100%; }
 
 .calendar-card-search-input {
   position: relative;
   width: 100%;
   display: flex;
   align-items: center;
+}
+
+.calendar-card-label {
+   display: none;
 }
 
 /* INPUT TÌM KIẾM: Phong cách chính */
@@ -3730,5 +3730,113 @@ h1 {
   .prefill-header-brand {
     font-size: 1.2rem;
     line-height: 1.3; /* Trên mobile giãn dòng ra chút cho dễ đọc */
+  }
+}
+
+.calendar-card-toggle {
+  order: 2;
+  margin-left: auto; /* Đẩy sát lề phải */
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  background: #fff;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+/* Các Nút Hành động (Download, Tính lương): Nằm dưới cùng (Order 3) */
+.calendar-card-action:not(.calendar-card-toggle) {
+  order: 3;
+  margin-top: 4px; /* Tạo khoảng cách với hàng trên */
+  flex: 1; /* Co giãn đều nhau lấp đầy hàng dưới */
+  height: 48px; /* Chiều cao vừa phải */
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: #fff;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0; /* Tránh vỡ layout flex */
+}
+
+/* Hover effects */
+.calendar-card-action:hover,
+.calendar-card-toggle:hover {
+  background: var(--bg-input);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.calendar-card-toggle[aria-expanded="true"] {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.calendar-card-toggle .calendar-card-chevron { transition: transform 0.3s ease; }
+.calendar-card-toggle[aria-expanded="true"] .calendar-card-chevron { transform: rotate(180deg); }
+
+/* --- DESKTOP LAYOUT (min-width: 768px) --- */
+@media (min-width: 768px) {
+  .calendar-card-top {
+    flex-wrap: nowrap; /* Một hàng duy nhất */
+  }
+
+  /* 1. Search: Bên trái, tự co giãn */
+  .calendar-card-title {
+    order: 1;
+    width: auto;
+    flex: 1;
+  }
+
+  /* 2. Các nút hành động: Ở giữa (Order 2) */
+  .calendar-card-action:not(.calendar-card-toggle) {
+    order: 2;
+    margin-top: 0;
+    flex: 0 0 auto; /* Không co giãn, kích thước theo nội dung */
+    width: auto;
+    padding: 0 16px;
+    height: 52px;
+    border-radius: 16px;
+  }
+
+  /* 3. Mũi tên: Bên phải cùng (Order 3) */
+  .calendar-card-toggle {
+    order: 3;
+    margin-left: 0;
+  }
+  
+  /* Hiện text label trên desktop */
+  .icon-button-label {
+    display: block;
+    margin-left: 8px;
+  }
+}
+
+/* Dark Mode Overrides */
+@media (prefers-color-scheme: dark) {
+  .calendar-card {
+    background: #1e293b;
+    border-color: rgba(255,255,255,0.08);
+  }
+  /* ... (Các phần dark mode cũ giữ nguyên) ... */
+  .calendar-card-action, .calendar-card-toggle { 
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+  }
+  .calendar-card-action:hover, .calendar-card-toggle:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: var(--primary) !important;
+  }
+  .calendar-card-toggle[aria-expanded="true"] {
+    background: var(--primary) !important;
   }
 }
