@@ -2673,15 +2673,59 @@ Nguồn: Google Sheet ${ev.rawDate}`,
       return;
     }
 
+    // 1. Đếm số lượng theo nền tảng để lưu vào DB (salary_detail)
     const counts = countPlatformOccurrences(visibleEvents);
-    const totalMoney = (counts.shopee + counts.lazada) * 40000 + counts.tiktok * 80000;
 
-    if (totalMoney <= 0) {
-      alert('Không xác định được ca hợp lệ để tính lương');
+    // 2. Tính tổng tiền chi tiết (Áp dụng ngoại lệ)
+    let calculatedTotalMoney = 0;
+
+    for (const event of visibleEvents) {
+      // Chuẩn hóa chuỗi để so sánh
+      const titleUpper = (event.title || '').toUpperCase();
+      const platformLabel = (event.platformLabel || event.platform || '').toUpperCase();
+      // Tạo chuỗi kết hợp để check platform nếu cột platform bị thiếu
+      const combinedInfo = titleUpper + ' ' + platformLabel;
+
+      let sessionMoney = 0;
+
+      // --- LOGIC NGOẠI LỆ (Ưu tiên cao nhất) ---
+      
+      // A. KENVUE - SHOPEE: 80k
+      if (titleUpper.includes('KENVUE') && (platformLabel.includes('SHOPEE') || platformLabel.includes('SHP') || combinedInfo.includes('SHOPEE'))) {
+        sessionMoney = 80000;
+      }
+      // B. NUTIMILK - SHOPEE: 80k
+      else if (titleUpper.includes('NUTIMILK') && (platformLabel.includes('SHOPEE') || platformLabel.includes('SHP') || combinedInfo.includes('SHOPEE'))) {
+        sessionMoney = 80000;
+      }
+      // C. LISTERINE - TIKTOK: 40k
+      else if (titleUpper.includes('LISTERINE') && (platformLabel.includes('TIKTOK') || platformLabel.includes('TTS') || combinedInfo.includes('TIKTOK'))) {
+        sessionMoney = 40000;
+      }
+      // --- LOGIC MẶC ĐỊNH (Nếu không phải ngoại lệ) ---
+      else {
+        if (platformLabel.includes('TIKTOK') || platformLabel.includes('TTS') || combinedInfo.includes('TIKTOK') || combinedInfo.includes('TTS')) {
+          sessionMoney = 80000; // Tiktok mặc định 80k
+        } else if (platformLabel.includes('SHOPEE') || platformLabel.includes('SHP') || combinedInfo.includes('SHOPEE')) {
+          sessionMoney = 40000; // Shopee mặc định 40k
+        } else if (platformLabel.includes('LAZADA') || platformLabel.includes('LZD') || combinedInfo.includes('LAZADA')) {
+          sessionMoney = 40000; // Lazada mặc định 40k
+        } else {
+          // Trường hợp không xác định được nền tảng, có thể để 0 hoặc mặc định 40k tuỳ policy. 
+          // Ở đây để 0 để an toàn, tránh tính sai.
+          sessionMoney = 0; 
+        }
+      }
+
+      calculatedTotalMoney += sessionMoney;
+    }
+
+    if (calculatedTotalMoney <= 0) {
+      alert('Không xác định được số tiền hợp lệ (hoặc tổng bằng 0). Vui lòng kiểm tra lại Brand/Platform.');
       return;
     }
 
-    // Lấy danh sách ngày (DD/MM) từ các ca đang hiển thị
+    // Lấy danh sách ngày
     const uniqueDates = Array.from(new Set(visibleEvents.map(e => {
         if (!e.date) return '';
         return e.date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
@@ -2697,8 +2741,8 @@ Nguồn: Google Sheet ${ev.rawDate}`,
           new_shopee_count: counts.shopee,
           new_lazada_count: counts.lazada,
           new_tiktok_count: counts.tiktok,
-          new_total_money: totalMoney,
-          dates: uniqueDates // Gửi thêm danh sách ngày
+          new_total_money: calculatedTotalMoney, // Sử dụng tổng tiền đã tính theo logic mới
+          dates: uniqueDates
         }),
       });
 
@@ -2716,7 +2760,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         throw new Error(message);
       }
       
-      // Kiểm tra nếu API trả về danh sách trùng lặp (không update)
       if (payload?.duplicates && payload.duplicates.length > 0) {
         alert(`Lương cho ngày ${payload.duplicates.join(', ')} đã được tính trước đó. Hệ thống sẽ hiển thị số liệu hiện tại.`);
       }
@@ -2727,11 +2770,11 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         : '';
 
       setSalaryResult({
-        salary: Number.isFinite(salaryFromServer) ? salaryFromServer : totalMoney,
+        salary: Number.isFinite(salaryFromServer) ? salaryFromServer : calculatedTotalMoney,
         salaryDetail: salaryDetailFromServer,
         coordinator: coordinatorLabel,
         counts,
-        addedMoney: totalMoney,
+        addedMoney: calculatedTotalMoney,
       });
     } catch (err) {
       alert(err?.message || 'Không thể cập nhật lương');
@@ -2782,6 +2825,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
       <div className="calendar-card" data-expanded={calendarExpanded}>
         <div className="calendar-card-header">
           <div className="calendar-card-top">
+            {/* SEARCH INPUT (Order 1) */}
             <div className="calendar-card-title">
               <label className="calendar-card-label" htmlFor="calendar-search">Tìm kiếm</label>
               <div className="calendar-card-search">
@@ -2809,20 +2853,21 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               </div>
             </div>
 
+            {/* ACTION BUTTONS (Order 3 Mobile / Order 2 Desktop) */}
             <button
               type="button"
               className="icon-button icon-button--with-label calendar-card-action"
               onClick={downloadICSForDay}
               disabled={!isActiveUser}
-              aria-label="Tải lịch đang xem (.ics)"
-              title="Tải lịch đang xem (.ics)"
+              aria-label="Tải lịch"
+              title="Tải lịch"
             >
               <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="icon">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 11.25l4.5 4.5 4.5-4.5" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v11.25" />
               </svg>
-              <span className="icon-button-label" aria-hidden="true">Tải lịch</span>
+              <span className="icon-button-label">Tải lịch</span>
             </button>
 
             <button
@@ -2830,24 +2875,25 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               className="icon-button icon-button--with-label calendar-card-action"
               onClick={handleCalculateSalary}
               disabled={!isActiveUser || calculatingSalary}
-              aria-label="Tính lương cho các ca đang xem"
-              title="Tính lương cho các ca đang xem"
+              aria-label="Tính lương"
+              title="Tính lương"
             >
               <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="icon">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 9.5C15.5 7.567 13.7614 6 11.65 6H9.5c-1.933 0-3.5 1.567-3.5 3.5S7.567 13 9.5 13h5c1.933 0 3.5 1.567 3.5 3.5S16.433 20 14.5 20h-6" />
                 <circle cx="12" cy="4" r="1.25" />
               </svg>
-              <span className="icon-button-label" aria-hidden="true">Tính lương</span>
+              <span className="icon-button-label">Tính lương</span>
             </button>
 
+            {/* TOGGLE ARROW (Order 2 Mobile / Order 3 Desktop) */}
             <button
               type="button"
               className="calendar-card-toggle calendar-card-action"
               onClick={toggleCalendarExpanded}
               aria-expanded={calendarExpanded}
               aria-controls={calendarCardBodyId}
-              aria-label={calendarExpanded ? 'Thu gọn cài đặt lịch' : 'Mở cài đặt lịch'}
+              aria-label={calendarExpanded ? 'Thu gọn' : 'Mở rộng'}
               title={calendarExpanded ? 'Thu gọn' : 'Mở rộng'}
             >
               <svg
@@ -2866,6 +2912,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             </button>
           </div>
         </div>
+        
         <div
           id={calendarCardBodyId}
           className="calendar-card-body"
