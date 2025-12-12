@@ -3276,3 +3276,79 @@ h1 {
   /* Result view cũng chuyển về 1 cột nếu cần, hoặc giữ 2 cột tùy ý. 
      Nhưng yêu cầu là "mỗi ô nhập 1 hàng" nên áp dụng cho form input. */
 }
+
+/* =========================================
+   UPDATE FINAL: HEADER ALIGNMENT & MOBILE LAYOUT
+   ========================================= */
+
+/* 1. Header Row Container */
+.prefill-header-row {
+  display: flex;
+  align-items: center; /* Căn giữa theo trục dọc cho tất cả phần tử */
+  flex-wrap: wrap;     /* Cho phép xuống dòng nếu màn hình quá bé (cho Brand) */
+  gap: 12px;           /* Khoảng cách giữa Brand và cụm Ngày/Giờ */
+  width: 100%;
+}
+
+.prefill-header-brand {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1;
+  padding-bottom: 2px;
+  margin-right: auto; /* Đẩy cụm Ngày/Giờ sang phải nếu muốn, hoặc bỏ đi để dính liền */
+}
+
+/* 2. Wrapper gom nhóm Ngày & Giờ (Để luôn nằm cùng dòng trên Mobile) */
+.prefill-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;      /* Không cho phép co lại */
+  white-space: nowrap; /* Ép buộc không xuống dòng nội bộ */
+}
+
+.prefill-header-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  gap: 6px;
+  font-size: 0.85rem;
+  padding: 0 12px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+/* 3. Grid Form Desktop (Mặc định 2 cột) */
+.prefill-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.grid-span-2 {
+  grid-column: span 2;
+}
+
+/* 4. Mobile Responsiveness (Màn hình nhỏ < 640px) */
+@media (max-width: 640px) {
+  /* Chuyển Form về 1 cột dọc */
+  .prefill-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Reset các ô đang span 2 cột về 1 cột (full width) */
+  .grid-span-2 {
+    grid-column: span 1;
+  }
+  
+  /* Đảm bảo Header Row căn chỉnh tốt trên mobile */
+  .prefill-header-row {
+    gap: 8px;
+  }
+}
