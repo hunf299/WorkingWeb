@@ -2657,6 +2657,89 @@ Nguồn: Google Sheet ${ev.rawDate}`,
   return parts.length > 1 ? parts[1].trim() : dateLabel;
   }
 
+  async function handleCalculateSalary() {
+    if (!visibleEvents.length) {
+      alert('Không có ca nào khớp với bộ lọc hiện tại');
+      return;
+    }
+
+    const coordinatorName = findCommonCoordinatorName(visibleEvents);
+    const coordinatorLabel = typeof visibleEvents[0]?.coor === 'string'
+      ? visibleEvents[0].coor.trim()
+      : '';
+
+    if (!coordinatorName || !coordinatorLabel) {
+      alert('Danh sách ca không cùng một Coordinator, không thể tính lương');
+      return;
+    }
+
+    const counts = countPlatformOccurrences(visibleEvents);
+    const totalMoney = (counts.shopee + counts.lazada) * 40000 + counts.tiktok * 80000;
+
+    if (totalMoney <= 0) {
+      alert('Không xác định được ca hợp lệ để tính lương');
+      return;
+    }
+
+    // Lấy danh sách ngày (DD/MM) từ các ca đang hiển thị
+    const uniqueDates = Array.from(new Set(visibleEvents.map(e => {
+        if (!e.date) return '';
+        return e.date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+    }))).filter(Boolean);
+
+    setCalculatingSalary(true);
+    try {
+      const response = await fetch('/api/calculate-salary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          coor_name: coordinatorLabel,
+          new_shopee_count: counts.shopee,
+          new_lazada_count: counts.lazada,
+          new_tiktok_count: counts.tiktok,
+          new_total_money: totalMoney,
+          dates: uniqueDates // Gửi thêm danh sách ngày
+        }),
+      });
+
+      let payload;
+      try {
+        payload = await response.json();
+      } catch (err) {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        const message = typeof payload?.error === 'string'
+          ? payload.error
+          : 'Không thể cập nhật lương, vui lòng thử lại sau';
+        throw new Error(message);
+      }
+      
+      // Kiểm tra nếu API trả về danh sách trùng lặp (không update)
+      if (payload?.duplicates && payload.duplicates.length > 0) {
+        alert(`Lương cho ngày ${payload.duplicates.join(', ')} đã được tính trước đó. Hệ thống sẽ hiển thị số liệu hiện tại.`);
+      }
+
+      const salaryFromServer = Number(payload?.salary);
+      const salaryDetailFromServer = typeof payload?.salary_detail === 'string'
+        ? payload.salary_detail
+        : '';
+
+      setSalaryResult({
+        salary: Number.isFinite(salaryFromServer) ? salaryFromServer : totalMoney,
+        salaryDetail: salaryDetailFromServer,
+        coordinator: coordinatorLabel,
+        counts,
+        addedMoney: totalMoney,
+      });
+    } catch (err) {
+      alert(err?.message || 'Không thể cập nhật lương');
+    } finally {
+      setCalculatingSalary(false);
+    }
+  }
+
   return (
     <div className="container">
       <div className="page-header">
@@ -2728,7 +2811,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         )}
       </div>
 
-      <div className="calendar-card" data-expanded={calendarExpanded}>
+     <div className="calendar-card" data-expanded={calendarExpanded}>
         <div className="calendar-card-header">
           <div className="calendar-card-top">
             <div className="calendar-card-title">
@@ -2759,6 +2842,39 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             </div>
             <button
               type="button"
+              className="icon-button icon-button--with-label calendar-card-action"
+              onClick={downloadICSForDay}
+              disabled={!isActiveUser}
+              aria-label="Tải lịch đang xem (.ics)"
+              title="Tải lịch đang xem (.ics)"
+            >
+              <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 11.25l4.5 4.5 4.5-4.5" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v11.25" />
+              </svg>
+              <span className="icon-button-label" aria-hidden="true">Tải lịch</span>
+            </button>
+
+            <button
+              type="button"
+              className="icon-button icon-button--with-label calendar-card-action"
+              onClick={handleCalculateSalary}
+              disabled={!isActiveUser || calculatingSalary}
+              aria-label="Tính lương cho các ca đang xem"
+              title="Tính lương cho các ca đang xem"
+            >
+              <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 9.5C15.5 7.567 13.7614 6 11.65 6H9.5c-1.933 0-3.5 1.567-3.5 3.5S7.567 13 9.5 13h5c1.933 0 3.5 1.567 3.5 3.5S16.433 20 14.5 20h-6" />
+                <circle cx="12" cy="4" r="1.25" />
+              </svg>
+              <span className="icon-button-label" aria-hidden="true">Tính lương</span>
+            </button>
+
+            {/* Toggle Button (Arrow) */}
+            <button
+              type="button"
               className="calendar-card-toggle calendar-card-action"
               onClick={toggleCalendarExpanded}
               aria-expanded={calendarExpanded}
@@ -2776,132 +2892,63 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 style={{ width: '24px', height: '24px' }}
                 aria-hidden="true"
               >
-                {/* Icon mũi tên xuống chuẩn (Chevron Down) */}
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
               </svg>
-              {/* sr-only giữ nguyên để hỗ trợ trình đọc màn hình */}
               <span className="sr-only">{calendarExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
             </button>
           </div>
-          <div className="calendar-card-actions">
-            <button
-              type="button"
-              className="icon-button icon-button--with-label calendar-card-action"
-              onClick={downloadICSForDay}
-              disabled={!isActiveUser}
-              aria-label="Tải lịch đang xem (.ics)"
-              title="Tải lịch đang xem (.ics)"
-            >
-              <svg
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                className="icon"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M7.5 11.25l4.5 4.5 4.5-4.5"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 4.5v11.25"
-                />
-              </svg>
-              <span className="icon-button-label" aria-hidden="true">Tải lịch</span>
-            </button>
-            <button
-              type="button"
-              className="icon-button icon-button--with-label calendar-card-action"
-              onClick={handleCalculateSalary}
-              disabled={!isActiveUser || calculatingSalary}
-              aria-label="Tính lương cho các ca đang xem"
-              title="Tính lương cho các ca đang xem"
-            >
-              <svg
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                className="icon"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 6v12"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15.5 9.5C15.5 7.567 13.7614 6 11.65 6H9.5c-1.933 0-3.5 1.567-3.5 3.5S7.567 13 9.5 13h5c1.933 0 3.5 1.567 3.5 3.5S16.433 20 14.5 20h-6"
-                />
-                <circle cx="12" cy="4" r="1.25" />
-              </svg>
-              <span className="icon-button-label" aria-hidden="true">Tính lương</span>
-            </button>
-          </div>
-        </div>
-        <div
-          id={calendarCardBodyId}
-          className="calendar-card-body"
-          aria-hidden={!calendarExpanded}
-          style={{ display: calendarExpanded ? undefined : 'none' }}
-        >
-          <div className="calendar-card-controls">
-            <div className="calendar-card-field">
-              <label htmlFor="pick-date">Ngày</label>
-              <input
-                id="pick-date"
-                type="date"
-                className="date-input"
-                value={selectedDateStr}
-                onChange={e => setSelectedDateStr(e.target.value)}
-              />
+          <div
+            id={calendarCardBodyId}
+            className="calendar-card-body"
+            aria-hidden={!calendarExpanded}
+            style={{ display: calendarExpanded ? undefined : 'none' }}
+          >
+            {/* ... Existing Body Content (Date picker, filters, etc.) ... */}
+            <div className="calendar-card-controls">
+                {/* ... fields ... */}
+                <div className="calendar-card-field">
+                  <label htmlFor="pick-date">Ngày</label>
+                  <input
+                    id="pick-date"
+                    type="date"
+                    className="date-input"
+                    value={selectedDateStr}
+                    onChange={e => setSelectedDateStr(e.target.value)}
+                  />
+                </div>
+                <div className="calendar-card-field">
+                  <label htmlFor="days-to-show">Số ngày</label>
+                  <select
+                    id="days-to-show"
+                    className="date-input"
+                    value={daysToShow}
+                    onChange={e => setDaysToShow(Math.max(1, Number(e.target.value) || 1))}
+                  >
+                    {DAY_RANGE_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
             </div>
-            <div className="calendar-card-field">
-              <label htmlFor="days-to-show">Số ngày</label>
-              <select
-                id="days-to-show"
-                className="date-input"
-                value={daysToShow}
-                onChange={e => setDaysToShow(Math.max(1, Number(e.target.value) || 1))}
-              >
-                {DAY_RANGE_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+            <div className="calendar-card-footer">
+                <button
+                  type="button"
+                  className="btn ghost filter-trigger"
+                  onClick={() => setShowFiltersModal(true)}
+                  disabled={!isActiveUser}
+                  aria-haspopup="dialog"
+                  aria-expanded={showFiltersModal}
+                  aria-controls="filters-modal"
+                  aria-label={filterButtonLabel}
+                  title={filterButtonLabel}
+                  data-active={hasActiveFilters}
+                >
+                  <span className="filter-trigger-label">Bộ lọc</span>
+                  {hasActiveFilters && <span className="filter-trigger-indicator" aria-hidden="true" />}
+                </button>
             </div>
-          </div>
-          <div className="calendar-card-footer">
-            <button
-              type="button"
-              className="btn ghost filter-trigger"
-              onClick={() => setShowFiltersModal(true)}
-              disabled={!isActiveUser}
-              aria-haspopup="dialog"
-              aria-expanded={showFiltersModal}
-              aria-controls="filters-modal"
-              aria-label={filterButtonLabel}
-              title={filterButtonLabel}
-              data-active={hasActiveFilters}
-            >
-              <span className="filter-trigger-label">Bộ lọc</span>
-              {hasActiveFilters && <span className="filter-trigger-indicator" aria-hidden="true" />}
-            </button>
-          </div>
         </div>
       </div>
 
