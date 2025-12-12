@@ -3605,3 +3605,174 @@ h1 {
     z-index: 100;
   }
 }
+
+/* =========================================================
+   FIXED: SEARCH CLEAR BUTTON STYLE
+   ========================================================= */
+.calendar-card-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%; /* Căn giữa theo chiều dọc */
+  transform: translateY(-50%); /* Căn giữa theo chiều dọc */
+  height: 32px;
+  padding: 0 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(0,0,0,0.05);
+  border-radius: 99px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex; /* QUAN TRỌNG: Để căn giữa chữ bên trong nút */
+  align-items: center; /* QUAN TRỌNG: Căn giữa chữ bên trong nút */
+  justify-content: center; /* QUAN TRỌNG: Căn giữa chữ bên trong nút */
+}
+
+/* Light mode hover: Nền xám, Chữ vẫn màu đen (không bị trắng) */
+.calendar-card-clear:hover {
+  background: #e2e8f0; 
+  color: var(--text-primary); 
+}
+
+/* Dark Mode fixes for clear button */
+@media (prefers-color-scheme: dark) {
+  .calendar-card-clear:hover {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+  }
+}
+
+/* =========================================================
+   FIXED: DESKTOP HEADER & CALENDAR BUTTONS (SQUARE + TOOLTIP)
+   ========================================================= */
+
+@media (min-width: 768px) {
+  .calendar-card-top {
+    flex-wrap: nowrap; 
+    gap: 16px;
+  }
+
+  .calendar-card-title {
+    order: 1;
+    width: auto;
+    flex: 1; 
+    min-width: 0;
+  }
+  
+  .calendar-card-search-input .text-input {
+      padding-right: 60px !important; 
+  }
+  
+  .calendar-card-clear {
+      display: flex;
+  }
+
+  /* --- 1. Calendar Buttons (Tải lịch, Tính lương) --- */
+  /* Tooltip nằm PHÍA TRÊN (Above) */
+  .calendar-card-action:not(.calendar-card-toggle) {
+    order: 2;
+    margin-top: 0;
+    flex: 0 0 auto; 
+    width: 52px;    
+    height: 52px;
+    padding: 0;     
+    border-radius: 16px;
+    position: relative; /* Để định vị tooltip */
+    overflow: visible;  /* Để tooltip hiển thị ra ngoài */
+  }
+  
+  .calendar-card-action:not(.calendar-card-toggle):hover::after,
+  .calendar-card-action:not(.calendar-card-toggle):focus-visible::after {
+    content: attr(aria-label);
+    position: absolute;
+    bottom: calc(100% + 8px); /* Nằm phía TRÊN nút */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    width: max-content; /* Tự động giãn theo độ dài chữ */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    z-index: 100;
+    pointer-events: none;
+    opacity: 1;
+  }
+  /* Mũi tên nhỏ dưới tooltip (hướng xuống) */
+  .calendar-card-action:not(.calendar-card-toggle):hover::before,
+  .calendar-card-action:not(.calendar-card-toggle):focus-visible::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #0f172a; /* Mũi tên hướng xuống */
+    z-index: 100;
+  }
+
+  .calendar-card-toggle {
+    order: 3;
+    margin-left: 0;
+    width: 52px;
+    height: 52px;
+  }
+  
+  .icon-button-label {
+    display: none !important;
+  }
+
+  /* --- 2. Header Buttons (HDSD, Sửa, Đăng xuất) --- */
+  /* Ép kiểu hình vuông/tròn & Tooltip nằm PHÍA DƯỚI (Below) */
+  .page-header .icon-button--with-label {
+      width: 44px !important;
+      min-width: 44px !important;
+      padding: 0 !important;
+      overflow: visible !important; /* Để tooltip hiện ra */
+      position: relative;
+      justify-content: center;
+  }
+  .page-header .icon-button--with-label .icon {
+      margin-right: 0 !important;
+  }
+  .page-header .icon-button-label { 
+      display: none !important; 
+  }
+
+  /* Tooltip Logic for Header (Below) */
+  .page-header .icon-button--with-label:hover::after,
+  .page-header .icon-button--with-label:focus-visible::after {
+    content: attr(aria-label);
+    position: absolute;
+    top: calc(100% + 8px); /* Nằm phía DƯỚI nút */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem; 
+    font-weight: 600;
+    white-space: nowrap; 
+    width: max-content; /* Tự động giãn theo độ dài chữ */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    z-index: 100;
+    pointer-events: none;
+    opacity: 1;
+  }
+  /* Mũi tên nhỏ trên tooltip (hướng lên) */
+  .page-header .icon-button--with-label:hover::before,
+  .page-header .icon-button--with-label:focus-visible::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom-color: #0f172a; /* Mũi tên hướng lên */
+    z-index: 100;
+  }
+}
