@@ -2703,9 +2703,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         </div>
       </div>
 
-     // Tìm đến đoạn render groupedMultipleDays và groupedSingleDay trong return
-// Thay thế đoạn code cũ bằng đoạn code mới dưới đây:
-
       {/* Danh sách nhóm theo 2h */}
       {!isActiveUser ? (
         <p>Vui lòng nhập tên để xem lịch làm việc.</p>
@@ -2723,8 +2720,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                     <span className="group-divider-label">{g.bucket}</span>
                     <span className="group-divider-line"></span>
                   </div>
-                  
-                  {/* REDESIGN: Grid Layout */}
+
                   <div className="group-grid">
                     {g.items.map((e, i) => {
                       const computed = eventComputedMap.get(e) || {
@@ -2736,10 +2732,10 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       const handleHostZaloClick = () => {
                         void copyTextToClipboard(hostZaloMessage);
                       };
-                      
+
                       return (
                         <div key={i} className="event-card-compact">
-                          {/* Header: Giờ & Nút Report */}
+                          {/* Header: Time + Điền Report */}
                           <div className="ecc-header">
                             <div className="ecc-time">
                               ⏰ {fmtHM(e.start)} – {fmtHM(e.end)}
@@ -2755,7 +2751,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                             </button>
                           </div>
 
-                          {/* Body: Title, Zalo Brand & Tags */}
+                          {/* Body: Brand + Meta Tags (Room, Session, Coor, Host) */}
                           <div className="ecc-body">
                             <div className="ecc-title-row">
                               <h3 className="ecc-title">{e.title}</h3>
@@ -2773,48 +2769,51 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                             </div>
 
                             <div className="ecc-tags">
+                              {/* Tag 1: Room */}
                               <div className="ecc-tag ecc-tag--room">
                                 <span className="ecc-icon">📍</span>
                                 <span>{e.room || '-'}</span>
                               </div>
+                              
+                              {/* Tag 2: Host (Đưa vào đây theo yêu cầu) */}
+                              <div className="ecc-tag ecc-tag--host">
+                                <span className="ecc-icon">🎤</span>
+                                <div className="ecc-host-content">
+                                  {hostEntries.length ? (
+                                    hostEntries.map((entry, idx) => (
+                                      <span key={entry.name} className="ecc-host-item">
+                                        <span>{entry.name}</span>
+                                        {entry.link && (
+                                          <a
+                                            href={entry.link}
+                                            className="zalo-compact-btn" /* Dùng chung class nút Zalo */
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={handleHostZaloClick}
+                                            title={`Zalo của ${entry.name}`}
+                                          >
+                                            Zalo
+                                          </a>
+                                        )}
+                                        {idx < hostEntries.length - 1 && <span className="ecc-host-sep">|</span>}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span>—</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Tag 3: Session */}
                               <div className="ecc-tag">
                                 <span className="ecc-icon">📝</span>
                                 <span>{e.sessionType || '—'}</span>
                               </div>
+
+                              {/* Tag 4: Coor */}
                               <div className="ecc-tag">
                                 <span className="ecc-icon">🖥️</span>
                                 <span>{e.coor || '—'}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Footer: Host & Zalo Host (Style giống Brand) */}
-                          <div className="ecc-footer">
-                            <div className="ecc-host-row">
-                              <span className="ecc-icon">🎤</span>
-                              <div className="ecc-hosts-list">
-                                {hostEntries.length ? (
-                                  hostEntries.map(entry => (
-                                    <span key={entry.name} className="ecc-host-item">
-                                      <span>{entry.name}</span>
-                                      {entry.link && (
-                                        <a
-                                          href={entry.link}
-                                          className="zalo-compact-btn"
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          onClick={handleHostZaloClick}
-                                          title={`Zalo của ${entry.name}`}
-                                        >
-                                          Zalo
-                                        </a>
-                                      )}
-                                      <span style={{opacity: 0.2, fontWeight: 400}}>|</span>
-                                    </span>
-                                  ))
-                                ) : (
-                                  <span>—</span>
-                                )}
                               </div>
                             </div>
                           </div>
@@ -2832,13 +2831,11 @@ Nguồn: Google Sheet ${ev.rawDate}`,
       ) : groupedSingleDay.length ? (
         groupedSingleDay.map(g => (
           <div key={g.bucket}>
-            {/* REDESIGN: Group Divider */}
             <div className="group-divider">
               <span className="group-divider-label">{g.bucket}</span>
               <span className="group-divider-line"></span>
             </div>
-
-            {/* REDESIGN: Grid Layout (Copy y hệt cấu trúc trên) */}
+            
             <div className="group-grid">
               {g.items.map((e, i) => {
                 const computed = eventComputedMap.get(e) || {
@@ -2888,6 +2885,36 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                           <span className="ecc-icon">📍</span>
                           <span>{e.room || '-'}</span>
                         </div>
+                        
+                        {/* Host Tag Inline */}
+                        <div className="ecc-tag ecc-tag--host">
+                            <span className="ecc-icon">🎤</span>
+                            <div className="ecc-host-content">
+                              {hostEntries.length ? (
+                                hostEntries.map((entry, idx) => (
+                                  <span key={entry.name} className="ecc-host-item">
+                                    <span>{entry.name}</span>
+                                    {entry.link && (
+                                      <a
+                                        href={entry.link}
+                                        className="zalo-compact-btn"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={handleHostZaloClick}
+                                        title={`Zalo của ${entry.name}`}
+                                      >
+                                        Zalo
+                                      </a>
+                                    )}
+                                    {idx < hostEntries.length - 1 && <span className="ecc-host-sep">|</span>}
+                                  </span>
+                                ))
+                              ) : (
+                                <span>—</span>
+                              )}
+                            </div>
+                        </div>
+
                         <div className="ecc-tag">
                           <span className="ecc-icon">📝</span>
                           <span>{e.sessionType || '—'}</span>
@@ -2895,36 +2922,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                         <div className="ecc-tag">
                           <span className="ecc-icon">🖥️</span>
                           <span>{e.coor || '—'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="ecc-footer">
-                      <div className="ecc-host-row">
-                        <span className="ecc-icon">🎤</span>
-                        <div className="ecc-hosts-list">
-                          {hostEntries.length ? (
-                            hostEntries.map(entry => (
-                              <span key={entry.name} className="ecc-host-item">
-                                <span>{entry.name}</span>
-                                {entry.link && (
-                                  <a
-                                    href={entry.link}
-                                    className="zalo-compact-btn"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={handleHostZaloClick}
-                                    title={`Zalo của ${entry.name}`}
-                                  >
-                                    Zalo
-                                  </a>
-                                )}
-                                <span style={{opacity: 0.2, fontWeight: 400}}>|</span>
-                              </span>
-                            ))
-                          ) : (
-                            <span>—</span>
-                          )}
                         </div>
                       </div>
                     </div>
