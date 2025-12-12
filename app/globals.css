@@ -1790,7 +1790,7 @@ h1 {
 .date-input, select.date-input {
   height: 44px;
   background: #fff;
-  border: 1:04 PM 12/12/2025px solid var(--border-subtle, #e2e8f0);
+  border: 1px solid var(--border-subtle, #e2e8f0);
   border-radius: 12px;
   padding: 0 12px;
   font-weight: 600;
