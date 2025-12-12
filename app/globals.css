@@ -2899,3 +2899,40 @@ h1 {
   .ecc-report-btn:hover { background: rgba(255,255,255,0.1); }
   .ecc-header, .ecc-footer { border-color: rgba(255,255,255,0.1); }
 }
+
+/* Container chứa danh sách các nhóm giờ */
+.buckets-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Wrapper cho từng nhóm giờ */
+.bucket-wrapper {
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  /* Trên Desktop: Chuyển sang Grid 2 cột */
+  .buckets-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    align-items: start; /* Tránh kéo giãn chiều cao */
+    gap: 24px;
+  }
+
+  /* Mặc định: Nhóm giờ chiếm trọn 1 hàng (full width) */
+  .bucket-wrapper {
+    grid-column: 1 / -1;
+  }
+
+  /* Nếu nhóm chỉ có 1 item: Chiếm 1 cột (half width) */
+  .bucket-wrapper.bucket-single {
+    grid-column: span 1;
+  }
+
+  /* Khi nhóm bị thu nhỏ (half width), ép Grid bên trong về 1 cột để card full đẹp hơn */
+  .bucket-wrapper.bucket-single .group-grid {
+    grid-template-columns: 1fr;
+  }
+}
