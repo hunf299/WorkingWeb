@@ -3648,3 +3648,69 @@ h1 {
     width: 100%;
   }
 }
+
+/* =========================================
+   FINAL FIX: HEADER VERTICAL ALIGNMENT
+   ========================================= */
+
+/* 1. Container Header: Căn giữa tuyệt đối */
+.prefill-header-row {
+  display: flex;
+  align-items: center; /* QUAN TRỌNG: Căn giữa theo trục dọc (vertical) */
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+}
+
+/* 2. Brand Name: Reset margin/padding để không bị đẩy lên/xuống */
+.prefill-header-brand {
+  font-size: 1.35rem; /* Tăng kích thước chút để cân đối */
+  font-weight: 900;
+  color: var(--text-primary);
+  margin: 0;          /* Xóa margin mặc định */
+  padding: 0;         /* Xóa padding */
+  line-height: 1;     /* Ép dòng xẹp xuống bằng chiều cao chữ */
+  
+  /* Flexbox cho chính text để căn chỉnh pixel perfect */
+  display: flex;      
+  align-items: center; 
+}
+
+/* 3. Wrapper Ngày & Giờ */
+.prefill-header-meta {
+  display: flex;
+  align-items: center; /* Căn giữa các chip bên trong */
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* 4. Chips (Ngày/Giờ): Giữ chiều cao cố định để dễ căn với Brand */
+.prefill-header-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;        /* Chiều cao cố định (tăng nhẹ từ 32 lên 34) */
+  gap: 6px;
+  font-size: 0.85rem;
+  padding: 0 12px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-weight: 700;    /* Đậm hơn chút cho rõ */
+  border: 1px solid transparent;
+  line-height: 1;      /* Căn giữa text trong chip */
+}
+
+/* 5. Mobile Adjustment (Giữ nguyên logic cũ) */
+@media (max-width: 640px) {
+  .prefill-header-row {
+    align-items: flex-start; /* Trên mobile cho phép lệch để xếp dọc */
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .prefill-header-brand {
+    font-size: 1.2rem;
+    line-height: 1.3; /* Trên mobile giãn dòng ra chút cho dễ đọc */
+  }
+}
