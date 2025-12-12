@@ -2689,7 +2689,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 24px 0 16px;
+  margin: 0 0 16px 0;
 }
 
 .group-divider-label {
@@ -2935,4 +2935,34 @@ h1 {
   .bucket-wrapper.bucket-single .group-grid {
     grid-template-columns: 1fr;
   }
+}
+/* Thêm vào cuối file globals.css */
+
+/* Style cho tag Room có thể bấm được */
+.ecc-tag--room {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative; /* Để dropdown (nếu cần) hoặc hiệu ứng */
+  user-select: none;
+}
+
+.ecc-tag--room:hover {
+  background: rgba(245, 158, 11, 0.2);
+  transform: translateY(-1px);
+}
+
+.ecc-tag--room:active {
+  transform: translateY(0);
+}
+
+/* Icon mũi tên nhỏ chỉ báo có thể mở rộng */
+.room-expand-arrow {
+  font-size: 0.7em;
+  margin-left: 4px;
+  transition: transform 0.3s ease;
+  opacity: 0.6;
+}
+
+.room-expand-arrow.expanded {
+  transform: rotate(180deg);
 }
