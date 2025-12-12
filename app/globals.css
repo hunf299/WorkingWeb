@@ -3436,3 +3436,103 @@ h1 {
     gap: 8px;
   }
 }
+/* =========================================
+   MOBILE FIX 2025: FORCE SINGLE COLUMN & HEADER BUTTONS
+   ========================================= */
+
+/* 1. Header: Đảm bảo nút luôn hiện đầy đủ ở góc phải */
+.prefill-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start; /* Căn đỉnh để nút luôn ở trên cùng */
+  gap: 12px;
+  padding: 24px;
+}
+
+/* Khối chứa Tiêu đề + Ngày/Giờ: Cho phép co giãn */
+.prefill-header-row {
+  flex: 1; /* Chiếm hết không gian còn lại */
+  display: flex;
+  flex-direction: column; /* Trên mobile: Xếp dọc (Brand ở trên, Date/Time ở dưới) */
+  gap: 8px;
+  min-width: 0; /* Quan trọng: Giúp text không bị tràn ra ngoài */
+}
+
+/* Khối chứa Nút (Help + Close): Luôn cố định kích thước, không bị che */
+.prefill-modal-actions {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+  margin-left: 0 !important; /* Reset margin cũ */
+  padding-left: 0 !important;
+}
+
+/* Brand Name */
+.prefill-header-brand {
+  font-size: 1.15rem;
+  font-weight: 900;
+  line-height: 1.3;
+  word-break: break-word; /* Xuống dòng nếu tên quá dài */
+}
+
+/* Wrapper Ngày & Giờ */
+.prefill-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap; /* Cho phép xuống dòng nếu màn hình quá bé */
+}
+
+/* 2. Form Body: Ép về 1 cột duy nhất trên Mobile */
+@media (max-width: 768px) { /* Áp dụng cho cả Tablet nhỏ và Mobile */
+  
+  /* Chuyển Grid thành Flex Column (Xếp chồng dọc) */
+  .prefill-form-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+
+  /* Ép tất cả các ô input chiếm 100% chiều rộng */
+  .modern-input-group {
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+
+  /* Reset các class span cột */
+  .grid-span-2 {
+    width: 100% !important;
+    grid-column: span 1 !important;
+  }
+  
+  /* Result Grid (Màn hình kết quả) cũng về 1 cột */
+  .modern-result-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  
+  /* OCR Box: Đảm bảo icon và text không bị dính */
+  .modern-ocr-box {
+    padding: 16px !important;
+  }
+  
+  .prefill-modal-card {
+    border-radius: 20px; /* Bo góc nhỏ hơn chút trên mobile cho thoáng */
+    width: 100% !important;
+    height: auto;
+    max-height: 90vh; /* Tránh bị che mất nút bấm ở dưới */
+  }
+}
+
+/* Tinh chỉnh lại nút Header trên mobile cho dễ bấm */
+.modal-close-button {
+  width: 36px;
+  height: 36px;
+  background: var(--bg-input);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
