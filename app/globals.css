@@ -1644,18 +1644,7 @@ h1 {
   align-items: center; /* QUAN TRỌNG: Căn giữa chữ bên trong nút */
   justify-content: center; /* QUAN TRỌNG: Căn giữa chữ bên trong nút */
 }
-.calendar-card-clear:hover {
-  background: #e2e8f0; /* Chuyển nền xám nhẹ, không phải đỏ */
-  color: var(--text-primary); /* Chữ màu tối, không phải trắng */
-}
 
-/* Dark Mode fixes for clear button */
-@media (prefers-color-scheme: dark) {
-  .calendar-card-clear:hover {
-    background: rgba(255,255,255,0.2);
-    color: #fff;
-  }
-}
 
 /* Nút Mũi tên (Toggle): Nằm góc phải trên (Order 2) */
 .calendar-card-toggle {
@@ -2058,10 +2047,6 @@ h1 {
   .calendar-card-clear {
     background: rgba(255,255,255,0.1);
     color: #cbd5e1;
-  }
-  .calendar-card-clear:hover {
-    background: #ef4444;
-    color: #fff;
   }
 }
 
@@ -3504,19 +3489,6 @@ h1 {
   justify-content: center; /* IMPORTANT: Center text horizontally */
 }
 
-/* Light mode hover: Gray background, Black text */
-.calendar-card-clear:hover {
-  background: #e2e8f0; 
-  color: var(--text-primary); 
-}
-
-/* Dark Mode fixes for clear button */
-@media (prefers-color-scheme: dark) {
-  .calendar-card-clear:hover {
-    background: rgba(255,255,255,0.2);
-    color: #fff;
-  }
-}
 
 /* =========================================================
    FIXED: DESKTOP HEADER & CALENDAR BUTTONS (SQUARE + TOOLTIP)
@@ -3628,19 +3600,6 @@ h1 {
   justify-content: center; /* QUAN TRỌNG: Căn giữa chữ bên trong nút */
 }
 
-/* Light mode hover: Nền xám, Chữ vẫn màu đen (không bị trắng) */
-.calendar-card-clear:hover {
-  background: #e2e8f0; 
-  color: var(--text-primary); 
-}
-
-/* Dark Mode fixes for clear button */
-@media (prefers-color-scheme: dark) {
-  .calendar-card-clear:hover {
-    background: rgba(255,255,255,0.2);
-    color: #fff;
-  }
-}
 
 /* =========================================================
    FIXED: DESKTOP HEADER & CALENDAR BUTTONS (SQUARE + TOOLTIP)
@@ -3797,11 +3756,6 @@ h1 {
   z-index: 5;
 }
 
-/* Hover: Nền xám, Chữ đen (không bị trắng) */
-.calendar-card-clear:hover {
-  background: #e2e8f0; 
-  color: var(--text-primary); 
-}
 
 /* Layout Grid cho Modal Tính Lương */
 .prefill-modal-summary {
