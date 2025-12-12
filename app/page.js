@@ -3006,26 +3006,28 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                   {prefillModal.event?.title || 'Phiên livestream'}
                 </h2>
                 
-                <span className="prefill-header-chip">
-                  <span aria-hidden="true">📅</span>
-                  {/* Logic lấy ngày bỏ thứ: split dấu phẩy lấy phần sau */}
-                  <span>
-                    {prefillModal.event?.dateLabel 
-                      ? (prefillModal.event.dateLabel.includes(',') 
-                          ? prefillModal.event.dateLabel.split(',')[1].trim() 
-                          : prefillModal.event.dateLabel)
-                      : '—'}
+                {/* WRAPPER QUAN TRỌNG: Gom Date và Time để không bị tách dòng trên Mobile */}
+                <div className="prefill-header-meta">
+                  <span className="prefill-header-chip">
+                    <span aria-hidden="true">📅</span>
+                    <span>
+                      {prefillModal.event?.dateLabel 
+                        ? (prefillModal.event.dateLabel.includes(',') 
+                            ? prefillModal.event.dateLabel.split(',')[1].trim() 
+                            : prefillModal.event.dateLabel)
+                        : '—'}
+                    </span>
                   </span>
-                </span>
 
-                <span className="prefill-header-chip">
-                  <span aria-hidden="true">⏰</span>
-                  <span>
-                    {prefillModal.event?.start && prefillModal.event?.end
-                      ? `${fmtHM(prefillModal.event.start)}–${fmtHM(prefillModal.event.end)}`
-                      : '—'}
+                  <span className="prefill-header-chip">
+                    <span aria-hidden="true">⏰</span>
+                    <span>
+                      {prefillModal.event?.start && prefillModal.event?.end
+                        ? `${fmtHM(prefillModal.event.start)}–${fmtHM(prefillModal.event.end)}`
+                        : '—'}
+                    </span>
                   </span>
-                </span>
+                </div>
               </div>
 
               <div className="prefill-modal-actions" style={{marginLeft: 'auto', paddingLeft: '12px', flexShrink: 0}}>
@@ -3048,7 +3050,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 </button>
               </div>
             </div>
-
+                    
             <div className="prefill-modal-body">
               {prefillModal.link ? (
                 /* --- RESULT VIEW (UPDATED) --- */
