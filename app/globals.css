@@ -3188,3 +3188,91 @@ h1 {
   color: var(--text-primary);
   font-size: 1rem;
 }
+/* =========================================
+   UPDATE 2025: REFINED MODAL STYLES
+   ========================================= */
+
+/* 1. Header Row (Brand + Time + Date on one line) */
+.prefill-header-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px; /* Gap nhỏ giữa các thành phần */
+  width: 100%;
+}
+
+.prefill-header-brand {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.prefill-header-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  background: var(--bg-input);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* 2. Tinh chỉnh Grid & Gap */
+.prefill-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px; /* Gap nhỏ hơn (Cũ là 20px) */
+}
+
+/* 3. OCR Box Compact */
+.modern-ocr-box {
+  padding: 10px 16px; /* Nhỏ hơn */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modern-ocr-content {
+  display: flex;
+  flex-direction: row; /* Ngang hàng */
+  align-items: center;
+  gap: 8px;
+}
+
+/* 4. Result View Updates */
+.modern-result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.modern-result-value {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  /* Xuống dòng nếu text quá dài */
+  white-space: pre-wrap; 
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* 5. Mobile Responsiveness (Quan trọng) */
+@media (max-width: 640px) {
+  /* Chuyển Form thành 1 cột */
+  .prefill-form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Reset span để các ô full width trên mobile */
+  .grid-span-2 {
+    grid-column: span 1;
+  }
+
+  /* Result view cũng chuyển về 1 cột nếu cần, hoặc giữ 2 cột tùy ý. 
+     Nhưng yêu cầu là "mỗi ô nhập 1 hàng" nên áp dụng cho form input. */
+}
