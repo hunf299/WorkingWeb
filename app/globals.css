@@ -637,8 +637,7 @@ h1 {
     flex: 1;
   }
   .calendar-card-title {
-    /* Đã được điều chỉnh bên dưới */
-    padding-right: 0;
+    padding-right: 180px;
   }
   .calendar-card-actions {
     width: auto;
@@ -1646,8 +1645,16 @@ h1 {
   justify-content: center; /* QUAN TRỌNG: Căn giữa chữ bên trong nút */
 }
 .calendar-card-clear:hover {
-  background: #ef4444;
-  color: white;
+  background: #e2e8f0; /* Chuyển nền xám nhẹ, không phải đỏ */
+  color: var(--text-primary); /* Chữ màu tối, không phải trắng */
+}
+
+/* Dark Mode fixes for clear button */
+@media (prefers-color-scheme: dark) {
+  .calendar-card-clear:hover {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+  }
 }
 
 /* Nút Mũi tên (Toggle): Nằm góc phải trên (Order 2) */
@@ -1758,14 +1765,14 @@ h1 {
      TOOLTIP CHO BUTTON ACTION TRÊN DESKTOP 
      (Giả lập hành vi tooltip trên mobile)
      ======================================= */
+  
+  /* --- 1. Calendar Buttons (Tải lịch, Tính lương): Tooltip ABOVE --- */
   .calendar-card-action:hover::after,
-  .calendar-card-action:focus::after,
-  .calendar-card-toggle:hover::after,
-  .calendar-card-toggle:focus::after {
+  .calendar-card-action:focus::after {
     content: attr(aria-label); /* Lấy nội dung chữ tự động */
     
     position: absolute;
-    bottom: calc(100% + 8px); /* Nằm phía trên nút */
+    bottom: calc(100% + 8px); /* Nằm phía TRÊN nút */
     right: 50%; /* Bắt đầu từ giữa nút */
     transform: translateX(50%); /* Dịch sang trái 50% chiều rộng để căn giữa */
     
@@ -1785,20 +1792,73 @@ h1 {
     transition: none; /* Tắt transition không cần thiết */
   }
 
-  /* Mũi tên nhỏ dưới tooltip */
+  /* Mũi tên nhỏ dưới tooltip (hướng xuống) */
   .calendar-card-action:hover::before,
-  .calendar-card-action:focus::before,
-  .calendar-card-toggle:hover::before,
-  .calendar-card-toggle:focus::before {
+  .calendar-card-action:focus::before {
     content: '';
     position: absolute;
     bottom: 100%;
     right: 50%;
     transform: translateX(50%);
     border: 6px solid transparent;
-    border-top-color: #0f172a;
+    border-top-color: #0f172a; /* Mũi tên hướng xuống */
     z-index: 100;
     transition: none;
+  }
+
+  /* --- 2. Header Buttons (HDSD, Sửa, Đăng xuất): Force Square & Tooltip BELOW --- */
+  /* Force Square Shape */
+  .page-header .icon-button--with-label {
+      width: 44px !important;
+      min-width: 44px !important;
+      padding: 0 !important;
+      overflow: visible !important; /* Để tooltip hiện ra */
+      position: relative;
+      justify-content: center; /* Căn giữa icon */
+  }
+  .page-header .icon-button--with-label .icon {
+      margin-right: 0 !important; /* Xóa margin phải của icon */
+  }
+  .page-header .icon-button-label { 
+      display: none !important; 
+  }
+
+  /* Tooltip logic for Header Buttons (Below) */
+  .page-header .icon-button--with-label:hover::after,
+  .page-header .icon-button--with-label:focus-visible::after {
+    content: attr(aria-label);
+    
+    position: absolute;
+    top: calc(100% + 8px); /* Nằm phía DƯỚI nút */
+    left: 50%;
+    transform: translateX(-50%);
+    
+    background: #0f172a;
+    color: #ffffff;
+    
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem; 
+    font-weight: 600;
+    white-space: nowrap; 
+    
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    z-index: 100;
+    pointer-events: none;
+    opacity: 1;
+  }
+
+  /* Mũi tên nhỏ trên tooltip (hướng lên) */
+  .page-header .icon-button--with-label:hover::before,
+  .page-header .icon-button--with-label:focus-visible::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom-color: #0f172a; /* Mũi tên hướng lên */
+    z-index: 100;
   }
 }
 
@@ -2642,7 +2702,7 @@ h1 {
   border-color: var(--primary);
 }
 
-/* Header: Time + Report Btn */
+/* Header Card: Giờ + Nút Report */
 .ecc-header {
   display: flex;
   justify-content: space-between;
@@ -3242,10 +3302,15 @@ h1 {
 
   /* Reset các ô đang span 2 cột về 1 cột (full width) */
   .grid-span-2 {
-    grid-column: span 1;
+    width: 100%;
   }
   
-  /* Đảm bảo Header Row căn chỉnh tốt trên mobile */
+  /* Đảm bảo ô input chiếm hết chiều ngang */
+  .modern-input-group {
+    width: 100%;
+  }
+
+  /* Header trên mobile: Giảm gap chút cho gọn */
   .prefill-header-row {
     gap: 8px;
   }
@@ -3257,7 +3322,7 @@ h1 {
 /* 1. Header Row: Căn giữa tuyệt đối (Vertically Centered) */
 .prefill-header-row {
   display: flex;
-  align-items: center; /* QUAN TRỌNG: Căn giữa theo trục dọc */
+  align-items: center; /* QUAN TRỌNG: Căn giữa theo trục dọc (vertical) */
   flex-wrap: wrap;
   gap: 12px;
   width: 100%;
@@ -3417,180 +3482,126 @@ h1 {
   font-size: 1.2rem;
 }
 
-/* =========================================
-   FIXED FINAL: HEADER ALIGNMENT & MOBILE FOOTER
-   ========================================= */
-
-/* --- 1. HEADER (DESKTOP FIX) --- */
-
-/* Container tổng của Header: Chia 2 bên (Trái: Nội dung, Phải: Nút đóng) */
-.prefill-modal-header {
-  display: flex;
-  align-items: center;       /* Căn giữa theo trục dọc */
-  justify-content: space-between;
-  gap: 16px;
-  padding: 24px 32px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-/* Khối bên trái: Chứa Brand + Ngày/Giờ */
-.prefill-header-row {
-  display: flex;
-  align-items: center;       /* QUAN TRỌNG: Đảm bảo Brand và Chip thẳng hàng */
-  flex-wrap: wrap;
-  gap: 12px;
-  flex: 1;                   /* Chiếm hết không gian còn lại */
-}
-
-/* Tên Brand: Reset line-height để căn giữa chuẩn hơn */
-.prefill-header-brand {
-  font-size: 1.25rem;
-  font-weight: 900;
-  color: var(--text-primary);
-  margin: 0;
-  line-height: 1.5;          /* Tăng nhẹ để cân với chiều cao của Chip */
-  padding: 0;
-}
-
-/* Khối gom nhóm Ngày & Giờ */
-.prefill-header-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Khối nút bên phải (Help + Close) */
-.prefill-modal-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;            /* Không cho phép bị co lại */
-  margin-left: 0 !important; /* Reset margin cũ */
-  padding-left: 0 !important;
-}
-
-/* --- 2. FOOTER (MOBILE FIX) --- */
-
-/* Mặc định Desktop: Nằm ngang */
-.prefill-form-actions,
-.prefill-result-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border-subtle);
-  grid-column: span 2; /* Nếu nằm trong grid */
-}
-
-/* Mobile Responsiveness */
-@media (max-width: 640px) {
-  
-  /* 1. Header Mobile: Brand nằm trên, Ngày/Giờ nằm dưới */
-  .prefill-modal-header {
-    align-items: flex-start; /* Căn đỉnh để nút Close không bị chạy */
-    padding: 16px;
-  }
-  
-  .prefill-header-row {
-    flex-direction: column; /* Xếp dọc */
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  /* 2. Footer Mobile: Nút xếp chồng dọc (1 cột) */
-  .prefill-form-actions,
-  .prefill-result-actions {
-    flex-direction: column; /* Xếp dọc */
-    gap: 12px;
-  }
-
-  /* Nút chiếm full chiều rộng để dễ bấm */
-  .prefill-form-actions .btn,
-  .prefill-result-actions .btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  /* 3. Grid Form Mobile: Về 1 cột */
-  .prefill-form-grid,
-  .modern-result-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .grid-span-2 {
-    width: 100%;
-  }
-  
-  .modern-input-group {
-    width: 100%;
-  }
-}
-
-/* =========================================
-   FINAL FIX: HEADER VERTICAL ALIGNMENT
-   ========================================= */
-
-/* 1. Container Header: Căn giữa tuyệt đối */
-.prefill-header-row {
-  display: flex;
-  align-items: center; /* QUAN TRỌNG: Căn giữa theo trục dọc (vertical) */
-  flex-wrap: wrap;
-  gap: 12px;
-  width: 100%;
-}
-
-/* 2. Brand Name: Reset margin/padding để không bị đẩy lên/xuống */
-.prefill-header-brand {
-  font-size: 1.35rem; /* Tăng kích thước chút để cân đối */
-  font-weight: 900;
-  color: var(--text-primary);
-  margin: 0;          /* Xóa margin mặc định */
-  padding: 0;         /* Xóa padding */
-  line-height: 1;     /* Ép dòng xẹp xuống bằng chiều cao chữ */
-  
-  /* Flexbox cho chính text để căn chỉnh pixel perfect */
-  display: flex;      
-  align-items: center; 
-}
-
-/* 3. Wrapper Ngày & Giờ */
-.prefill-header-meta {
-  display: flex;
-  align-items: center; /* Căn giữa các chip bên trong */
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-/* 4. Chips (Ngày/Giờ): Giữ chiều cao cố định để dễ căn với Brand */
-.prefill-header-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 34px;        /* Chiều cao cố định (tăng nhẹ từ 32 lên 34) */
-  gap: 6px;
-  font-size: 0.85rem;
+/* =========================================================
+   FIXED: SEARCH CLEAR BUTTON STYLE
+   ========================================================= */
+.calendar-card-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%; /* Center Vertically */
+  transform: translateY(-50%); /* Center Vertically */
+  height: 32px;
   padding: 0 12px;
-  background: var(--bg-input);
-  border-radius: 8px;
-  color: var(--text-secondary);
-  font-weight: 700;    /* Đậm hơn chút cho rõ */
-  border: 1px solid transparent;
-  line-height: 1;      /* Căn giữa text trong chip */
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(0,0,0,0.05);
+  border-radius: 99px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex; /* IMPORTANT: Center text inside button */
+  align-items: center; /* IMPORTANT: Center text vertically */
+  justify-content: center; /* IMPORTANT: Center text horizontally */
 }
 
-/* 5. Mobile Adjustment (Giữ nguyên logic cũ) */
-@media (max-width: 640px) {
-  .prefill-header-row {
-    align-items: flex-start; /* Trên mobile cho phép lệch để xếp dọc */
-    flex-direction: column;
-    gap: 8px;
+/* Light mode hover: Gray background, Black text */
+.calendar-card-clear:hover {
+  background: #e2e8f0; 
+  color: var(--text-primary); 
+}
+
+/* Dark Mode fixes for clear button */
+@media (prefers-color-scheme: dark) {
+  .calendar-card-clear:hover {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
   }
-  
-  .prefill-header-brand {
-    font-size: 1.2rem;
-    line-height: 1.3; /* Trên mobile giãn dòng ra chút cho dễ đọc */
+}
+
+/* =========================================================
+   FIXED: DESKTOP HEADER & CALENDAR BUTTONS (SQUARE + TOOLTIP)
+   ========================================================= */
+
+@media (min-width: 768px) {
+  /* 1. Calendar Buttons (Download, Salary) - Tooltip ABOVE */
+  .calendar-card-action:not(.calendar-card-toggle):hover::after,
+  .calendar-card-action:not(.calendar-card-toggle):focus-visible::after {
+    content: attr(aria-label);
+    position: absolute;
+    bottom: calc(100% + 8px); /* Tooltip ABOVE */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    z-index: 100;
+    pointer-events: none;
+    opacity: 1;
+  }
+  /* Arrow for Calendar Buttons */
+  .calendar-card-action:not(.calendar-card-toggle):hover::before,
+  .calendar-card-action:not(.calendar-card-toggle):focus-visible::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #0f172a;
+    z-index: 100;
+  }
+
+  /* 2. Header Buttons (Help, Edit, Logout) - Force Square + Tooltip BELOW */
+  .page-header .icon-button--with-label {
+      width: 44px !important;
+      min-width: 44px !important;
+      padding: 0 !important;
+      overflow: visible !important; /* Allow tooltip overflow */
+      position: relative;
+      justify-content: center;
+  }
+  .page-header .icon-button--with-label .icon {
+      margin-right: 0 !important;
+  }
+  .page-header .icon-button-label { 
+      display: none !important; 
+  }
+
+  /* Tooltip Logic for Header (Below) */
+  .page-header .icon-button--with-label:hover::after,
+  .page-header .icon-button--with-label:focus-visible::after {
+    content: attr(aria-label);
+    position: absolute;
+    top: calc(100% + 8px); /* Tooltip BELOW */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem; 
+    font-weight: 600;
+    white-space: nowrap; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    z-index: 100;
+    pointer-events: none;
+    opacity: 1;
+  }
+  /* Arrow for Header Buttons */
+  .page-header .icon-button--with-label:hover::before,
+  .page-header .icon-button--with-label:focus-visible::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom-color: #0f172a;
+    z-index: 100;
   }
 }
