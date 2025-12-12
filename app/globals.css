@@ -1575,9 +1575,7 @@ h1 {
   flex: none; 
 }
 
-.calendar-card-search {
-  width: 100%;
-}
+.calendar-card-search { width: 100%; }
 
 .calendar-card-search-input {
   position: relative;
@@ -1586,9 +1584,8 @@ h1 {
   align-items: center;
 }
 
-/* Ẩn label "Tìm kiếm" cũ để giao diện sạch hơn (vì placeholder đã nói lên điều đó) */
 .calendar-card-label {
-  display: none;
+   display: none;
 }
 
 /* INPUT TÌM KIẾM: Phong cách chính */
@@ -1649,105 +1646,56 @@ h1 {
   color: white;
 }
 
-/* Nút Mũi tên (Toggle): Nằm góc phải trên (Order 2) */
-.calendar-card-toggle {
-  order: 2;
-  margin-left: auto; /* Đẩy sát lề phải */
+/* 3. Actions Group: Các nút bên phải (Download, Toggle) */
+.calendar-card-actions {
+  position: static; /* Reset vị trí absolute cũ */
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+/* Nút Toggle (Cài đặt) & Download */
+.calendar-card-action {
   width: 52px;
   height: 52px;
-  border-radius: 16px;
-  border: 1px solid var(--border-subtle);
+  border-radius: 16px; /* Vuông bo góc thay vì tròn */
+  border: 1px solid var(--border-subtle, #e2e8f0);
   background: #fff;
-  color: var(--text-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
+  color: var(--text-secondary, #64748b);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Các Nút Hành động (Download, Tính lương): Nằm dưới cùng (Order 3) */
-.calendar-card-action:not(.calendar-card-toggle) {
-  order: 3;
-  margin-top: 4px; /* Tạo khoảng cách với hàng trên */
-  flex: 1; /* Co giãn đều nhau lấp đầy hàng dưới */
-  height: 48px; /* Chiều cao vừa phải */
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
-  background: #fff;
-  color: var(--text-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-width: 0; /* Tránh vỡ layout flex */
-}
-
-/* Hover effects */
-.calendar-card-action:hover,
-.calendar-card-toggle:hover {
-  background: var(--bg-input);
+.calendar-card-action:hover {
+  background: var(--bg-input, #f8fafc);
   color: var(--primary);
   border-color: var(--primary);
+  transform: translateY(-2px);
 }
 
 .calendar-card-toggle[aria-expanded="true"] {
   background: var(--primary);
   color: #fff;
   border-color: var(--primary);
+  transform: rotate(0deg); /* Không xoay, chỉ đổi màu */
 }
 
-.calendar-card-toggle .calendar-card-chevron { transition: transform 0.3s ease; }
-.calendar-card-toggle[aria-expanded="true"] .calendar-card-chevron { transform: rotate(180deg); }
+.calendar-card-toggle .calendar-card-chevron {
+  /* Thay icon chevron bằng icon bánh răng/settings tượng trưng nếu muốn, hoặc giữ nguyên */
+  transition: transform 0.3s ease;
+}
+.calendar-card-toggle[aria-expanded="true"] .calendar-card-chevron {
+  transform: rotate(180deg);
+}
 
-/* --- DESKTOP LAYOUT (min-width: 768px) --- */
+/* Ẩn label text của nút Download trên mobile để gọn */
+.icon-button-label {
+  display: none;
+}
 @media (min-width: 768px) {
-  .calendar-card-top {
-    flex-wrap: nowrap; /* Một hàng duy nhất */
-    gap: 16px;
-  }
-
-  /* 1. Search: Bên trái, tự co giãn */
-  .calendar-card-title {
-    order: 1;
-    width: auto;
-    flex: 1;         /* QUAN TRỌNG: Kéo dài hết khoảng trống */
-    min-width: 0;
-  }
-  
-  /* Input tìm kiếm trong desktop: Bỏ padding right dư thừa để sát nút */
-  .calendar-card-search-input .text-input {
-      padding-right: 16px !important; 
-  }
-  /* Bỏ nút xóa khỏi input trên desktop (để nó không chồng lên) */
-  .calendar-card-clear {
-      display: none; 
-  }
-
-
-  /* 2. Các nút hành động (Tải lịch, Tính lương): Ở giữa (Order 2) */
-  .calendar-card-action:not(.calendar-card-toggle) {
-    order: 2;
-    margin-top: 0;
-    flex: 0 0 auto; /* Không co giãn, kích thước cố định */
-    width: 52px;    /* VUÔNG VỨC */
-    height: 52px;
-    padding: 0;     /* KHÔNG PADDING DƯ THỪA */
-    border-radius: 16px;
-  }
-
-  /* 3. Mũi tên: Bên phải cùng (Order 3) */
-  .calendar-card-toggle {
-    order: 3;
-    margin-left: 0;
-    width: 52px;
-    height: 52px;
-  }
-  
-  /* Ẩn text label trên desktop để icon nằm giữa */
-  .icon-button-label {
-    display: none !important;
-  }
+  .icon-button-label { display: block; }
+  .calendar-card-action { width: auto; padding: 0 16px; }
 }
 
 /* 4. Body: Khu vực Ngày, Số ngày & Bộ lọc (Khi mở rộng) */
@@ -2398,7 +2346,7 @@ h1 {
   
   min-width: 40px;
   height: 40px;
-  border-radius: var(--radius-full);
+  border-radius: 99px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
@@ -2492,7 +2440,7 @@ h1 {
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  border-radius: var(--radius-full);
+  border-radius: 99px;
   background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
   color: #fff;
   font-size: 0.75rem;
@@ -2744,7 +2692,7 @@ h1 {
   .ecc-tag { background: rgba(255,255,255,0.05); color: #cbd5e1; }
   .ecc-tag--room { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
   .ecc-report-btn:hover { background: rgba(255,255,255,0.1); }
-  .group-divider-label { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
+  .group-divider-label { background: rgba(255,255,255,0.05); color: #93c5fd; border-color: rgba(255,255,255,0.1); }
   .group-divider-line { background: rgba(255,255,255,0.1); }
 }
 
@@ -2961,12 +2909,13 @@ h1 {
 
 /* Dark Mode Overrides */
 @media (prefers-color-scheme: dark) {
-  .ecc-time { background: rgba(255,255,255,0.05); color: #cbd5e1; }
+  .group-divider-label { background: rgba(255,255,255,0.05); color: #93c5fd; border-color: rgba(255,255,255,0.1); }
+  .group-divider-line { background: rgba(255,255,255,0.1); }
+  .event-card-compact { background: rgba(30, 41, 59, 0.6); border-color: rgba(255,255,255,0.05); }
   .ecc-tag { background: rgba(255,255,255,0.05); color: #cbd5e1; }
   .ecc-tag--room { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
   .ecc-report-btn:hover { background: rgba(255,255,255,0.1); }
-  .group-divider-label { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
-  .group-divider-line { background: rgba(255,255,255,0.1); }
+  .ecc-header, .ecc-footer { border-color: rgba(255,255,255,0.1); }
 }
 
 /* Container chứa danh sách các nhóm giờ */
@@ -3246,10 +3195,10 @@ h1 {
   flex-direction: column;
 }
 .modern-result-label {
-  font-size: .75rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   color: var(--text-secondary);
-  letter-spacing: .08em;
+  margin-bottom: 4px;
   font-weight: 700;
 }
 .modern-result-value {
@@ -3436,57 +3385,75 @@ h1 {
 
 /* 2. Brand Text: Điều chỉnh để thẳng hàng với Chips */
 .prefill-header-brand {
-  font-size: 1.35rem; /* Tăng kích thước chút để cân đối */
+  font-size: 1.25rem;
   font-weight: 900;
   color: var(--text-primary);
-  margin: 0;          /* Xóa margin mặc định */
-  padding: 0;         /* Xóa padding */
-  line-height: 1;     /* Ép dòng xẹp xuống bằng chiều cao chữ */
-  
-  /* Flexbox cho chính text để căn chỉnh pixel perfect */
-  display: flex;      
-  align-items: center; 
+  margin: 0;
+  line-height: 1.2;   /* Tăng nhẹ để chữ thoáng và dễ căn giữa */
+  margin-right: auto; /* Đẩy Date/Time sang phải (nếu muốn) */
+  /* Đã XÓA padding-bottom gây lệch */
 }
 
-/* 3. Wrapper Ngày & Giờ */
+/* 3. Wrapper gom nhóm Ngày & Giờ (Giữ nguyên trên 1 dòng ở Mobile) */
 .prefill-header-meta {
   display: flex;
-  align-items: center; /* Căn giữa các chip bên trong */
+  align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  flex-shrink: 0;      /* Không cho phép co lại */
+  white-space: nowrap; /* Ép buộc không xuống dòng nội bộ */
 }
 
-/* 4. Chips (Ngày/Giờ): Giữ chiều cao cố định để dễ căn với Brand */
+/* 4. Chips (Date/Time) */
 .prefill-header-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 34px;        /* Chiều cao cố định (tăng nhẹ từ 32 lên 34) */
+  height: 32px;        /* Chiều cao cố định */
   gap: 6px;
   font-size: 0.85rem;
   padding: 0 12px;
   background: var(--bg-input);
   border-radius: 8px;
   color: var(--text-secondary);
-  font-weight: 700;    /* Đậm hơn chút cho rõ */
+  font-weight: 600;
   border: 1px solid transparent;
-  line-height: 1;      /* Căn giữa text trong chip */
 }
 
-/* 5. Mobile Adjustment (Giữ nguyên logic cũ) */
+/* 5. Grid Form Desktop (Mặc định 2 cột) */
+.prefill-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.grid-span-2 {
+  grid-column: span 2;
+}
+
+/* 6. Mobile Responsiveness: Ép về 1 cột dọc cho Form */
 @media (max-width: 640px) {
-  .prefill-header-row {
-    align-items: flex-start; /* Trên mobile cho phép lệch để xếp dọc */
+  /* Chuyển Form về 1 cột dọc: Mỗi ô 1 hàng */
+  .prefill-form-grid {
+    display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 16px;
+  }
+
+  /* Reset các ô đang span 2 cột về full width */
+  .grid-span-2 {
+    width: 100%;
   }
   
-  .prefill-header-brand {
-    font-size: 1.2rem;
-    line-height: 1.3; /* Trên mobile giãn dòng ra chút cho dễ đọc */
+  /* Đảm bảo ô input chiếm hết chiều ngang */
+  .modern-input-group {
+    width: 100%;
+  }
+
+  /* Header trên mobile: Giảm gap chút cho gọn */
+  .prefill-header-row {
+    gap: 8px;
   }
 }
-
 /* =========================================
    MOBILE FIX 2025: FORCE SINGLE COLUMN & HEADER BUTTONS
    ========================================= */
@@ -3697,5 +3664,179 @@ h1 {
   
   .modern-input-group {
     width: 100%;
+  }
+}
+
+/* =========================================
+   FINAL FIX: HEADER VERTICAL ALIGNMENT
+   ========================================= */
+
+/* 1. Container Header: Căn giữa tuyệt đối */
+.prefill-header-row {
+  display: flex;
+  align-items: center; /* QUAN TRỌNG: Căn giữa theo trục dọc (vertical) */
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+}
+
+/* 2. Brand Name: Reset margin/padding để không bị đẩy lên/xuống */
+.prefill-header-brand {
+  font-size: 1.35rem; /* Tăng kích thước chút để cân đối */
+  font-weight: 900;
+  color: var(--text-primary);
+  margin: 0;          /* Xóa margin mặc định */
+  padding: 0;         /* Xóa padding */
+  line-height: 1;     /* Ép dòng xẹp xuống bằng chiều cao chữ */
+  
+  /* Flexbox cho chính text để căn chỉnh pixel perfect */
+  display: flex;      
+  align-items: center; 
+}
+
+/* 3. Wrapper Ngày & Giờ */
+.prefill-header-meta {
+  display: flex;
+  align-items: center; /* Căn giữa các chip bên trong */
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* 4. Chips (Ngày/Giờ): Giữ chiều cao cố định để dễ căn với Brand */
+.prefill-header-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;        /* Chiều cao cố định (tăng nhẹ từ 32 lên 34) */
+  gap: 6px;
+  font-size: 0.85rem;
+  padding: 0 12px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-weight: 700;    /* Đậm hơn chút cho rõ */
+  border: 1px solid transparent;
+  line-height: 1;      /* Căn giữa text trong chip */
+}
+
+/* 5. Mobile Adjustment (Giữ nguyên logic cũ) */
+@media (max-width: 640px) {
+  .prefill-header-row {
+    align-items: flex-start; /* Trên mobile cho phép lệch để xếp dọc */
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .prefill-header-brand {
+    font-size: 1.2rem;
+    line-height: 1.3; /* Trên mobile giãn dòng ra chút cho dễ đọc */
+  }
+}
+
+.calendar-card-toggle {
+  order: 2;
+  margin-left: auto; /* Đẩy sát lề phải */
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  background: #fff;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+/* Các Nút Hành động (Download, Tính lương): Nằm dưới cùng (Order 3) */
+.calendar-card-action:not(.calendar-card-toggle) {
+  order: 3;
+  margin-top: 4px; /* Tạo khoảng cách với hàng trên */
+  flex: 1; /* Co giãn đều nhau lấp đầy hàng dưới */
+  height: 48px; /* Chiều cao vừa phải */
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: #fff;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0; /* Tránh vỡ layout flex */
+}
+
+/* Hover effects */
+.calendar-card-action:hover,
+.calendar-card-toggle:hover {
+  background: var(--bg-input);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.calendar-card-toggle[aria-expanded="true"] {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.calendar-card-toggle .calendar-card-chevron { transition: transform 0.3s ease; }
+.calendar-card-toggle[aria-expanded="true"] .calendar-card-chevron { transform: rotate(180deg); }
+
+/* --- DESKTOP LAYOUT (min-width: 768px) --- */
+@media (min-width: 768px) {
+  .calendar-card-top {
+    flex-wrap: nowrap; /* Một hàng duy nhất */
+  }
+
+  /* 1. Search: Bên trái, tự co giãn */
+  .calendar-card-title {
+    order: 1;
+    width: auto;
+    flex: 1;
+  }
+
+  /* 2. Các nút hành động: Ở giữa (Order 2) */
+  .calendar-card-action:not(.calendar-card-toggle) {
+    order: 2;
+    margin-top: 0;
+    flex: 0 0 auto; /* Không co giãn, kích thước theo nội dung */
+    width: auto;
+    padding: 0 16px;
+    height: 52px;
+    border-radius: 16px;
+  }
+
+  /* 3. Mũi tên: Bên phải cùng (Order 3) */
+  .calendar-card-toggle {
+    order: 3;
+    margin-left: 0;
+  }
+  
+  /* Hiện text label trên desktop */
+  .icon-button-label {
+    display: block;
+    margin-left: 8px;
+  }
+}
+
+/* Dark Mode Overrides */
+@media (prefers-color-scheme: dark) {
+  .calendar-card {
+    background: #1e293b;
+    border-color: rgba(255,255,255,0.08);
+  }
+  /* ... (Các phần dark mode cũ giữ nguyên) ... */
+  .calendar-card-action, .calendar-card-toggle { 
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+  }
+  .calendar-card-action:hover, .calendar-card-toggle:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: var(--primary) !important;
+  }
+  .calendar-card-toggle[aria-expanded="true"] {
+    background: var(--primary) !important;
   }
 }
