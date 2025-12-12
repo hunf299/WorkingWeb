@@ -2966,3 +2966,225 @@ h1 {
 .room-expand-arrow.expanded {
   transform: rotate(180deg);
 }
+/* =========================================
+   REDESIGN 2025: PREFILL MODAL (MODERN BENTO)
+   ========================================= */
+
+/* 1. Modal Container: Glassmorphism nhẹ & Bo góc lớn */
+.prefill-modal-card {
+  max-width: 680px; /* Rộng hơn chút để chứa 2 cột */
+  width: 95%;
+  border-radius: 28px; /* Xu hướng bo góc cực lớn */
+  background: var(--bg-card); /* Hoặc màu trắng/đen tùy theme */
+  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden; /* Để header không bị tràn */
+  display: flex;
+  flex-direction: column;
+}
+
+/* 2. Header: Tối giản & Hiện đại */
+.prefill-modal-header {
+  padding: 24px 32px;
+  background: transparent; /* Bỏ nền màu cũ */
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.prefill-modal-title-block h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-bottom: 4px;
+}
+
+.prefill-modal-subtitle {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Summary Chips (Date/Time) */
+.prefill-modal-summary {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+.prefill-modal-summary-item {
+  background: var(--bg-input);
+  border: none;
+  font-size: 0.8rem;
+  padding: 4px 12px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* 3. Body: Bento Grid Layout */
+.prefill-modal-body {
+  padding: 32px;
+  background: var(--bg-card);
+  overflow-y: auto;
+}
+
+.prefill-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 2 cột */
+  gap: 20px 16px; /* Khoảng cách dọc 20px, ngang 16px */
+}
+
+/* Các phần tử chiếm trọn 2 cột */
+.grid-span-2 {
+  grid-column: span 2;
+}
+
+/* Style Input mới: Filled, No Border, Big Radius */
+.modern-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modern-input-group label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+  margin-left: 4px;
+}
+
+.modern-input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--bg-input);
+  border: 1px solid transparent;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.modern-input:hover {
+  background: rgba(0,0,0,0.05); /* Darken slightly */
+}
+
+.modern-input:focus {
+  background: var(--bg-card);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-glow);
+  outline: none;
+}
+
+/* Dark mode fix */
+@media (prefers-color-scheme: dark) {
+  .modern-input:hover { background: rgba(255,255,255,0.1); }
+  .modern-input:focus { background: var(--bg-input); }
+}
+
+/* 4. OCR Dropzone: Nổi bật nhưng gọn */
+.modern-ocr-box {
+  border: 2px dashed var(--border-subtle);
+  border-radius: 16px;
+  padding: 16px;
+  text-align: center;
+  transition: all 0.2s;
+  background: rgba(0,0,0,0.01);
+  position: relative;
+}
+
+.modern-ocr-box:hover {
+  border-color: var(--primary);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.modern-ocr-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.modern-ocr-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none; /* Để click xuyên qua input */
+}
+
+/* 5. Special Elements */
+/* Nút thêm/xóa ID2 nhỏ gọn */
+.mini-action-btn {
+  font-size: 0.75rem;
+  color: var(--primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0;
+}
+.mini-action-btn:hover { text-decoration: underline; }
+
+/* GMV Candidates Chips */
+.modern-gmv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.gmv-chip {
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.gmv-chip:hover { border-color: var(--primary); color: var(--primary); }
+.gmv-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* Footer Actions */
+.prefill-form-actions {
+  grid-column: span 2;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.prefill-form-actions .btn {
+  border-radius: 12px;
+  padding: 12px 24px;
+}
+
+/* Result View Styling */
+.modern-result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.modern-result-item {
+  background: var(--bg-input);
+  padding: 12px 16px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+}
+.modern-result-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+.modern-result-value {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
