@@ -3208,7 +3208,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       <div className="modern-ocr-content">
                         <span style={{ fontSize: '1.2rem' }}>📷</span>
                         <span className="prefill-hint" style={{ margin: 0 }}>
-                          Dán ảnh hoặc tải lên (Max 2 ảnh)
+                          Dán (Ctrl+V) hoặc tải lên để tự động tách ID, GMV, Start time (Max 2 ảnh)
                         </span>
                       </div>
                     </div>
