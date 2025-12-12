@@ -2984,113 +2984,120 @@ Nguồn: Google Sheet ${ev.rawDate}`,
       />
 
       {prefillModal && (
-  <div
-    className="modal-backdrop prefill-modal-backdrop"
-  >
-    <div
-      className="modal-card prefill-modal-card"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="prefill-modal-title"
-      onClick={(event) => event.stopPropagation()}
-    >
-      <div className="prefill-modal-header">
-        <div className="prefill-modal-title-block">
-          <h2 id="prefill-modal-title">Điền Google Form</h2>
-
-          <p className="prefill-modal-subtitle">
-            {prefillModal.event?.title || 'Phiên livestream'}
-          </p>
-
-          <div className="prefill-modal-summary">
-            <span className="prefill-modal-summary-item">
-              <span aria-hidden="true">📅</span>
-              <span>{prefillModal.event?.dateLabel || '—'}</span>
-            </span>
-
-            <span className="prefill-modal-summary-item">
-              <span aria-hidden="true">⏰</span>
-              <span>
-                {prefillModal.event?.start && prefillModal.event?.end
-                  ? `${fmtHM(prefillModal.event.start)}–${fmtHM(
-                      prefillModal.event.end
-                    )}`
-                  : '—'}
-              </span>
-            </span>
-          </div>
-        </div>
-
-        <div className="prefill-modal-actions">
-          <HelpButton
-            onClick={() => openHelpModal('report')}
-            variant="icon-only"
-            label="HDSD"
-            ariaLabel="Xem hướng dẫn Điền report"
-            title="Hướng dẫn Điền report"
-            showTooltip
-            tone="minimal"
-          />
-          <button
-            type="button"
-            className="modal-close-button"
-            onClick={closePrefillModal}
-            aria-label="Đóng điền form"
+        <div className="modal-backdrop prefill-modal-backdrop">
+          <div
+            className="modal-card prefill-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="prefill-modal-title"
+            onClick={(event) => event.stopPropagation()}
           >
-            ×
-          </button>
-        </div>
-      </div>
+            <div className="prefill-modal-header">
+              <div className="prefill-modal-title-block">
+                <h2 id="prefill-modal-title">Điền Google Form</h2>
 
+                <p className="prefill-modal-subtitle">
+                  {prefillModal.event?.title || 'Phiên livestream'}
+                </p>
+
+                <div className="prefill-modal-summary">
+                  <span className="prefill-modal-summary-item">
+                    <span aria-hidden="true">📅</span>
+                    <span>{prefillModal.event?.dateLabel || '—'}</span>
+                  </span>
+
+                  <span className="prefill-modal-summary-item">
+                    <span aria-hidden="true">⏰</span>
+                    <span>
+                      {prefillModal.event?.start && prefillModal.event?.end
+                        ? `${fmtHM(prefillModal.event.start)}–${fmtHM(
+                            prefillModal.event.end
+                          )}`
+                        : '—'}
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="prefill-modal-actions">
+                <HelpButton
+                  onClick={() => openHelpModal('report')}
+                  variant="icon-only"
+                  label="HDSD"
+                  ariaLabel="Xem hướng dẫn Điền report"
+                  title="Hướng dẫn Điền report"
+                  showTooltip
+                  tone="minimal"
+                />
+                <button
+                  type="button"
+                  className="modal-close-button"
+                  onClick={closePrefillModal}
+                  aria-label="Đóng điền form"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
 
             <div className="prefill-modal-body">
               {prefillModal.link ? (
+                /* --- RESULT VIEW (GRID LAYOUT) --- */
                 <div className="prefill-result" role="group" aria-labelledby="prefill-modal-title">
-                  <div className="prefill-result-grid">
-                  <div className="prefill-result-item prefill-result-item--email">
-                    <span className="prefill-result-label">Email</span>
-                    <span className="prefill-result-value">
-                      {prefillValues.email || '—'}
-                    </span>
-                  </div>
-
-
-                    <div className="prefill-result-item">
-                      <span className="prefill-result-label">Key live</span>
-                      <span className="prefill-result-value">{prefillValues.keyLivestream || '—'}</span>
+                  <div className="modern-result-grid">
+                    <div className="modern-result-item grid-span-2">
+                      <span className="modern-result-label">Email</span>
+                      <span className="modern-result-value">
+                        {prefillValues.email || '—'}
+                      </span>
                     </div>
-                    <div className="prefill-result-item">
-                      <span className="prefill-result-label">ID phiên 1</span>
-                      <span className="prefill-result-value">{prefillValues.id1 || '—'}</span>
+
+                    <div className="modern-result-item grid-span-2">
+                      <span className="modern-result-label">Key live</span>
+                      <span className="modern-result-value">{prefillValues.keyLivestream || '—'}</span>
                     </div>
+
+                    <div className="modern-result-item">
+                      <span className="modern-result-label">ID phiên 1</span>
+                      <span className="modern-result-value">{prefillValues.id1 || '—'}</span>
+                    </div>
+
                     {prefillValues.id2 && (
-                      <div className="prefill-result-item">
-                        <span className="prefill-result-label">ID phiên 2</span>
-                        <span className="prefill-result-value">{prefillValues.id2}</span>
+                      <div className="modern-result-item">
+                        <span className="modern-result-label">ID phiên 2</span>
+                        <span className="modern-result-value">{prefillValues.id2}</span>
                       </div>
                     )}
-                    <div className="prefill-result-item">
-                      <span className="prefill-result-label">GMV</span>
-                      <span className="prefill-result-value">{prefillValues.gmv || '—'}</span>
+
+                    <div className="modern-result-item">
+                      <span className="modern-result-label">GMV</span>
+                      <span className="modern-result-value">{prefillValues.gmv || '—'}</span>
                     </div>
-                    <div className="prefill-result-item">
-                      <span className="prefill-result-label">Start time</span>
-                      <span className="prefill-result-value">{prefillValues.startTimeText || '—'}</span>
+
+                    <div className="modern-result-item">
+                      <span className="modern-result-label">Start time</span>
+                      <span className="modern-result-value">{prefillValues.startTimeText || '—'}</span>
                     </div>
                   </div>
-                  <div className="prefill-result-link">
+
+                  <div className="modern-input-group" style={{ marginTop: '20px' }}>
                     <label htmlFor="prefill-result-link-input">Link form</label>
                     <textarea
                       id="prefill-result-link-input"
-                      className="prefill-result-textarea"
+                      className="modern-input"
+                      style={{ minHeight: '80px', fontFamily: 'monospace', fontSize: '0.85rem' }}
                       value={prefillModal.link}
                       readOnly
                     />
                   </div>
+
                   {prefillModal.copyFeedback && (
-                    <div className="prefill-status-message">{prefillModal.copyFeedback}</div>
+                    <div className="prefill-status-message prefill-status-message--success" style={{ marginTop: '12px' }}>
+                      {prefillModal.copyFeedback}
+                    </div>
                   )}
-                  <div className="prefill-result-actions">
+
+                  <div className="prefill-form-actions">
                     <button type="button" className="btn ghost" onClick={resetPrefillToForm}>
                       Sửa
                     </button>
@@ -3111,14 +3118,17 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                   </div>
                 </div>
               ) : (
-                <form className="prefill-form" onSubmit={handleGeneratePrefilledLink}>
-                  <div className="prefill-field">
-                    <div className="prefill-field-header">
+                /* --- FORM VIEW (GRID LAYOUT) --- */
+                <form className="prefill-form-grid" onSubmit={handleGeneratePrefilledLink}>
+                  
+                  {/* EMAIL - Full Width */}
+                  <div className="modern-input-group grid-span-2">
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <label htmlFor="prefill-email">Email</label>
                       {prefillModal.emailLocked && (
                         <button
                           type="button"
-                          className="prefill-edit-button"
+                          className="mini-action-btn"
                           onClick={unlockPrefillEmail}
                           disabled={isEmailBusy}
                         >
@@ -3130,7 +3140,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       <input
                         id="prefill-email"
                         type="email"
-                        className="text-input prefill-email-input"
+                        className="modern-input"
                         placeholder="example@gmail.com"
                         value={prefillValues.email || ''}
                         onChange={e => handlePrefillFieldChange('email', e.target.value)}
@@ -3139,38 +3149,37 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                       />
                       {isEmailBusy && <span className="input-spinner" aria-hidden="true" />}
                     </div>
-                    {prefillFormErrors.email ? (
-                      <div className="prefill-error">{prefillFormErrors.email}</div>
-                    ) : (
-                      trialEmailError && <div className="prefill-error">{trialEmailError}</div>
+                    {(prefillFormErrors.email || trialEmailError) && (
+                      <div className="prefill-error">{prefillFormErrors.email || trialEmailError}</div>
                     )}
                   </div>
 
-                  <div className="prefill-field">
-                    <div className="prefill-row">
-                      <label htmlFor="prefill-key">Key live</label>
-                      <input
-                        id="prefill-key"
-                        type="text"
-                        className="text-input"
-                        placeholder="112025NSN14211H2 - G02"
-                        value={prefillValues.keyLivestream || ''}
-                        onChange={e => handlePrefillFieldChange('keyLivestream', e.target.value)}
-                      />
-                      {prefillFormErrors.keyLivestream && (
-                        <div className="prefill-error">{prefillFormErrors.keyLivestream}</div>
-                      )}
-                    </div>
+                  {/* KEY LIVE - Full Width */}
+                  <div className="modern-input-group grid-span-2">
+                    <label htmlFor="prefill-key">Key live</label>
+                    <input
+                      id="prefill-key"
+                      type="text"
+                      className="modern-input"
+                      placeholder="112025NSN14211H2 - G02"
+                      value={prefillValues.keyLivestream || ''}
+                      onChange={e => handlePrefillFieldChange('keyLivestream', e.target.value)}
+                    />
+                    {prefillFormErrors.keyLivestream && (
+                      <div className="prefill-error">{prefillFormErrors.keyLivestream}</div>
+                    )}
                   </div>
 
-                  <div className="prefill-field">
-                    <div className="prefill-row">
-                      <label htmlFor="prefill-ocr">Ảnh báo cáo</label>
+                  {/* OCR DROPZONE - Full Width */}
+                  <div className="modern-input-group grid-span-2">
+                    <label htmlFor="prefill-ocr">Ảnh báo cáo</label>
+                    <div className="modern-ocr-box">
                       <input
                         id="prefill-ocr"
                         type="file"
                         accept="image/*"
                         multiple
+                        className="modern-ocr-input"
                         onChange={event => {
                           const files = event.target.files
                             ? Array.from(event.target.files).filter(Boolean)
@@ -3181,122 +3190,139 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                           event.target.value = '';
                         }}
                       />
+                      <div className="modern-ocr-content">
+                        <span style={{ fontSize: '1.5rem' }}>📷</span>
+                        <span className="prefill-hint" style={{ margin: 0 }}>
+                          Dán ảnh trực tiếp hoặc tải lên tối đa 2 ảnh để tự động tách ID phiên/GMV/Giờ bắt đầu.
+                        </span>
+                      </div>
                     </div>
-                    <div className="prefill-hint">Dán ảnh trực tiếp hoặc tải lên tối đa 2 ảnh để tự động tách ID phiên/GMV/Giờ bắt đầu.</div>
                     {successMessage && (
-                      <div className="prefill-status-message prefill-status-message--success">
+                      <div className="prefill-status-message prefill-status-message--success" style={{ marginTop: 8 }}>
                         {successMessage}
                       </div>
                     )}
                     {ocrErrorMessage && (
-                      <div className="prefill-status-message prefill-status-message--error">
+                      <div className="prefill-status-message prefill-status-message--error" style={{ marginTop: 8 }}>
                         {ocrErrorMessage}
                       </div>
                     )}
                   </div>
 
-                  <div className="prefill-field">
-                    <div className="prefill-row">
-                      <label htmlFor="prefill-id1">ID phiên 1</label>
-                      <input
-                        id="prefill-id1"
-                        type="text"
-                        className="text-input"
-                        placeholder="Nhập ID hoặc dán ảnh để lấy ID tự động"
-                        value={prefillValues.id1 || ''}
-                        onChange={e => handlePrefillFieldChange('id1', e.target.value)}
-                      />
-                    </div>
+                  {/* ID1 - Half Width */}
+                  <div className="modern-input-group">
+                    <label htmlFor="prefill-id1">ID phiên 1</label>
+                    <input
+                      id="prefill-id1"
+                      type="text"
+                      className="modern-input"
+                      placeholder="Nhập ID hoặc dán ảnh để lấy ID tự động"
+                      value={prefillValues.id1 || ''}
+                      onChange={e => handlePrefillFieldChange('id1', e.target.value)}
+                    />
                     {prefillFormErrors.id1 && <div className="prefill-error">{prefillFormErrors.id1}</div>}
                   </div>
 
-                  {showPrefillOptionalId ? (
-                    <div className="prefill-field">
-                      <div className="prefill-field-header">
-                        <label htmlFor="prefill-id2">ID phiên livestream 2 (tuỳ chọn)</label>
-                        <button
-                          type="button"
-                          className="prefill-mini-button"
-                          onClick={() => toggleOptionalLivestreamId(false)}
-                        >
-                          Xóa
-                        </button>
-                      </div>
-                      <input
-                        id="prefill-id2"
-                        type="text"
-                        className="text-input"
-                        placeholder="Nhập thêm ID nếu có"
-                        value={prefillValues.id2 || ''}
-                        onChange={e => handlePrefillFieldChange('id2', e.target.value)}
-                      />
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="prefill-add-button"
-                      onClick={() => toggleOptionalLivestreamId(true)}
-                    >
-                      + Thêm ID phiên 2
-                    </button>
-                  )}
+                  {/* ID2 or ADD BUTTON - Half Width */}
+                  <div className="modern-input-group" style={{ justifyContent: 'flex-end' }}>
+                    {showPrefillOptionalId ? (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <label htmlFor="prefill-id2">ID phiên livestream 2 (tuỳ chọn)</label>
+                          <button
+                            type="button"
+                            className="mini-action-btn"
+                            onClick={() => toggleOptionalLivestreamId(false)}
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                        <input
+                          id="prefill-id2"
+                          type="text"
+                          className="modern-input"
+                          placeholder="Nhập thêm ID nếu có"
+                          value={prefillValues.id2 || ''}
+                          onChange={e => handlePrefillFieldChange('id2', e.target.value)}
+                        />
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="modern-input"
+                        style={{
+                          border: '1px dashed var(--border-subtle)',
+                          background: 'transparent',
+                          color: 'var(--primary)',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          display: 'flex',
+                          alignItems: 'center',
+                          height: '100%'
+                        }}
+                        onClick={() => toggleOptionalLivestreamId(true)}
+                      >
+                        + Thêm ID phiên 2
+                      </button>
+                    )}
+                  </div>
 
-                  <div className="prefill-field">
-                    <div className="prefill-row">
-                      <label htmlFor="prefill-gmv">GMV</label>
-                      <input
-                        id="prefill-gmv"
-                        type="text"
-                        inputMode="numeric"
-                        className="text-input"
-                        placeholder="Nhập GMV hoặc nhập ảnh để tách tự động"
-                        value={prefillValues.gmv || ''}
-                        onChange={e => handlePrefillFieldChange('gmv', e.target.value)}
-                      />
-                    </div>
+                  {/* GMV - Half Width */}
+                  <div className="modern-input-group">
+                    <label htmlFor="prefill-gmv">GMV</label>
+                    <input
+                      id="prefill-gmv"
+                      type="text"
+                      inputMode="numeric"
+                      className="modern-input"
+                      placeholder="Nhập GMV hoặc nhập ảnh để tách tự động"
+                      value={prefillValues.gmv || ''}
+                      onChange={e => handlePrefillFieldChange('gmv', e.target.value)}
+                    />
                     {prefillFormErrors.gmv && <div className="prefill-error">{prefillFormErrors.gmv}</div>}
                     {showGmvCandidatePrompt && (
-                      <div className="prefill-gmv-choice">
-                        <div className="prefill-hint">Có 2 số GMV. Hãy chọn số đúng:</div>
-                        <div className="prefill-gmv-options">
-                          {gmvCandidateOptions.map(candidate => {
-                            const isActive = sanitizedPrefillGmv === candidate;
-                            const optionClass = `prefill-gmv-option-button${isActive ? ' prefill-gmv-option-button--active' : ''}`;
-                            return (
-                              <button
-                                key={candidate}
-                                type="button"
-                                className={optionClass}
-                                onClick={() => handleSelectGmvCandidate(candidate)}
-                              >
-                                {candidate}
-                              </button>
-                            );
-                          })}
+                      <div className="modern-gmv-chips">
+                        <div className="prefill-hint" style={{ width: '100%', marginBottom: 4 }}>
+                          Có 2 số GMV. Hãy chọn số đúng:
                         </div>
+                        {gmvCandidateOptions.map(candidate => {
+                          const isActive = sanitizedPrefillGmv === candidate;
+                          return (
+                            <button
+                              key={candidate}
+                              type="button"
+                              className={`gmv-chip ${isActive ? 'active' : ''}`}
+                              onClick={() => handleSelectGmvCandidate(candidate)}
+                            >
+                              {candidate}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
 
-                  <div className="prefill-field">
-                    <div className="prefill-row">
-                      <label htmlFor="prefill-start-time">Giờ bắt đầu</label>
-                      <input
-                        id="prefill-start-time"
-                        type="text"
-                        className="text-input"
-                        placeholder="Nhập giờ bắt đầu hoặc nhập ảnh để tách tự động"
-                        value={prefillValues.startTimeText || ''}
-                        onChange={e => handlePrefillFieldChange('startTimeText', e.target.value)}
-                      />
-                    </div>
+                  {/* START TIME - Half Width */}
+                  <div className="modern-input-group">
+                    <label htmlFor="prefill-start-time">Giờ bắt đầu</label>
+                    <input
+                      id="prefill-start-time"
+                      type="text"
+                      className="modern-input"
+                      placeholder="Nhập giờ bắt đầu hoặc nhập ảnh để tách tự động"
+                      value={prefillValues.startTimeText || ''}
+                      onChange={e => handlePrefillFieldChange('startTimeText', e.target.value)}
+                    />
                     {prefillFormErrors.startTimeText && (
                       <div className="prefill-error">{prefillFormErrors.startTimeText}</div>
                     )}
                   </div>
 
+                  {/* ACTIONS - Full Width */}
                   <div className="prefill-form-actions">
-                    <button type="submit" className="btn" disabled={isEmailBusy}>Tạo link</button>
+                    <button type="submit" className="btn" disabled={isEmailBusy}>
+                      Tạo link
+                    </button>
                     <button type="button" className="btn ghost" onClick={closePrefillModal}>
                       Đóng
                     </button>
@@ -3307,7 +3333,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
           </div>
         </div>
       )}
-
       {showHostScriptModal && (
         <div
           className="modal-backdrop host-script-modal-backdrop"
