@@ -856,6 +856,8 @@ export default function Page() {
   const [hostScriptSaveError, setHostScriptSaveError] = useState('');
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [activeHelpTabId, setActiveHelpTabId] = useState(HELP_TABS[0].id);
+  const [salaryResult, setSalaryResult] = useState(null);
+  const [calculatingSalary, setCalculatingSalary] = useState(false);
   const isActiveUser = trialUser?.status === 'active';
   const calendarCardBodyId = 'calendar-card-fields';
   const helpModalStorageKey = useMemo(() => {
@@ -2461,6 +2463,55 @@ export default function Page() {
       }));
   }, [visibleEvents, daysToShow]);
 
+  const COORDINATOR_SPLIT_PATTERN = /[\-\/&,;+]/;
+
+  function extractCoordinatorTokens(raw) {
+    const rawValue = typeof raw === 'string' ? raw : '';
+    return rawValue
+      .split(COORDINATOR_SPLIT_PATTERN)
+      .map(part => part.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  function findCommonCoordinatorName(events) {
+    let common = null;
+    for (const event of events) {
+      const tokens = extractCoordinatorTokens(event.coor);
+      if (!tokens.length) return null;
+      if (!common) {
+        common = new Set(tokens);
+      } else {
+        common = new Set(tokens.filter(token => common.has(token)));
+      }
+      if (!common.size) return null;
+    }
+    if (!common || !common.size) return null;
+    return Array.from(common)[0];
+  }
+
+  function countPlatformOccurrences(events) {
+    const counts = { shopee: 0, lazada: 0, tiktok: 0 };
+    for (const event of events) {
+      const haystack = [event.title, event.platformLabel]
+        .map(val => (val || '').toString().toLowerCase())
+        .filter(Boolean)
+        .join(' ');
+      if (!haystack) continue;
+      if (haystack.includes('shopee') || haystack.includes('shp')) {
+        counts.shopee += 1;
+        continue;
+      }
+      if (haystack.includes('lazada') || haystack.includes('lzd')) {
+        counts.lazada += 1;
+        continue;
+      }
+      if (haystack.includes('tiktok') || haystack.includes('tts')) {
+        counts.tiktok += 1;
+      }
+    }
+    return counts;
+  }
+
   const prefillValues = prefillModal?.values || {};
   const prefillFormErrors = prefillModal?.formErrors || {};
   const showPrefillOptionalId = prefillModal ? (prefillModal.showOptionalId || Boolean(prefillValues.id2)) : false;
@@ -2524,6 +2575,77 @@ Nguồn: Google Sheet ${ev.rawDate}`,
     a.href = url; a.download = `work-${y}${m}${dd}${suffix}.ics`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
+  }
+
+  async function handleCalculateSalary() {
+    if (!visibleEvents.length) {
+      alert('Không có ca nào khớp với bộ lọc hiện tại');
+      return;
+    }
+
+    const coordinatorName = findCommonCoordinatorName(visibleEvents);
+    const coordinatorLabel = typeof visibleEvents[0]?.coor === 'string'
+      ? visibleEvents[0].coor.trim()
+      : '';
+
+    if (!coordinatorName || !coordinatorLabel) {
+      alert('Danh sách ca không cùng một Coordinator, không thể tính lương');
+      return;
+    }
+
+    const counts = countPlatformOccurrences(visibleEvents);
+    const totalMoney = (counts.shopee + counts.lazada) * 40000 + counts.tiktok * 80000;
+
+    if (totalMoney <= 0) {
+      alert('Không xác định được ca hợp lệ để tính lương');
+      return;
+    }
+
+    setCalculatingSalary(true);
+    try {
+      const response = await fetch('/api/calculate-salary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          coor_name: coordinatorLabel,
+          new_shopee_count: counts.shopee,
+          new_lazada_count: counts.lazada,
+          new_tiktok_count: counts.tiktok,
+          new_total_money: totalMoney,
+        }),
+      });
+
+      let payload;
+      try {
+        payload = await response.json();
+      } catch (err) {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        const message = typeof payload?.error === 'string'
+          ? payload.error
+          : 'Không thể cập nhật lương, vui lòng thử lại sau';
+        throw new Error(message);
+      }
+
+      const salaryFromServer = Number(payload?.salary);
+      const salaryDetailFromServer = typeof payload?.salary_detail === 'string'
+        ? payload.salary_detail
+        : '';
+
+      setSalaryResult({
+        salary: Number.isFinite(salaryFromServer) ? salaryFromServer : totalMoney,
+        salaryDetail: salaryDetailFromServer,
+        coordinator: coordinatorLabel,
+        counts,
+        addedMoney: totalMoney,
+      });
+    } catch (err) {
+      alert(err?.message || 'Không thể cập nhật lương');
+    } finally {
+      setCalculatingSalary(false);
+    }
   }
 
   const isEmailBusy = trialEmailStatus === 'loading' || trialEmailStatus === 'saving';
@@ -2608,31 +2730,58 @@ Nguồn: Google Sheet ${ev.rawDate}`,
 
       <div className="calendar-card" data-expanded={calendarExpanded}>
         <div className="calendar-card-header">
-          <div className="calendar-card-title">
-            <label className="calendar-card-label" htmlFor="calendar-search">Tìm kiếm</label>
-            <div className="calendar-card-search">
-              <div className="calendar-card-search-input">
-                <input
-                  id="calendar-search"
-                  type="text"
-                  className="text-input"
-                  placeholder="Brand / Session / Talent / Room / Coordinator…"
-                  value={searchInput}
-                  onChange={e => updateSearch(e.target.value)}
-                  disabled={!isActiveUser}
-                />
-                {searchInput && (
-                  <button
-                    type="button"
-                    className="btn ghost calendar-card-clear"
-                    onClick={() => updateSearch('', { immediate: true })}
+          <div className="calendar-card-top">
+            <div className="calendar-card-title">
+              <label className="calendar-card-label" htmlFor="calendar-search">Tìm kiếm</label>
+              <div className="calendar-card-search">
+                <div className="calendar-card-search-input">
+                  <input
+                    id="calendar-search"
+                    type="text"
+                    className="text-input"
+                    placeholder="Brand / Session / Talent / Room / Coordinator…"
+                    value={searchInput}
+                    onChange={e => updateSearch(e.target.value)}
                     disabled={!isActiveUser}
-                  >
-                    Xóa
-                  </button>
-                )}
+                  />
+                  {searchInput && (
+                    <button
+                      type="button"
+                      className="btn ghost calendar-card-clear"
+                      onClick={() => updateSearch('', { immediate: true })}
+                      disabled={!isActiveUser}
+                    >
+                      Xóa
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
+            <button
+              type="button"
+              className="calendar-card-toggle calendar-card-action"
+              onClick={toggleCalendarExpanded}
+              aria-expanded={calendarExpanded}
+              aria-controls={calendarCardBodyId}
+              aria-label={calendarExpanded ? 'Thu gọn cài đặt lịch' : 'Mở cài đặt lịch'}
+              title={calendarExpanded ? 'Thu gọn' : 'Mở rộng'}
+            >
+              <svg
+                className="calendar-card-chevron"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth="2"
+                stroke="currentColor"
+                style={{ width: '24px', height: '24px' }}
+                aria-hidden="true"
+              >
+                {/* Icon mũi tên xuống chuẩn (Chevron Down) */}
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+              {/* sr-only giữ nguyên để hỗ trợ trình đọc màn hình */}
+              <span className="sr-only">{calendarExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
+            </button>
           </div>
           <div className="calendar-card-actions">
             <button
@@ -2672,28 +2821,34 @@ Nguồn: Google Sheet ${ev.rawDate}`,
             </button>
             <button
               type="button"
-              className="calendar-card-toggle calendar-card-action"
-              onClick={toggleCalendarExpanded}
-              aria-expanded={calendarExpanded}
-              aria-controls={calendarCardBodyId}
-              aria-label={calendarExpanded ? 'Thu gọn cài đặt lịch' : 'Mở cài đặt lịch'}
-              title={calendarExpanded ? 'Thu gọn' : 'Mở rộng'}
+              className="icon-button icon-button--with-label calendar-card-action"
+              onClick={handleCalculateSalary}
+              disabled={!isActiveUser || calculatingSalary}
+              aria-label="Tính lương cho các ca đang xem"
+              title="Tính lương cho các ca đang xem"
             >
               <svg
-                className="calendar-card-chevron"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth="2"
-                stroke="currentColor"
-                style={{ width: '24px', height: '24px' }}
                 aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                className="icon"
               >
-                {/* Icon mũi tên xuống chuẩn (Chevron Down) */}
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 6v12"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15.5 9.5C15.5 7.567 13.7614 6 11.65 6H9.5c-1.933 0-3.5 1.567-3.5 3.5S7.567 13 9.5 13h5c1.933 0 3.5 1.567 3.5 3.5S16.433 20 14.5 20h-6"
+                />
+                <circle cx="12" cy="4" r="1.25" />
               </svg>
-              {/* sr-only giữ nguyên để hỗ trợ trình đọc màn hình */}
-              <span className="sr-only">{calendarExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
+              <span className="icon-button-label" aria-hidden="true">Tính lương</span>
             </button>
           </div>
         </div>
@@ -3410,6 +3565,46 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {salaryResult && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <h2>Kết quả tính lương</h2>
+            <p className="modal-desc">Đã tính lương cho {salaryResult.coordinator || 'coordinator không xác định'}.</p>
+            <div className="prefill-modal-summary">
+              <div className="prefill-modal-summary-item">
+                <span>Ca Shopee</span>
+                <span>{salaryResult.counts?.shopee ?? 0}</span>
+              </div>
+              <div className="prefill-modal-summary-item">
+                <span>Ca Lazada</span>
+                <span>{salaryResult.counts?.lazada ?? 0}</span>
+              </div>
+              <div className="prefill-modal-summary-item">
+                <span>Ca Tiktok</span>
+                <span>{salaryResult.counts?.tiktok ?? 0}</span>
+              </div>
+              <div className="prefill-modal-summary-item">
+                <span>Số tiền vừa cộng</span>
+                <span>{(salaryResult.addedMoney || 0).toLocaleString('vi-VN')} đ</span>
+              </div>
+              <div className="prefill-modal-summary-item">
+                <span>Tổng lương tích lũy</span>
+                <span>{(salaryResult.salary || 0).toLocaleString('vi-VN')} đ</span>
+              </div>
+              <div className="prefill-modal-summary-item">
+                <span>Chi tiết số ca tích lũy</span>
+                <span>{salaryResult.salaryDetail || 'Chưa có dữ liệu'}</span>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn" onClick={() => setSalaryResult(null)}>
+                Đóng
+              </button>
+            </div>
           </div>
         </div>
       )}
