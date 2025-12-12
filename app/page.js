@@ -2755,25 +2755,9 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               aria-label="Sửa nhắc live"
               title="Sửa nhắc live"
             >
-              <svg
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                className="icon"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15.75 9A3.75 3.75 0 118.25 9a3.75 3.75 0 017.5 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4.5 19.5a8.25 8.25 0 0115 0"
-                />
+              <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9A3.75 3.75 0 118.25 9a3.75 3.75 0 017.5 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5a8.25 8.25 0 0115 0" />
               </svg>
               <span className="icon-button-label" aria-hidden="true">Sửa nhắc live</span>
             </button>
@@ -2785,25 +2769,9 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               aria-label="Đăng xuất"
               title="Đăng xuất"
             >
-              <svg
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                className="icon"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 9l3.75 3-3.75 3M21 12H9"
-                />
+              <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9l3.75 3-3.75 3M21 12H9" />
               </svg>
               <span className="icon-button-label" aria-hidden="true">Đăng xuất</span>
             </button>
@@ -2811,7 +2779,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
         )}
       </div>
 
-     <div className="calendar-card" data-expanded={calendarExpanded}>
+      <div className="calendar-card" data-expanded={calendarExpanded}>
         <div className="calendar-card-header">
           <div className="calendar-card-top">
             <div className="calendar-card-title">
@@ -2840,6 +2808,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                 </div>
               </div>
             </div>
+
             <button
               type="button"
               className="icon-button icon-button--with-label calendar-card-action"
@@ -2872,7 +2841,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               <span className="icon-button-label" aria-hidden="true">Tính lương</span>
             </button>
 
-            {/* Toggle Button (Arrow) */}
             <button
               type="button"
               className="calendar-card-toggle calendar-card-action"
@@ -2897,62 +2865,60 @@ Nguồn: Google Sheet ${ev.rawDate}`,
               <span className="sr-only">{calendarExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
             </button>
           </div>
-          <div
-            id={calendarCardBodyId}
-            className="calendar-card-body"
-            aria-hidden={!calendarExpanded}
-            style={{ display: calendarExpanded ? undefined : 'none' }}
-          >
-            {/* ... Existing Body Content (Date picker, filters, etc.) ... */}
-            <div className="calendar-card-controls">
-                {/* ... fields ... */}
-                <div className="calendar-card-field">
-                  <label htmlFor="pick-date">Ngày</label>
-                  <input
-                    id="pick-date"
-                    type="date"
-                    className="date-input"
-                    value={selectedDateStr}
-                    onChange={e => setSelectedDateStr(e.target.value)}
-                  />
-                </div>
-                <div className="calendar-card-field">
-                  <label htmlFor="days-to-show">Số ngày</label>
-                  <select
-                    id="days-to-show"
-                    className="date-input"
-                    value={daysToShow}
-                    onChange={e => setDaysToShow(Math.max(1, Number(e.target.value) || 1))}
-                  >
-                    {DAY_RANGE_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+        </div>
+        <div
+          id={calendarCardBodyId}
+          className="calendar-card-body"
+          aria-hidden={!calendarExpanded}
+          style={{ display: calendarExpanded ? undefined : 'none' }}
+        >
+          <div className="calendar-card-controls">
+            <div className="calendar-card-field">
+              <label htmlFor="pick-date">Ngày</label>
+              <input
+                id="pick-date"
+                type="date"
+                className="date-input"
+                value={selectedDateStr}
+                onChange={e => setSelectedDateStr(e.target.value)}
+              />
             </div>
-            <div className="calendar-card-footer">
-                <button
-                  type="button"
-                  className="btn ghost filter-trigger"
-                  onClick={() => setShowFiltersModal(true)}
-                  disabled={!isActiveUser}
-                  aria-haspopup="dialog"
-                  aria-expanded={showFiltersModal}
-                  aria-controls="filters-modal"
-                  aria-label={filterButtonLabel}
-                  title={filterButtonLabel}
-                  data-active={hasActiveFilters}
-                >
-                  <span className="filter-trigger-label">Bộ lọc</span>
-                  {hasActiveFilters && <span className="filter-trigger-indicator" aria-hidden="true" />}
-                </button>
+            <div className="calendar-card-field">
+              <label htmlFor="days-to-show">Số ngày</label>
+              <select
+                id="days-to-show"
+                className="date-input"
+                value={daysToShow}
+                onChange={e => setDaysToShow(Math.max(1, Number(e.target.value) || 1))}
+              >
+                {DAY_RANGE_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
+          </div>
+          <div className="calendar-card-footer">
+            <button
+              type="button"
+              className="btn ghost filter-trigger"
+              onClick={() => setShowFiltersModal(true)}
+              disabled={!isActiveUser}
+              aria-haspopup="dialog"
+              aria-expanded={showFiltersModal}
+              aria-controls="filters-modal"
+              aria-label={filterButtonLabel}
+              title={filterButtonLabel}
+              data-active={hasActiveFilters}
+            >
+              <span className="filter-trigger-label">Bộ lọc</span>
+              {hasActiveFilters && <span className="filter-trigger-indicator" aria-hidden="true" />}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Danh sách nhóm theo 2h */}
       {!isActiveUser ? (
         <p>Vui lòng nhập tên để xem lịch làm việc.</p>
       ) : loading ? (
@@ -2962,20 +2928,17 @@ Nguồn: Google Sheet ${ev.rawDate}`,
           groupedMultipleDays.map(day => (
             <div key={day.dayKey} className="day-section">
               <div className="day-head">{day.dayLabel}</div>
-              {/* WRAPPER MỚI: buckets-grid */}
               <div className="buckets-grid">
                 {day.buckets.map(g => (
                   <div 
                     key={g.bucket} 
                     className={`bucket-wrapper ${g.items.length === 1 ? 'bucket-single' : ''}`}
                   >
-                    {/* Group Divider */}
                     <div className="group-divider">
                       <span className="group-divider-label">{g.bucket}</span>
                       <span className="group-divider-line"></span>
                     </div>
 
-                    {/* Grid Layout (Giữ nguyên nội dung bên trong) */}
                     <div className="group-grid">
                       {g.items.map((e, i) => {
                         const computed = eventComputedMap.get(e) || {
@@ -3076,7 +3039,6 @@ Nguồn: Google Sheet ${ev.rawDate}`,
           <p>Không có sự kiện trong khoảng ngày này.</p>
         )
       ) : groupedSingleDay.length ? (
-        /* WRAPPER MỚI: buckets-grid cho chế độ xem 1 ngày */
         <div className="buckets-grid">
           {groupedSingleDay.map(g => (
             <div 
