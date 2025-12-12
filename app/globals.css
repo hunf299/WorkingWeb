@@ -3776,3 +3776,201 @@ h1 {
     z-index: 100;
   }
 }
+
+.calendar-card-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%; /* Căn giữa theo chiều dọc */
+  transform: translateY(-50%); /* Căn giữa theo chiều dọc */
+  height: 32px;
+  padding: 0 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(0,0,0,0.05);
+  border-radius: 99px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  z-index: 5;
+}
+
+/* Hover: Nền xám, Chữ đen (không bị trắng) */
+.calendar-card-clear:hover {
+  background: #e2e8f0; 
+  color: var(--text-primary); 
+}
+
+/* Layout Grid cho Modal Tính Lương */
+.prefill-modal-summary {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 cột đều nhau */
+  gap: 12px;
+}
+
+.prefill-modal-summary-item {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.85rem;
+  padding: 12px;
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  display: flex;
+  flex-direction: column; /* Label trên, Value dưới */
+  justify-content: center;
+  box-shadow: none;
+}
+
+.prefill-modal-summary-item span:last-child {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
+/* Các ô từ thứ 4 trở đi (Tiền, Tổng lương, Chi tiết) sẽ chiếm trọn 1 dòng */
+.prefill-modal-summary-item:nth-child(n+4) {
+  grid-column: 1 / -1; /* Chiếm hết chiều ngang */
+  flex-direction: row; /* Quay về ngang */
+  justify-content: space-between;
+  align-items: center;
+}
+
+.prefill-modal-summary-item:nth-child(n+4) span:last-child {
+  margin-top: 0;
+}
+
+/* Mobile: Về 1 cột dọc hết */
+@media (max-width: 640px) {
+  .prefill-modal-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 768px) {
+  /* --- FIX 1: Kéo dài ô tìm kiếm --- */
+  .calendar-card-header {
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  .calendar-card-top {
+    flex: 1; /* Chiếm toàn bộ không gian ngang */
+    flex-wrap: nowrap;
+    gap: 16px;
+  }
+
+  .calendar-card-title {
+    order: 1;
+    flex: 1; /* Tự động giãn ra lấp đầy khoảng trống */
+    width: auto;
+    padding-right: 0 !important; /* Xóa padding cũ gây khoảng trống */
+    min-width: 0;
+  }
+
+  /* Hiển thị nút xóa trên desktop */
+  .calendar-card-clear {
+    display: flex;
+  }
+
+  /* --- FIX 2: Style Button Vuông & Tooltip --- */
+  
+  /* Ẩn text label cũ để nút gọn */
+  .icon-button-label {
+    display: none !important;
+  }
+
+  /* Nút trong Header (HDSD, Logout...): Tooltip nằm DƯỚI */
+  .page-header .icon-button--with-label {
+    width: 44px !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    position: relative;
+    justify-content: center;
+  }
+  
+  /* Tooltip Box */
+  .page-header .icon-button--with-label:hover::after {
+    content: attr(aria-label);
+    position: absolute;
+    top: calc(100% + 10px); /* Nằm dưới */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+  }
+  
+  /* Mũi tên Tooltip */
+  .page-header .icon-button--with-label:hover::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom-color: #0f172a;
+    z-index: 1000;
+  }
+
+  /* Nút trong Calendar (Tải lịch, Tính lương...): Tooltip nằm TRÊN */
+  .calendar-card-action {
+    order: 2;
+    margin-top: 0;
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    border-radius: 16px;
+    position: relative;
+    overflow: visible !important;
+  }
+
+  /* Tooltip Box */
+  .calendar-card-action:not(.calendar-card-toggle):hover::after {
+    content: attr(aria-label);
+    position: absolute;
+    bottom: calc(100% + 10px); /* Nằm trên */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+  }
+
+  /* Mũi tên Tooltip */
+  .calendar-card-action:not(.calendar-card-toggle):hover::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #0f172a;
+    z-index: 1000;
+  }
+
+  /* Nút Mũi tên Toggle */
+  .calendar-card-toggle {
+    order: 3;
+    margin-left: 0;
+    width: 52px;
+    height: 52px;
+  }
+}
+
+
