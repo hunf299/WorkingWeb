@@ -3111,7 +3111,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
                     </div>
                   )}
 
-                  <div className="prefill-form-actions">
+                  <div className="prefill-result-actions">
                     <button type="button" className="btn ghost" onClick={resetPrefillToForm}>
                       Sửa
                     </button>
