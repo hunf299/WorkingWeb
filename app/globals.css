@@ -1189,11 +1189,7 @@ h1 {
 }
 
 .prefill-modal-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 32px;
+  padding: 24px 32px;
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.02));
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -1212,9 +1208,6 @@ h1 {
 }
 
 .prefill-modal-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
   margin-top: 4px;
 }
 
@@ -1637,6 +1630,8 @@ h1 {
 .calendar-card-clear {
   position: absolute;
   right: 12px;
+  top: 50%; /* Căn giữa theo chiều dọc */
+  transform: translateY(-50%); /* Căn giữa theo chiều dọc */
   height: 32px;
   padding: 0 12px;
   font-size: 0.8rem;
@@ -1644,6 +1639,8 @@ h1 {
   background: rgba(0,0,0,0.05);
   border-radius: 99px;
   border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 .calendar-card-clear:hover {
   background: #ef4444;
@@ -1665,6 +1662,8 @@ h1 {
   justify-content: center;
   flex-shrink: 0;
   transition: all 0.2s ease;
+  position: relative; /* Cho phép tooltip nằm trên */
+  overflow: visible; /* Cho phép tooltip nằm trên */
 }
 
 /* Các Nút Hành động (Download, Tính lương): Nằm dưới cùng (Order 3) */
@@ -1682,6 +1681,8 @@ h1 {
   justify-content: center;
   gap: 8px;
   min-width: 0; /* Tránh vỡ layout flex */
+  position: relative; /* Cho phép tooltip nằm trên */
+  overflow: visible; /* Cho phép tooltip nằm trên */
 }
 
 /* Hover effects */
@@ -1716,21 +1717,11 @@ h1 {
     min-width: 0;
   }
   
-  /* Input tìm kiếm trong desktop: Bỏ padding right dư thừa để sát nút */
-  .calendar-card-search-input .text-input {
-      /* Reset về padding gốc để nút xóa không bị che */
-      padding-right: 60px !important; 
-  }
-  /* Nút xóa trong desktop: HIỂN THỊ, không bị ẩn */
-  .calendar-card-clear {
-      display: inline-flex;
-  }
-
   /* 2. Các nút hành động (Tải lịch, Tính lương): Ở giữa (Order 2) */
   .calendar-card-action:not(.calendar-card-toggle) {
     order: 2;
     margin-top: 0;
-    flex: 0 0 auto; /* Không co giãn, kích thước cố định */
+    flex: 0 0 auto; 
     width: 52px;    /* VUÔNG VỨC */
     height: 52px;
     padding: 0;     /* KHÔNG PADDING DƯ THỪA */
@@ -1748,6 +1739,49 @@ h1 {
   /* Ẩn text label trên desktop để icon nằm giữa */
   .icon-button-label {
     display: none !important;
+  }
+  
+  /* =======================================
+     TOOLTIP CHO BUTTON ACTION TRÊN DESKTOP 
+     (Giả lập hành vi tooltip trên mobile)
+     ======================================= */
+  .calendar-card-action:not(.icon-button--with-label):hover::after,
+  .calendar-card-action:not(.icon-button--with-label):focus::after {
+    content: attr(aria-label); /* Lấy nội dung chữ tự động */
+    
+    position: absolute;
+    bottom: calc(100% + 8px); /* Nằm phía trên nút */
+    right: 50%; /* Bắt đầu từ giữa nút */
+    transform: translateX(50%); /* Dịch sang trái 50% chiều rộng để căn giữa */
+    
+    background: #0f172a; /* Màu nền tối (Slate-900) */
+    color: #ffffff;
+    
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem; 
+    font-weight: 600;
+    white-space: nowrap; 
+    
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    z-index: 100;
+    pointer-events: none;
+    opacity: 1;
+    transition: none; /* Tắt transition không cần thiết */
+  }
+
+  /* Mũi tên nhỏ dưới tooltip */
+  .calendar-card-action:not(.icon-button--with-label):hover::before,
+  .calendar-card-action:not(.icon-button--with-label):focus::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    right: 50%;
+    transform: translateX(50%);
+    border: 6px solid transparent;
+    border-top-color: #0f172a;
+    z-index: 100;
+    transition: none;
   }
 }
 
