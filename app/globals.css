@@ -3536,3 +3536,115 @@ h1 {
   justify-content: center;
   font-size: 1.2rem;
 }
+
+/* =========================================
+   FIXED FINAL: HEADER ALIGNMENT & MOBILE FOOTER
+   ========================================= */
+
+/* --- 1. HEADER (DESKTOP FIX) --- */
+
+/* Container tổng của Header: Chia 2 bên (Trái: Nội dung, Phải: Nút đóng) */
+.prefill-modal-header {
+  display: flex;
+  align-items: center;       /* Căn giữa theo trục dọc */
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Khối bên trái: Chứa Brand + Ngày/Giờ */
+.prefill-header-row {
+  display: flex;
+  align-items: center;       /* QUAN TRỌNG: Đảm bảo Brand và Chip thẳng hàng */
+  flex-wrap: wrap;
+  gap: 12px;
+  flex: 1;                   /* Chiếm hết không gian còn lại */
+}
+
+/* Tên Brand: Reset line-height để căn giữa chuẩn hơn */
+.prefill-header-brand {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.5;          /* Tăng nhẹ để cân với chiều cao của Chip */
+  padding: 0;
+}
+
+/* Khối gom nhóm Ngày & Giờ */
+.prefill-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Khối nút bên phải (Help + Close) */
+.prefill-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;            /* Không cho phép bị co lại */
+  margin-left: 0 !important; /* Reset margin cũ */
+  padding-left: 0 !important;
+}
+
+/* --- 2. FOOTER (MOBILE FIX) --- */
+
+/* Mặc định Desktop: Nằm ngang */
+.prefill-form-actions,
+.prefill-result-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+  grid-column: span 2; /* Nếu nằm trong grid */
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 640px) {
+  
+  /* 1. Header Mobile: Brand nằm trên, Ngày/Giờ nằm dưới */
+  .prefill-modal-header {
+    align-items: flex-start; /* Căn đỉnh để nút Close không bị chạy */
+    padding: 16px;
+  }
+  
+  .prefill-header-row {
+    flex-direction: column; /* Xếp dọc */
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  /* 2. Footer Mobile: Nút xếp chồng dọc (1 cột) */
+  .prefill-form-actions,
+  .prefill-result-actions {
+    flex-direction: column; /* Xếp dọc */
+    gap: 12px;
+  }
+
+  /* Nút chiếm full chiều rộng để dễ bấm */
+  .prefill-form-actions .btn,
+  .prefill-result-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* 3. Grid Form Mobile: Về 1 cột */
+  .prefill-form-grid,
+  .modern-result-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .grid-span-2 {
+    width: 100%;
+  }
+  
+  .modern-input-group {
+    width: 100%;
+  }
+}
