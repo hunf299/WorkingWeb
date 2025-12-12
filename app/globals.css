@@ -3926,4 +3926,174 @@ h1 {
   }
 }
 
+/* Nút xóa (X) trong ô tìm kiếm */
+.calendar-card-clear {
+  position: absolute;
+  right: 12px;
+  top: 50% !important; /* Cố định vị trí dọc */
+  transform: translateY(-50%) !important; /* Cố định vị trí dọc */
+  height: 32px;
+  padding: 0 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(0,0,0,0.05);
+  border-radius: 99px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;       /* Flexbox để căn giữa nội dung */
+  align-items: center; 
+  justify-content: center;
+  z-index: 5;
+  margin: 0;
+}
 
+/* Hover: Nền xám, Chữ màu tối (không bị đổi sang trắng) */
+.calendar-card-clear:hover {
+  background: #e2e8f0; 
+  color: var(--text-primary); 
+}
+
+@media (min-width: 768px) {
+  /* ... giữ nguyên các phần calendar-card-top ... */
+  .calendar-card-top {
+    flex-wrap: nowrap; 
+    gap: 16px;
+  }
+  .calendar-card-title {
+    order: 1; width: auto; flex: 1; min-width: 0; padding-right: 0;
+  }
+  .calendar-card-search-input .text-input {
+    padding-right: 60px !important; 
+  }
+  .calendar-card-clear { display: flex; }
+
+  /* --- FIX BUTTONS & TOOLTIPS --- */
+  
+  /* 1. Ẩn chữ label để nút luôn vuông */
+  .icon-button-label {
+    display: none !important;
+  }
+
+  /* 2. Style chung cho các nút trên Desktop (Header + Calendar) */
+  .calendar-card-action:not(.calendar-card-toggle),
+  .page-header .icon-button--with-label {
+    width: 52px !important;
+    height: 52px !important;
+    padding: 0 !important;
+    border-radius: 16px !important;
+    justify-content: center !important;
+    position: relative !important;
+    overflow: visible !important; /* Để tooltip hiển thị ra ngoài */
+    flex: 0 0 auto;
+  }
+
+  /* Riêng nút Header nhỏ hơn một chút theo design cũ (44px) */
+  .page-header .icon-button--with-label {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 99px !important;
+  }
+
+  /* 3. TOOLTIP PHÍA TRÊN (Cho nút trong Calendar) */
+  .calendar-card-action:hover::after,
+  .calendar-card-action:focus-visible::after {
+    content: attr(aria-label);
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  /* Mũi tên tooltip trên */
+  .calendar-card-action:hover::before,
+  .calendar-card-action:focus-visible::before {
+    content: '';
+    position: absolute;
+    bottom: 100%; left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #0f172a;
+    z-index: 1000;
+  }
+
+  /* 4. TOOLTIP PHÍA DƯỚI (Cho nút trên Header - HDSD, Logout...) */
+  .page-header .icon-button--with-label:hover::after,
+  .page-header .icon-button--with-label:focus-visible::after {
+    content: attr(aria-label); /* Hoặc dùng attr(title) */
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  /* Mũi tên tooltip dưới */
+  .page-header .icon-button--with-label:hover::before,
+  .page-header .icon-button--with-label:focus-visible::before {
+    content: '';
+    position: absolute;
+    top: 100%; left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom-color: #0f172a;
+    z-index: 1000;
+  }
+  
+  /* Sắp xếp vị trí các nút Calendar */
+  .calendar-card-action:not(.calendar-card-toggle) { order: 2; margin-top: 0; }
+  .calendar-card-toggle { order: 3; margin-left: 0; width: 52px; height: 52px; }
+}
+
+/* Layout Grid cho Modal Tính Lương */
+.prefill-modal-summary {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* Hàng 1: 3 cột đều nhau */
+  gap: 12px;
+}
+
+.prefill-modal-summary-item {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.85rem;
+  padding: 12px;
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Các ô từ thứ 4 trở đi (Tiền, Tổng lương, Chi tiết) sẽ chiếm trọn 1 dòng */
+.prefill-modal-summary > .prefill-modal-summary-item:nth-child(n+4) {
+  grid-column: 1 / -1; /* Span full width */
+  flex-direction: row; /* Layout ngang: Label trái, Value phải */
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Mobile: Tất cả về 1 cột */
+@media (max-width: 640px) {
+  .prefill-modal-summary {
+    grid-template-columns: 1fr;
+  }
+}
