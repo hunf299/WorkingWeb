@@ -3495,8 +3495,8 @@ h1 {
 
 @media (min-width: 768px) {
   /* 1. Calendar Buttons (Download, Salary) - Tooltip ABOVE */
-  .calendar-card-action:not(.calendar-card-toggle):hover::after,
-  .calendar-card-action:not(.calendar-card-toggle):focus-visible::after {
+  .calendar-card-action:hover::after,
+  .calendar-card-action:focus-visible::after {
     content: attr(aria-label);
     position: absolute;
     bottom: calc(100% + 8px); /* Tooltip ABOVE */
@@ -3639,8 +3639,8 @@ h1 {
     overflow: visible;  /* Để tooltip hiển thị ra ngoài */
   }
   
-  .calendar-card-action:not(.calendar-card-toggle):hover::after,
-  .calendar-card-action:not(.calendar-card-toggle):focus-visible::after {
+  .calendar-card-action:hover::after,
+  .calendar-card-action:focus-visible::after {
     content: attr(aria-label);
     position: absolute;
     bottom: calc(100% + 8px); /* Nằm phía TRÊN nút */
