@@ -255,11 +255,19 @@ export async function POST(req) {
   const isActive = samePeriod(activePeriod, targetPeriod);
 
   const supabase = getSupabaseServiceRoleClient();
-  const { data: user } = await supabase
+  const { data: user, error } = await supabase
     .from('users_trial')
     .select('id, name, salary, salary_detail')
     .eq('name', payload.coor_name)
     .maybeSingle();
+
+  if (error) {
+    return NextResponse.json({ error: 'Không thể đọc dữ liệu người dùng' }, { status: 500 });
+  }
+
+  if (!user) {
+    return NextResponse.json({ error: 'Không tìm thấy Coordinator' }, { status: 404 });
+  }
 
   const state = parseSalaryState(user.salary_detail);
   const snapshotData = getPeriodSnapshot({
@@ -293,11 +301,14 @@ export async function POST(req) {
     periodEnd: targetPeriod.periodEnd,
     inEvents: result.inEvents,
     carryEvents: result.carryEvents,
-    outEvents: state.pendingOutEvents,
+    outEvents: isActive && !isLocked ? result.pendingOutEvents : state.pendingOutEvents,
     prevSalary: prevMoney,
   });
 
   let addedMoney = 0;
+  let responseSalary = user.salary;
+  let responseDetail = JSON.stringify(state);
+  let responseLocked = isLocked;
 
   if (isActive && !isLocked) {
     addedMoney = result.addedMoney || 0;
@@ -317,23 +328,29 @@ export async function POST(req) {
 
     state.pendingOutEvents = result.pendingOutEvents;
 
+    responseLocked = true;
+    responseSalary = user.salary + addedMoney;
+    responseDetail = JSON.stringify(state);
+
     await supabase.from('users_trial').update({
       salary: user.salary + addedMoney,
       salary_detail: JSON.stringify(state),
     }).eq('id', user.id);
+  } else {
+    responseLocked = snapshot?.locked === true;
   }
 
   return NextResponse.json({
-    salary: isActive ? user.salary + addedMoney : user.salary,
+    salary: responseSalary,
     salary_note: note,
-    salary_detail: note,
+    salary_detail: responseDetail,
     added_money: addedMoney,
     counts: aggregateCounts([
-      ...(isActive ? result.carryEvents : []),
+      ...result.carryEvents,
       ...result.inEvents,
     ]),
     is_active_period: isActive,
-    locked: snapshot?.locked === true,
+    locked: responseLocked,
   });
 }
 
@@ -351,11 +368,19 @@ export async function GET(req) {
   const targetPeriod = computePayrollPeriod(referenceDate);
 
   const supabase = getSupabaseServiceRoleClient();
-  const { data: user } = await supabase
+  const { data: user, error } = await supabase
     .from('users_trial')
     .select('salary_detail')
     .eq('name', coorName)
     .maybeSingle();
+
+  if (error) {
+    return NextResponse.json({ error: 'Không thể đọc dữ liệu người dùng' }, { status: 500 });
+  }
+
+  if (!user) {
+    return NextResponse.json({ error: 'Không tìm thấy Coordinator' }, { status: 404 });
+  }
 
   const state = parseSalaryState(user.salary_detail);
   const key = periodKey(targetPeriod.periodStart, targetPeriod.periodEnd);
