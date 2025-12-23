@@ -2594,156 +2594,144 @@ Nguồn: Google Sheet ${ev.rawDate}`,
     }
 
     const requestEvents = [];
-const requestSeen = new Set();
+    const requestSeen = new Set();
 
-for (const event of visibleEvents) {
-  const dateObj = event.date instanceof Date ? event.date : null;
-  if (!dateObj) continue;
+    for (const event of visibleEvents) {
+      const dateObj = event.date instanceof Date ? event.date : null;
+      if (!dateObj) continue;
 
-  const titleUpper = (event.title || '').toUpperCase();
-  const platformLabel = (event.platformLabel || event.platform || '').toUpperCase();
-  const combinedInfo = `${titleUpper} ${platformLabel}`;
+      const titleUpper = (event.title || '').toUpperCase();
+      const platformLabel = (event.platformLabel || event.platform || '').toUpperCase();
+      const combinedInfo = `${titleUpper} ${platformLabel}`;
 
-  let platform = (event.platform || '').toLowerCase();
-  if (platform !== 'tiktok' && platform !== 'shopee' && platform !== 'lazada') {
-    if (combinedInfo.includes('TIKTOK') || combinedInfo.includes('TTS')) {
-      platform = 'tiktok';
-    } else if (combinedInfo.includes('LAZADA') || combinedInfo.includes('LZD')) {
-      platform = 'lazada';
-    } else if (combinedInfo.includes('SHOPEE') || combinedInfo.includes('SHP')) {
-      platform = 'shopee';
-    } else {
-      platform = '';
+      let platform = (event.platform || '').toLowerCase();
+      if (platform !== 'tiktok' && platform !== 'shopee' && platform !== 'lazada') {
+        if (combinedInfo.includes('TIKTOK') || combinedInfo.includes('TTS')) {
+          platform = 'tiktok';
+        } else if (combinedInfo.includes('LAZADA') || combinedInfo.includes('LZD')) {
+          platform = 'lazada';
+        } else if (combinedInfo.includes('SHOPEE') || combinedInfo.includes('SHP')) {
+          platform = 'shopee';
+        } else {
+          platform = '';
+        }
+      }
+
+      if (!platform) continue;
+
+      let sessionMoney = 0;
+
+      if (titleUpper.includes('KENVUE') && (platformLabel.includes('SHOPEE') || platformLabel.includes('SHP') || combinedInfo.includes('SHOPEE'))) {
+        sessionMoney = 80000;
+      } else if (titleUpper.includes('NUTIMILK') && (platformLabel.includes('SHOPEE') || platformLabel.includes('SHP') || combinedInfo.includes('SHOPEE'))) {
+        sessionMoney = 80000;
+      } else if (titleUpper.includes('LISTERINE') && (platformLabel.includes('TIKTOK') || platformLabel.includes('TTS') || combinedInfo.includes('TIKTOK'))) {
+        sessionMoney = 40000;
+      } else if (platform === 'tiktok' || platformLabel.includes('TIKTOK') || platformLabel.includes('TTS') || combinedInfo.includes('TIKTOK') || combinedInfo.includes('TTS')) {
+      sessionMoney = 80000;
+      } else if (platform === 'shopee' || platformLabel.includes('SHOPEE') || platformLabel.includes('SHP') || combinedInfo.includes('SHOPEE')) {
+        sessionMoney = 40000;
+      } else if (platform === 'lazada' || platformLabel.includes('LAZADA') || platformLabel.includes('LZD') || combinedInfo.includes('LAZADA')) {
+        sessionMoney = 40000;
+      }
+
+      if (sessionMoney <= 0) continue;
+
+      const eventDate = toYMD(dateObj);
+      const timeSlotKey = (event.timeSlot || '').toString().trim().toUpperCase();
+      const keyParts = [eventDate, titleUpper, timeSlotKey, platform].filter(Boolean);
+      const uniqueKey = keyParts.join('|');
+      if (!uniqueKey || requestSeen.has(uniqueKey)) continue;
+      requestSeen.add(uniqueKey);
+
+      requestEvents.push({
+        key: uniqueKey,
+        date: eventDate,
+        platform,
+        platform_label: event.platformLabel || event.platform || '',
+        title: event.title || '',
+        time_slot: event.timeSlot || '',
+        session_money: sessionMoney,
+      });
     }
+
+  if (!requestEvents.length) {
+    alert('Không xác định được ca hợp lệ để tính lương');
+    return;
   }
 
-  if (!platform) continue;
+  const fallbackCounts = requestEvents.reduce((acc, ev) => {
+    if (acc[ev.platform] !== undefined) acc[ev.platform] += 1;
+    return acc;
+  }, { shopee: 0, lazada: 0, tiktok: 0 });
 
-  let sessionMoney = 0;
+  const fallbackMoney = requestEvents.reduce((sum, ev) => sum + (Number(ev.session_money) || 0), 0);
 
-  if (titleUpper.includes('KENVUE') && (platformLabel.includes('SHOPEE') || platformLabel.includes('SHP') || combinedInfo.includes('SHOPEE'))) {
-    sessionMoney = 80000;
-  } else if (titleUpper.includes('NUTIMILK') && (platformLabel.includes('SHOPEE') || platformLabel.includes('SHP') || combinedInfo.includes('SHOPEE'))) {
-    sessionMoney = 80000;
-  } else if (titleUpper.includes('LISTERINE') && (platformLabel.includes('TIKTOK') || platformLabel.includes('TTS') || combinedInfo.includes('TIKTOK'))) {
-    sessionMoney = 40000;
-  } else if (platform === 'tiktok' || platformLabel.includes('TIKTOK') || platformLabel.includes('TTS') || combinedInfo.includes('TIKTOK') || combinedInfo.includes('TTS')) {
-    sessionMoney = 80000;
-  } else if (platform === 'shopee' || platformLabel.includes('SHOPEE') || platformLabel.includes('SHP') || combinedInfo.includes('SHOPEE')) {
-    sessionMoney = 40000;
-  } else if (platform === 'lazada' || platformLabel.includes('LAZADA') || platformLabel.includes('LZD') || combinedInfo.includes('LAZADA')) {
-    sessionMoney = 40000;
-  }
+  const referenceDateFromUI =
+    (visibleEvents.find(e => e?.date instanceof Date)?.date) ||
+    (requestEvents[0]?.date ? new Date(`${requestEvents[0].date}T00:00:00`) : null) ||
+    new Date();
 
-  if (sessionMoney <= 0) continue;
-
-  const eventDate = toYMD(dateObj);
-  const timeSlotKey = (event.timeSlot || '').toString().trim().toUpperCase();
-  const keyParts = [eventDate, titleUpper, timeSlotKey, platform].filter(Boolean);
-  const uniqueKey = keyParts.join('|');
-  if (!uniqueKey || requestSeen.has(uniqueKey)) continue;
-  requestSeen.add(uniqueKey);
-
-  requestEvents.push({
-    key: uniqueKey,
-    date: eventDate,
-    platform,
-    platform_label: event.platformLabel || event.platform || '',
-    title: event.title || '',
-    time_slot: event.timeSlot || '',
-    session_money: sessionMoney,
-  });
-}
-
-if (!requestEvents.length) {
-  alert('Không xác định được ca hợp lệ để tính lương');
-  return;
-}
-
-const fallbackCounts = requestEvents.reduce((acc, ev) => {
-  if (acc[ev.platform] !== undefined) acc[ev.platform] += 1;
-  return acc;
-}, { shopee: 0, lazada: 0, tiktok: 0 });
-
-const fallbackMoney = requestEvents.reduce((sum, ev) => sum + (Number(ev.session_money) || 0), 0);
-
-/**
- * ✅ FIX #1: reference_date phải đại diện cho "kỳ đang hiển thị"
- * - Ưu tiên lấy từ visibleEvents (event đầu tiên có date)
- * - Nếu không có thì fallback về hôm nay
- */
-const referenceDateFromUI =
-  (visibleEvents.find(e => e?.date instanceof Date)?.date) ||
-  (requestEvents[0]?.date ? new Date(`${requestEvents[0].date}T00:00:00`) : null) ||
-  new Date();
-
-setCalculatingSalary(true);
-try {
-  const response = await fetch('/api/calculate-salary', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      coor_name: coordinatorLabel,
-      events: requestEvents,
-      reference_date: referenceDateFromUI.toISOString(), // ✅ FIX: không còn luôn là today
-    }),
-  });
-
-  let payload;
+  setCalculatingSalary(true);
   try {
-    payload = await response.json();
+    const response = await fetch('/api/calculate-salary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        coor_name: coordinatorLabel,
+        events: requestEvents,
+        reference_date: referenceDateFromUI.toISOString(), // ✅ FIX: không còn luôn là today
+      }),
+    });
+
+    let payload;
+    try {
+      payload = await response.json();
+    } catch (err) {
+      payload = null;
+    }
+
+    if (!response.ok) {
+      const message = typeof payload?.error === 'string'
+        ? payload.error
+        : 'Không thể cập nhật lương, vui lòng thử lại sau';
+      throw new Error(message);
+    }
+
+    if (payload?.duplicates && payload.duplicates.length > 0) {
+      alert(`Các ca thuộc ngày ${payload.duplicates.join(', ')} đã được tính trước đó (IN/Carry). Hệ thống đã giữ nguyên và hiển thị kết quả hiện tại.`);
+    }
+
+    const salaryFromServer = Number(payload?.salary);
+    const salaryDetailFromServer = typeof payload?.salary_detail === 'string'
+      ? payload.salary_detail
+      : typeof payload?.salary_note === 'string'
+        ? payload.salary_note
+        : '';
+
+
+    const addedMoneyFromServer = Number(payload?.added_money);
+    const safeAddedMoney =
+      Number.isFinite(addedMoneyFromServer)
+        ? addedMoneyFromServer
+        : (payload?.is_active_period === false ? 0 : fallbackMoney);
+
+    const countsFromServer = payload?.counts && typeof payload.counts === 'object'
+      ? payload.counts
+      : null;
+
+    setSalaryResult({
+      salary: Number.isFinite(salaryFromServer) ? salaryFromServer : fallbackMoney,
+      salaryDetail: salaryDetailFromServer,
+      coordinator: coordinatorLabel,
+      counts: countsFromServer || fallbackCounts,
+      addedMoney: safeAddedMoney,
+    });
   } catch (err) {
-    payload = null;
+    alert(err?.message || 'Không thể cập nhật lương');
+  } finally {
+    setCalculatingSalary(false);
   }
-
-  if (!response.ok) {
-    const message = typeof payload?.error === 'string'
-      ? payload.error
-      : 'Không thể cập nhật lương, vui lòng thử lại sau';
-    throw new Error(message);
-  }
-
-  // ✅ FIX #2: nếu backend có is_active_period false -> đây là trích xuất kỳ cũ, không phải lỗi
-  if (payload?.is_active_period === false) {
-    // bạn có thể bỏ alert nếu không muốn
-    // alert('Đang xem kỳ đã qua: hệ thống chỉ trích xuất, không cộng lương vào tổng.');
-  }
-
-  if (payload?.duplicates && payload.duplicates.length > 0) {
-    alert(`Các ca thuộc ngày ${payload.duplicates.join(', ')} đã được tính trước đó (IN/Carry). Hệ thống đã giữ nguyên và hiển thị kết quả hiện tại.`);
-  }
-
-  // ✅ FIX #3: support cả salary_detail và salary_note (backend mới hay cũ đều chạy)
-  const salaryFromServer = Number(payload?.salary);
-  const salaryDetailFromServer = typeof payload?.salary_detail === 'string'
-    ? payload.salary_detail
-    : typeof payload?.salary_note === 'string'
-      ? payload.salary_note
-      : '';
-
-  // ✅ FIX #4: nếu backend không trả added_money (trích xuất kỳ cũ) => 0, không fallback sang tổng tiền request
-  const addedMoneyFromServer = Number(payload?.added_money);
-  const safeAddedMoney =
-    Number.isFinite(addedMoneyFromServer)
-      ? addedMoneyFromServer
-      : (payload?.is_active_period === false ? 0 : fallbackMoney);
-
-  const countsFromServer = payload?.counts && typeof payload.counts === 'object'
-    ? payload.counts
-    : null;
-
-  setSalaryResult({
-    salary: Number.isFinite(salaryFromServer) ? salaryFromServer : fallbackMoney,
-    salaryDetail: salaryDetailFromServer,
-    coordinator: coordinatorLabel,
-    counts: countsFromServer || fallbackCounts,
-    addedMoney: safeAddedMoney,
-  });
-} catch (err) {
-  alert(err?.message || 'Không thể cập nhật lương');
-} finally {
-  setCalculatingSalary(false);
-}
 
 
   const isEmailBusy = trialEmailStatus === 'loading' || trialEmailStatus === 'saving';
