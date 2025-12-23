@@ -36,7 +36,6 @@ function isBetween(d, start, end) {
 /* ===================== PERIOD ===================== */
 /**
  * Kỳ lương: 16 tháng trước -> 15 tháng này
- * OUT: (16 -> cuối tháng của periodEnd)
  */
 function computePayrollPeriod(referenceDate) {
   const ref = referenceDate instanceof Date ? referenceDate : new Date();
@@ -68,7 +67,7 @@ function samePeriod(a, b) {
   );
 }
 
-/* ===================== EVENT HELPERS ===================== */
+/* ===================== EVENT ===================== */
 function resolvePlatform(raw) {
   const direct = (raw?.platform || '').toLowerCase();
   if (PLATFORM_LABELS[direct]) return direct;
@@ -147,6 +146,15 @@ function parseSalaryState(detail) {
   return { version: 3, periods: {}, pendingOutEvents: [] };
 }
 
+/* ===================== PREV ===================== */
+function getPrevPeriodMoney(periods, targetPeriod) {
+  const prevDate = new Date(targetPeriod.periodStart);
+  prevDate.setDate(prevDate.getDate() - 1);
+  const prev = computePayrollPeriod(prevDate);
+  const key = periodKey(prev.periodStart, prev.periodEnd);
+  return Number(periods[key]?.totalMoney) || 0;
+}
+
 /* ===================== NOTE ===================== */
 function buildPlatformSummary(events, includeZero) {
   const order = ['tiktok', 'shopee', 'lazada'];
@@ -174,7 +182,7 @@ function buildSalaryNote({ periodStart, periodEnd, inEvents, carryEvents, outEve
   return parts.join(', ');
 }
 
-/* ===================== CORE LOGIC ===================== */
+/* ===================== CORE ===================== */
 function getPeriodSnapshot({ periods, pendingOutEvents, targetPeriod }) {
   const key = periodKey(targetPeriod.periodStart, targetPeriod.periodEnd);
   const snapshot = periods[key] || null;
@@ -236,7 +244,7 @@ function extractHistoricalPeriod({ snapshot, carryEvents, incomingEvents, period
   return { inEvents: [...inEvents, ...newIn], carryEvents };
 }
 
-/* ===================== API ===================== */
+/* ===================== POST ===================== */
 export async function POST(req) {
   const payload = await req.json();
   const events = normalizeIncomingEvents(payload?.events || []);
@@ -254,26 +262,31 @@ export async function POST(req) {
     .maybeSingle();
 
   const state = parseSalaryState(user.salary_detail);
-  const snapshot = getPeriodSnapshot({
+  const snapshotData = getPeriodSnapshot({
     periods: state.periods,
     pendingOutEvents: state.pendingOutEvents,
     targetPeriod,
   });
 
-  const result = isActive
+  const snapshot = snapshotData.snapshot;
+  const isLocked = snapshot?.locked === true;
+
+  const result = (isActive && !isLocked)
     ? calculateActivePeriod({
-        snapshot: snapshot.snapshot,
-        carryEvents: snapshot.carryEvents,
+        snapshot,
+        carryEvents: snapshotData.carryEvents,
         incomingEvents: events,
         pendingOutEvents: state.pendingOutEvents,
         period: targetPeriod,
       })
     : extractHistoricalPeriod({
-        snapshot: snapshot.snapshot,
-        carryEvents: snapshot.carryEvents,
+        snapshot,
+        carryEvents: snapshotData.carryEvents,
         incomingEvents: events,
         period: targetPeriod,
       });
+
+  const prevMoney = getPrevPeriodMoney(state.periods, targetPeriod);
 
   const note = buildSalaryNote({
     periodStart: targetPeriod.periodStart,
@@ -281,33 +294,88 @@ export async function POST(req) {
     inEvents: result.inEvents,
     carryEvents: result.carryEvents,
     outEvents: state.pendingOutEvents,
-    prevSalary: user.salary,
+    prevSalary: prevMoney,
   });
 
-  if (isActive) {
+  let addedMoney = 0;
+
+  if (isActive && !isLocked) {
+    addedMoney = result.addedMoney || 0;
+
     const key = periodKey(targetPeriod.periodStart, targetPeriod.periodEnd);
+    const totalMoney = (snapshot?.totalMoney || 0) + addedMoney;
+
     state.periods[key] = {
       start: toYMD(targetPeriod.periodStart),
       end: toYMD(targetPeriod.periodEnd),
       inEvents: result.inEvents,
       carryEvents: result.carryEvents,
+      totalMoney,
       note,
+      locked: true,
     };
+
     state.pendingOutEvents = result.pendingOutEvents;
 
     await supabase.from('users_trial').update({
-      salary: user.salary + result.addedMoney,
+      salary: user.salary + addedMoney,
       salary_detail: JSON.stringify(state),
     }).eq('id', user.id);
   }
 
   return NextResponse.json({
-    salary: isActive ? user.salary + (result.addedMoney || 0) : user.salary,
+    salary: isActive ? user.salary + addedMoney : user.salary,
     salary_note: note,
-    is_active_period: isActive,
+    salary_detail: note,
+    added_money: addedMoney,
     counts: aggregateCounts([
       ...(isActive ? result.carryEvents : []),
       ...result.inEvents,
     ]),
+    is_active_period: isActive,
+    locked: snapshot?.locked === true,
+  });
+}
+
+/* ===================== GET /salary-snapshot ===================== */
+export async function GET(req) {
+  const { searchParams } = new URL(req.url);
+  const coorName = searchParams.get('coor_name');
+  const ref = searchParams.get('reference_date');
+
+  if (!coorName || !ref) {
+    return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+  }
+
+  const referenceDate = new Date(ref);
+  const targetPeriod = computePayrollPeriod(referenceDate);
+
+  const supabase = getSupabaseServiceRoleClient();
+  const { data: user } = await supabase
+    .from('users_trial')
+    .select('salary_detail')
+    .eq('name', coorName)
+    .maybeSingle();
+
+  const state = parseSalaryState(user.salary_detail);
+  const key = periodKey(targetPeriod.periodStart, targetPeriod.periodEnd);
+  const snapshot = state.periods[key] || null;
+
+  const prevMoney = getPrevPeriodMoney(state.periods, targetPeriod);
+
+  const note = buildSalaryNote({
+    periodStart: targetPeriod.periodStart,
+    periodEnd: targetPeriod.periodEnd,
+    inEvents: snapshot?.inEvents || [],
+    carryEvents: snapshot?.carryEvents || [],
+    outEvents: [],
+    prevSalary: prevMoney,
+  });
+
+  return NextResponse.json({
+    period: `${formatDM(targetPeriod.periodStart)}-${formatDM(targetPeriod.periodEnd)}`,
+    salary_note: note,
+    totalMoney: snapshot?.totalMoney || 0,
+    locked: snapshot?.locked === true,
   });
 }
