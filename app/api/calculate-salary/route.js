@@ -67,6 +67,24 @@ function samePeriod(a, b) {
   );
 }
 
+/* ===================== COORDINATOR ===================== */
+function normalizeCoordinatorName(raw) {
+  if (typeof raw !== 'string') return '';
+  let name = raw.trim();
+  if (!name) return '';
+
+  name = name.replace(/^Standby External\s*-\s*/i, '').trim();
+
+  const parts = name.split('_');
+  if (parts.length > 1 && /^\d+$/.test(parts[0])) {
+    name = parts.slice(1).join('_').trim();
+  } else {
+    name = name.replace(/^[0-9]+\s*_+\s*/, '').trim();
+  }
+
+  return name || raw.trim();
+}
+
 /* ===================== EVENT ===================== */
 function resolvePlatform(raw) {
   const direct = (raw?.platform || '').toLowerCase();
@@ -253,12 +271,14 @@ export async function POST(req) {
   const activePeriod = computePayrollPeriod(new Date());
   const targetPeriod = computePayrollPeriod(referenceDate);
   const isActive = samePeriod(activePeriod, targetPeriod);
+  const normalizedCoorName = normalizeCoordinatorName(payload.coor_name);
 
   const supabase = getSupabaseServiceRoleClient();
+  const possibleNames = [...new Set([normalizedCoorName, payload.coor_name].filter(Boolean))];
   const { data: user, error } = await supabase
     .from('users_trial')
     .select('id, name, salary, salary_detail')
-    .eq('name', payload.coor_name)
+    .in('name', possibleNames)
     .maybeSingle();
 
   if (error) {
@@ -366,12 +386,14 @@ export async function GET(req) {
 
   const referenceDate = new Date(ref);
   const targetPeriod = computePayrollPeriod(referenceDate);
+  const normalizedCoorName = normalizeCoordinatorName(coorName);
 
   const supabase = getSupabaseServiceRoleClient();
+  const possibleNames = [...new Set([normalizedCoorName, coorName].filter(Boolean))];
   const { data: user, error } = await supabase
     .from('users_trial')
     .select('salary_detail')
-    .eq('name', coorName)
+    .in('name', possibleNames)
     .maybeSingle();
 
   if (error) {
