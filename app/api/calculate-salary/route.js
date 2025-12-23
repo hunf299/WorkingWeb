@@ -3,8 +3,10 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { getSupabaseServiceRoleClient } from '../../../lib/supabaseAdmin';
 
+/* ===================== CONSTANTS ===================== */
 const PLATFORM_LABELS = { shopee: 'Shopee', lazada: 'Lazada', tiktok: 'Tiktok' };
 
+/* ===================== DATE UTILS ===================== */
 function toYMD(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -23,6 +25,19 @@ function formatDM(date) {
   return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
 }
 
+function endOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+}
+
+function isBetween(d, start, end) {
+  return d >= start && d <= end;
+}
+
+/* ===================== PERIOD ===================== */
+/**
+ * Kỳ lương: 16 tháng trước -> 15 tháng này
+ * OUT: (16 -> cuối tháng của periodEnd)
+ */
 function computePayrollPeriod(referenceDate) {
   const ref = referenceDate instanceof Date ? referenceDate : new Date();
   const day = ref.getDate();
@@ -30,109 +45,80 @@ function computePayrollPeriod(referenceDate) {
   const year = ref.getFullYear();
 
   const endMonth = day >= 16 ? month + 1 : month;
-  const periodEnd = new Date(year, endMonth, 15);
-  const periodStart = new Date(year, endMonth - 1, 16);
+  const periodStart = new Date(year, endMonth - 1, 16, 0, 0, 0, 0);
+  const periodEnd = new Date(year, endMonth, 15, 23, 59, 59, 999);
+
   const outStart = new Date(periodEnd);
   outStart.setDate(outStart.getDate() + 1);
-  const outEnd = new Date(periodEnd.getFullYear(), periodEnd.getMonth() + 1, 0);
+  outStart.setHours(0, 0, 0, 0);
+
+  const outEnd = endOfMonth(periodEnd);
 
   return { periodStart, periodEnd, outStart, outEnd };
 }
 
-function resolvePlatform(rawEvent) {
-  const direct = (rawEvent?.platform || '').toString().toLowerCase();
-  if (direct === 'tiktok' || direct === 'shopee' || direct === 'lazada') return direct;
+function periodKey(start, end) {
+  return `${toYMD(start)}_${toYMD(end)}`;
+}
 
-  const haystack = [rawEvent?.title, rawEvent?.platform_label]
-    .filter(Boolean)
-    .map(part => part.toString().toLowerCase())
-    .join(' ');
+function samePeriod(a, b) {
+  return (
+    a.periodStart.getTime() === b.periodStart.getTime() &&
+    a.periodEnd.getTime() === b.periodEnd.getTime()
+  );
+}
 
-  if (haystack.includes('tiktok') || haystack.includes('tts')) return 'tiktok';
-  if (haystack.includes('lazada') || haystack.includes('lzd')) return 'lazada';
-  if (haystack.includes('shopee') || haystack.includes('shp')) return 'shopee';
+/* ===================== EVENT HELPERS ===================== */
+function resolvePlatform(raw) {
+  const direct = (raw?.platform || '').toLowerCase();
+  if (PLATFORM_LABELS[direct]) return direct;
 
+  const text = [raw?.title, raw?.platform_label].join(' ').toLowerCase();
+  if (text.includes('tiktok') || text.includes('tts')) return 'tiktok';
+  if (text.includes('shopee') || text.includes('shp')) return 'shopee';
+  if (text.includes('lazada') || text.includes('lzd')) return 'lazada';
   return '';
 }
 
-function computeSessionMoney(rawEvent, platform) {
-  const titleUpper = (rawEvent?.title || '').toString().toUpperCase();
-  const platformUpper = (rawEvent?.platform_label || rawEvent?.platform || '').toString().toUpperCase();
-  const combined = `${titleUpper} ${platformUpper}`;
+function computeSessionMoney(raw, platform) {
+  const title = (raw?.title || '').toUpperCase();
+  const label = (raw?.platform_label || raw?.platform || '').toUpperCase();
+  const all = `${title} ${label}`;
 
-  let sessionMoney = 0;
-
-  if (titleUpper.includes('KENVUE') && (platformUpper.includes('SHOPEE') || platformUpper.includes('SHP') || combined.includes('SHOPEE'))) {
-    sessionMoney = 80000;
-  } else if (titleUpper.includes('NUTIMILK') && (platformUpper.includes('SHOPEE') || platformUpper.includes('SHP') || combined.includes('SHOPEE'))) {
-    sessionMoney = 80000;
-  } else if (titleUpper.includes('LISTERINE') && (platformUpper.includes('TIKTOK') || platformUpper.includes('TTS') || combined.includes('TIKTOK'))) {
-    sessionMoney = 40000;
-  } else if (platform === 'tiktok' || platformUpper.includes('TIKTOK') || platformUpper.includes('TTS') || combined.includes('TIKTOK') || combined.includes('TTS')) {
-    sessionMoney = 80000;
-  } else if (platform === 'shopee' || platformUpper.includes('SHOPEE') || platformUpper.includes('SHP') || combined.includes('SHOPEE')) {
-    sessionMoney = 40000;
-  } else if (platform === 'lazada' || platformUpper.includes('LAZADA') || platformUpper.includes('LZD') || combined.includes('LAZADA')) {
-    sessionMoney = 40000;
-  }
-
-  return sessionMoney;
+  if (title.includes('KENVUE') && all.includes('SHOPEE')) return 80000;
+  if (title.includes('NUTIMILK') && all.includes('SHOPEE')) return 80000;
+  if (title.includes('LISTERINE') && all.includes('TIKTOK')) return 40000;
+  if (platform === 'tiktok') return 80000;
+  return 40000;
 }
 
 function normalizeIncomingEvents(events) {
   if (!Array.isArray(events)) return [];
-  const normalized = [];
   const seen = new Set();
+  const out = [];
 
   for (const raw of events) {
     const platform = resolvePlatform(raw);
-    if (!platform || !PLATFORM_LABELS[platform]) continue;
+    if (!platform) continue;
 
     const dateObj = fromYMD(raw?.date);
     if (!dateObj) continue;
 
-    const money = Number.isFinite(Number(raw?.session_money)) && Number(raw.session_money) > 0
+    const money = Number(raw?.session_money) > 0
       ? Number(raw.session_money)
       : computeSessionMoney(raw, platform);
-    if (!Number.isFinite(money) || money <= 0) continue;
 
-    const keyParts = [raw?.key, platform, toYMD(dateObj), (raw?.title || '').toString().trim().toUpperCase(), (raw?.time_slot || '').toString().trim().toUpperCase()]
-      .filter(Boolean);
-    const key = keyParts.join('|');
+    const key = [
+      raw?.key,
+      platform,
+      toYMD(dateObj),
+      (raw?.title || '').toUpperCase(),
+      (raw?.time_slot || '').toUpperCase(),
+    ].join('|');
+
     if (!key || seen.has(key)) continue;
     seen.add(key);
 
-    normalized.push({
-      key,
-      date: toYMD(dateObj),
-      platform,
-      money,
-      dayLabel: formatDM(dateObj),
-    });
-  }
-
-  return normalized;
-}
-
-function aggregateCounts(events) {
-  const counts = { shopee: 0, lazada: 0, tiktok: 0 };
-  for (const ev of events) {
-    if (counts.hasOwnProperty(ev.platform)) {
-      counts[ev.platform] += 1;
-    }
-  }
-  return counts;
-}
-
-function sanitizeStoredEvents(events) {
-  if (!Array.isArray(events)) return [];
-  const out = [];
-  for (const ev of events) {
-    const platform = typeof ev?.platform === 'string' ? ev.platform.toLowerCase() : '';
-    const key = typeof ev?.key === 'string' ? ev.key : '';
-    const dateObj = fromYMD(ev?.date);
-    const money = Number(ev?.money) || 0;
-    if (!PLATFORM_LABELS[platform] || !dateObj || !key) continue;
     out.push({
       key,
       platform,
@@ -141,255 +127,187 @@ function sanitizeStoredEvents(events) {
       dayLabel: formatDM(dateObj),
     });
   }
+
   return out;
 }
 
-function parseSalaryState(detail) {
-  if (typeof detail === 'string') {
-    try {
-      const parsed = JSON.parse(detail);
-      if (parsed && parsed.version === 2) {
-        return {
-          version: 2,
-          lastPeriod: parsed.lastPeriod || null,
-          pendingOutEvents: sanitizeStoredEvents(parsed.pendingOutEvents || []),
-        };
-      }
-    } catch (err) {
-      // ignore legacy formats
-    }
-  }
-
-  return { version: 2, lastPeriod: null, pendingOutEvents: [] };
+function aggregateCounts(events) {
+  return events.reduce(
+    (a, e) => ((a[e.platform] += 1), a),
+    { shopee: 0, lazada: 0, tiktok: 0 }
+  );
 }
 
-function buildPlatformSummary(events, includeZero = false) {
-  const order = ['tiktok', 'shopee', 'lazada'];
-  const summaries = [];
+/* ===================== SALARY STATE ===================== */
+function parseSalaryState(detail) {
+  try {
+    const p = JSON.parse(detail);
+    if (p?.version === 3) return p;
+  } catch {}
+  return { version: 3, periods: {}, pendingOutEvents: [] };
+}
 
-  for (const key of order) {
-    const bucket = events.filter(ev => ev.platform === key);
-    if (!bucket.length && !includeZero) continue;
-    if (!bucket.length && includeZero) {
-      summaries.push(`${PLATFORM_LABELS[key]}=0`);
+/* ===================== NOTE ===================== */
+function buildPlatformSummary(events, includeZero) {
+  const order = ['tiktok', 'shopee', 'lazada'];
+  const res = [];
+
+  for (const k of order) {
+    const list = events.filter(e => e.platform === k);
+    if (!list.length && !includeZero) continue;
+    if (!list.length) {
+      res.push(`${PLATFORM_LABELS[k]}=0`);
       continue;
     }
-    const uniqueDates = Array.from(new Set(bucket.map(ev => ev.date))).sort();
-    const dateLabels = uniqueDates.map(dateStr => {
-      const d = fromYMD(dateStr);
-      return d ? formatDM(d) : dateStr;
-    });
-    summaries.push(`${PLATFORM_LABELS[key]}(${dateLabels.join(',')})=${bucket.length}`);
+    const days = [...new Set(list.map(e => e.dayLabel))];
+    res.push(`${PLATFORM_LABELS[k]}(${days.join(',')})=${list.length}`);
   }
-
-  return summaries.join(' | ');
+  return res.join(' | ');
 }
 
-function buildSalaryNote({ periodStart, periodEnd, inEvents, carryEvents, outEvents, showPrev, prevSalary }) {
-  const periodLabel = `Kỳ ${formatDM(periodStart)}-${formatDM(periodEnd)}`;
-  const blocks = [periodLabel];
-
-  if (showPrev && prevSalary > 0) {
-    blocks.push(`Prev=${prevSalary.toLocaleString('vi-VN')}đ`);
-  }
-
-  if (carryEvents.length) {
-    const carrySummary = buildPlatformSummary(carryEvents, false);
-    if (carrySummary) {
-      blocks.push(`Carry: ${carrySummary}`);
-    }
-  }
-
-  const inSummary = buildPlatformSummary(inEvents, true);
-  blocks.push(`IN: ${inSummary || 'Tiktok=0 | Shopee=0 | Lazada=0'}`);
-
-  const outSummary = buildPlatformSummary(outEvents, false);
-  if (outSummary) {
-    blocks.push(`OUT: ${outSummary}`);
-  }
-
-  return blocks.join(', ');
+function buildSalaryNote({ periodStart, periodEnd, inEvents, carryEvents, outEvents, prevSalary }) {
+  const parts = [`Kỳ ${formatDM(periodStart)}-${formatDM(periodEnd)}`];
+  if (prevSalary > 0) parts.push(`Prev=${prevSalary.toLocaleString('vi-VN')}đ`);
+  if (carryEvents.length) parts.push(`Carry: ${buildPlatformSummary(carryEvents)}`);
+  parts.push(`IN: ${buildPlatformSummary(inEvents, true)}`);
+  if (outEvents.length) parts.push(`OUT: ${buildPlatformSummary(outEvents)}`);
+  return parts.join(', ');
 }
 
-export async function POST(req) {
-  let payload;
-  try {
-    payload = await req.json();
-  } catch (err) {
-    return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
-  }
+/* ===================== CORE LOGIC ===================== */
+function getPeriodSnapshot({ periods, pendingOutEvents, targetPeriod }) {
+  const key = periodKey(targetPeriod.periodStart, targetPeriod.periodEnd);
+  const snapshot = periods[key] || null;
 
-  const coorNameRaw = typeof payload?.coor_name === 'string' ? payload.coor_name.trim() : '';
-  if (!coorNameRaw) {
-    return NextResponse.json({ error: 'Coordinator name is required' }, { status: 400 });
-  }
+  const carryStart = targetPeriod.periodStart;
+  const carryEnd = endOfMonth(carryStart);
 
-  const lookupName = coorNameRaw.includes('_')
-    ? coorNameRaw.split('_').pop().trim()
-    : coorNameRaw;
+  const carryEvents = pendingOutEvents.filter(ev => {
+    const d = fromYMD(ev.date);
+    return d && isBetween(d, carryStart, carryEnd);
+  });
 
-  if (!lookupName) {
-    return NextResponse.json({ error: 'Cannot extract coordinator name' }, { status: 400 });
-  }
+  return { snapshot, carryEvents };
+}
 
-  const incomingEvents = normalizeIncomingEvents(payload?.events);
-  if (!incomingEvents.length) {
-    return NextResponse.json({ error: 'Không xác định được ca hợp lệ để tính lương' }, { status: 400 });
-  }
-
-  const referenceDate = payload?.reference_date ? new Date(payload.reference_date) : new Date();
-  const { periodStart, periodEnd, outEnd } = computePayrollPeriod(referenceDate);
-  const periodStartYMD = toYMD(periodStart);
-  const periodEndYMD = toYMD(periodEnd);
-
-  const supabase = getSupabaseServiceRoleClient();
-  const { data: user, error } = await supabase
-    .from('users_trial')
-    .select('id, name, salary, salary_detail')
-    .eq('name', lookupName)
-    .maybeSingle();
-
-  if (error) {
-    console.error('calculate-salary select error', error);
-    return NextResponse.json({ error: 'Database error' }, { status: 500 });
-  }
-
-  if (!user) {
-    return NextResponse.json({ error: 'Coordinator not found' }, { status: 404 });
-  }
-
-  const existingSalary = Number(user.salary) || 0;
-  const salaryState = parseSalaryState(user.salary_detail);
-  const lastPeriod = salaryState.lastPeriod || null;
-  const samePeriod = Boolean(lastPeriod && lastPeriod.start === periodStartYMD && lastPeriod.end === periodEndYMD);
-
-  const carryEvents = samePeriod
-    ? sanitizeStoredEvents(lastPeriod?.carryEvents || [])
-    : sanitizeStoredEvents(salaryState.pendingOutEvents || []);
-
-  const baseInEvents = samePeriod
-    ? sanitizeStoredEvents(lastPeriod?.inEvents || [])
-    : [];
-
-  const processedKeys = new Set([...carryEvents, ...baseInEvents].map(ev => ev.key));
-
-  let pendingOutEvents = samePeriod
-    ? sanitizeStoredEvents(salaryState.pendingOutEvents || [])
-    : [];
-  const pendingOutKeys = new Set(pendingOutEvents.map(ev => ev.key));
-
-  const requestSeen = new Set();
-  const newInEvents = [];
-  const duplicateDates = new Set();
+function calculateActivePeriod({ snapshot, carryEvents, incomingEvents, pendingOutEvents, period }) {
+  const inEvents = snapshot?.inEvents || [];
+  const used = new Set(inEvents.map(e => e.key));
+  const newIn = [];
+  const newPendingOut = [...pendingOutEvents];
 
   for (const ev of incomingEvents) {
-    if (requestSeen.has(ev.key)) continue;
-    requestSeen.add(ev.key);
+    if (used.has(ev.key)) continue;
+    const d = fromYMD(ev.date);
+    if (!d) continue;
 
-    if (processedKeys.has(ev.key)) {
-      duplicateDates.add(ev.dayLabel);
-      continue;
-    }
-
-    const eventDate = fromYMD(ev.date);
-    if (!eventDate) continue;
-
-    if (eventDate >= periodStart && eventDate <= periodEnd) {
-      newInEvents.push(ev);
-      processedKeys.add(ev.key);
-      continue;
-    }
-
-    if (eventDate > periodEnd && eventDate <= outEnd && eventDate.getMonth() === periodEnd.getMonth() && eventDate.getFullYear() === periodEnd.getFullYear()) {
-      if (!pendingOutKeys.has(ev.key)) {
-        pendingOutEvents.push(ev);
-        pendingOutKeys.add(ev.key);
-      }
-      continue;
+    if (isBetween(d, period.periodStart, period.periodEnd)) {
+      newIn.push(ev);
+      used.add(ev.key);
+    } else if (d > period.periodEnd) {
+      newPendingOut.push(ev);
     }
   }
 
-  const carryMoney = samePeriod ? 0 : carryEvents.reduce((sum, ev) => sum + (Number(ev.money) || 0), 0);
-  const inMoney = newInEvents.reduce((sum, ev) => sum + (Number(ev.money) || 0), 0);
-  const addedMoney = carryMoney + inMoney;
+  const carryMoney = snapshot ? 0 : carryEvents.reduce((s, e) => s + e.money, 0);
+  const inMoney = newIn.reduce((s, e) => s + e.money, 0);
 
-  if (addedMoney <= 0) {
-    const existingInEvents = samePeriod ? baseInEvents : [];
-    const note = samePeriod && typeof lastPeriod?.note === 'string'
-      ? lastPeriod.note
-      : buildSalaryNote({
-          periodStart,
-          periodEnd,
-          inEvents: sanitizeStoredEvents(existingInEvents),
-          carryEvents,
-          outEvents: pendingOutEvents,
-          showPrev: !samePeriod,
-          prevSalary: existingSalary,
-        });
-    const counts = aggregateCounts([...(!samePeriod ? carryEvents : []), ...existingInEvents]);
-
-    return NextResponse.json({
-      salary: existingSalary,
-      salary_detail: note,
-      salary_note: note,
-      user_name: user.name,
-      counts,
-      added_money: 0,
-      duplicates: Array.from(duplicateDates),
-    });
-  }
-
-  const nextSalary = existingSalary + addedMoney;
-
-  const nextLastPeriod = {
-    start: periodStartYMD,
-    end: periodEndYMD,
-    inEvents: samePeriod ? [...baseInEvents, ...newInEvents] : newInEvents,
-    carryEvents: samePeriod ? (lastPeriod?.carryEvents || []) : carryEvents,
-    note: '',
+  return {
+    inEvents: [...inEvents, ...newIn],
+    carryEvents,
+    pendingOutEvents: newPendingOut,
+    addedMoney: carryMoney + inMoney,
   };
+}
+
+function extractHistoricalPeriod({ snapshot, carryEvents, incomingEvents, period }) {
+  const inEvents = snapshot?.inEvents || [];
+  const used = new Set(inEvents.map(e => e.key));
+  const newIn = [];
+
+  for (const ev of incomingEvents) {
+    if (used.has(ev.key)) continue;
+    const d = fromYMD(ev.date);
+    if (d && isBetween(d, period.periodStart, period.periodEnd)) {
+      newIn.push(ev);
+    }
+  }
+
+  return { inEvents: [...inEvents, ...newIn], carryEvents };
+}
+
+/* ===================== API ===================== */
+export async function POST(req) {
+  const payload = await req.json();
+  const events = normalizeIncomingEvents(payload?.events || []);
+  const referenceDate = payload?.reference_date ? new Date(payload.reference_date) : new Date();
+
+  const activePeriod = computePayrollPeriod(new Date());
+  const targetPeriod = computePayrollPeriod(referenceDate);
+  const isActive = samePeriod(activePeriod, targetPeriod);
+
+  const supabase = getSupabaseServiceRoleClient();
+  const { data: user } = await supabase
+    .from('users_trial')
+    .select('id, name, salary, salary_detail')
+    .eq('name', payload.coor_name)
+    .maybeSingle();
+
+  const state = parseSalaryState(user.salary_detail);
+  const snapshot = getPeriodSnapshot({
+    periods: state.periods,
+    pendingOutEvents: state.pendingOutEvents,
+    targetPeriod,
+  });
+
+  const result = isActive
+    ? calculateActivePeriod({
+        snapshot: snapshot.snapshot,
+        carryEvents: snapshot.carryEvents,
+        incomingEvents: events,
+        pendingOutEvents: state.pendingOutEvents,
+        period: targetPeriod,
+      })
+    : extractHistoricalPeriod({
+        snapshot: snapshot.snapshot,
+        carryEvents: snapshot.carryEvents,
+        incomingEvents: events,
+        period: targetPeriod,
+      });
 
   const note = buildSalaryNote({
-    periodStart,
-    periodEnd,
-    inEvents: sanitizeStoredEvents(nextLastPeriod.inEvents),
-    carryEvents,
-    outEvents: pendingOutEvents,
-    showPrev: !samePeriod,
-    prevSalary: existingSalary,
+    periodStart: targetPeriod.periodStart,
+    periodEnd: targetPeriod.periodEnd,
+    inEvents: result.inEvents,
+    carryEvents: result.carryEvents,
+    outEvents: state.pendingOutEvents,
+    prevSalary: user.salary,
   });
-  nextLastPeriod.note = note;
 
-  const nextState = {
-    version: 2,
-    lastPeriod: nextLastPeriod,
-    pendingOutEvents,
-  };
+  if (isActive) {
+    const key = periodKey(targetPeriod.periodStart, targetPeriod.periodEnd);
+    state.periods[key] = {
+      start: toYMD(targetPeriod.periodStart),
+      end: toYMD(targetPeriod.periodEnd),
+      inEvents: result.inEvents,
+      carryEvents: result.carryEvents,
+      note,
+    };
+    state.pendingOutEvents = result.pendingOutEvents;
 
-  const { data: updatedUser, error: updateError } = await supabase
-    .from('users_trial')
-    .update({
-      salary: nextSalary,
-      salary_detail: JSON.stringify(nextState),
-    })
-    .eq('id', user.id)
-    .select('salary, salary_detail')
-    .single();
-
-  if (updateError) {
-    console.error('calculate-salary update error', updateError);
-    return NextResponse.json({ error: 'Database error' }, { status: 500 });
+    await supabase.from('users_trial').update({
+      salary: user.salary + result.addedMoney,
+      salary_detail: JSON.stringify(state),
+    }).eq('id', user.id);
   }
 
-  const addedCounts = aggregateCounts([...(!samePeriod ? carryEvents : []), ...newInEvents]);
-
   return NextResponse.json({
-    salary: updatedUser.salary,
-    salary_detail: note,
+    salary: isActive ? user.salary + (result.addedMoney || 0) : user.salary,
     salary_note: note,
-    user_name: user.name,
-    counts: addedCounts,
-    added_money: addedMoney,
-    duplicates: Array.from(duplicateDates),
+    is_active_period: isActive,
+    counts: aggregateCounts([
+      ...(isActive ? result.carryEvents : []),
+      ...result.inEvents,
+    ]),
   });
 }
