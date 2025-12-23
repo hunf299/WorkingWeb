@@ -67,6 +67,24 @@ function samePeriod(a, b) {
   );
 }
 
+/* ===================== COORDINATOR ===================== */
+function normalizeCoordinatorName(raw) {
+  if (typeof raw !== 'string') return '';
+  let name = raw.trim();
+  if (!name) return '';
+
+  name = name.replace(/^Standby External\s*-\s*/i, '').trim();
+
+  const parts = name.split('_');
+  if (parts.length > 1 && /^\d+$/.test(parts[0])) {
+    name = parts.slice(1).join('_').trim();
+  } else {
+    name = name.replace(/^[0-9]+\s*_+\s*/, '').trim();
+  }
+
+  return name || raw.trim();
+}
+
 /* ===================== EVENT ===================== */
 function resolvePlatform(raw) {
   const direct = (raw?.platform || '').toLowerCase();
@@ -253,13 +271,23 @@ export async function POST(req) {
   const activePeriod = computePayrollPeriod(new Date());
   const targetPeriod = computePayrollPeriod(referenceDate);
   const isActive = samePeriod(activePeriod, targetPeriod);
+  const normalizedCoorName = normalizeCoordinatorName(payload.coor_name);
 
   const supabase = getSupabaseServiceRoleClient();
-  const { data: user } = await supabase
+  const possibleNames = [...new Set([normalizedCoorName, payload.coor_name].filter(Boolean))];
+  const { data: user, error } = await supabase
     .from('users_trial')
     .select('id, name, salary, salary_detail')
-    .eq('name', payload.coor_name)
+    .in('name', possibleNames)
     .maybeSingle();
+
+  if (error) {
+    return NextResponse.json({ error: 'Không thể đọc dữ liệu người dùng' }, { status: 500 });
+  }
+
+  if (!user) {
+    return NextResponse.json({ error: 'Không tìm thấy Coordinator' }, { status: 404 });
+  }
 
   const state = parseSalaryState(user.salary_detail);
   const snapshotData = getPeriodSnapshot({
@@ -293,11 +321,14 @@ export async function POST(req) {
     periodEnd: targetPeriod.periodEnd,
     inEvents: result.inEvents,
     carryEvents: result.carryEvents,
-    outEvents: state.pendingOutEvents,
+    outEvents: isActive && !isLocked ? result.pendingOutEvents : state.pendingOutEvents,
     prevSalary: prevMoney,
   });
 
   let addedMoney = 0;
+  let responseSalary = user.salary;
+  let responseDetail = JSON.stringify(state);
+  let responseLocked = isLocked;
 
   if (isActive && !isLocked) {
     addedMoney = result.addedMoney || 0;
@@ -317,23 +348,29 @@ export async function POST(req) {
 
     state.pendingOutEvents = result.pendingOutEvents;
 
+    responseLocked = true;
+    responseSalary = user.salary + addedMoney;
+    responseDetail = JSON.stringify(state);
+
     await supabase.from('users_trial').update({
       salary: user.salary + addedMoney,
       salary_detail: JSON.stringify(state),
     }).eq('id', user.id);
+  } else {
+    responseLocked = snapshot?.locked === true;
   }
 
   return NextResponse.json({
-    salary: isActive ? user.salary + addedMoney : user.salary,
+    salary: responseSalary,
     salary_note: note,
-    salary_detail: note,
+    salary_detail: responseDetail,
     added_money: addedMoney,
     counts: aggregateCounts([
-      ...(isActive ? result.carryEvents : []),
+      ...result.carryEvents,
       ...result.inEvents,
     ]),
     is_active_period: isActive,
-    locked: snapshot?.locked === true,
+    locked: responseLocked,
   });
 }
 
@@ -349,13 +386,23 @@ export async function GET(req) {
 
   const referenceDate = new Date(ref);
   const targetPeriod = computePayrollPeriod(referenceDate);
+  const normalizedCoorName = normalizeCoordinatorName(coorName);
 
   const supabase = getSupabaseServiceRoleClient();
-  const { data: user } = await supabase
+  const possibleNames = [...new Set([normalizedCoorName, coorName].filter(Boolean))];
+  const { data: user, error } = await supabase
     .from('users_trial')
     .select('salary_detail')
-    .eq('name', coorName)
+    .in('name', possibleNames)
     .maybeSingle();
+
+  if (error) {
+    return NextResponse.json({ error: 'Không thể đọc dữ liệu người dùng' }, { status: 500 });
+  }
+
+  if (!user) {
+    return NextResponse.json({ error: 'Không tìm thấy Coordinator' }, { status: 404 });
+  }
 
   const state = parseSalaryState(user.salary_detail);
   const key = periodKey(targetPeriod.periodStart, targetPeriod.periodEnd);
