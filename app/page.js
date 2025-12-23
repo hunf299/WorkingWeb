@@ -2732,6 +2732,7 @@ Nguồn: Google Sheet ${ev.rawDate}`,
   } finally {
     setCalculatingSalary(false);
   }
+}
 
 
   const isEmailBusy = trialEmailStatus === 'loading' || trialEmailStatus === 'saving';
