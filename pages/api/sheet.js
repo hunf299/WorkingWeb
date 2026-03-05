@@ -29,7 +29,8 @@ export default async function handler(req, res) {
 
     const [itemRows, hostRows, brandRows] = await Promise.all([
         fetchSheetValues(SHEET_ID, SHEET_RANGE),
-        fetchSheetValues(SHEET_ID_2 || SHEET_ID, SHEET_RANGE_HOST),
+        fetchSheetValues(SHEET_ID_2 || SHEET_ID, SHEET_RANGE_HOST)
+            .then(res => res?.length ? res : fetchSheetValues(SHEET_ID_2 || SHEET_ID, SHEET_RANGE_HOST_2)),
         fetchSheetValues(SHEET_ID_2 || SHEET_ID, SHEET_RANGE_BRAND)
     ]);
 
